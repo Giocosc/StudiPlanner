@@ -18,7 +18,7 @@ echo [1/2] Sincronizzazione con il repository Git remoto...
 where git >nul 2>&1
 if %ERRORLEVEL% equ 0 (
     echo Esecuzione di git pull in corso...
-    git pull
+    git -c safe.directory=* pull
     if %ERRORLEVEL% neq 0 (
         echo [ATTENZIONE] 'git pull' non e' andato a buon fine (possibile assenza momentanea di rete o credenziali).
         echo [ATTENZIONE] Il server verra' comunque avviato con l'ultima copia locale disponibile.

@@ -1,15 +1,17 @@
 ﻿<#
 .SYNOPSIS
     Script di installazione e configurazione del servizio Windows per Study Plan Rebalancer.
-    Configura il Firewall per l'accesso LAN e registra il servizio con NSSM sotto l'account utente corrente.
+    Configura il Firewall per l'accesso LAN e registra il servizio con NSSM.
 
 .DESCRIPTION
     1. Richiede automaticamente privilegi di Amministratore (Self-Elevation).
     2. Crea o aggiorna la regola Inbound del Firewall di Windows per la porta 3000 TCP ("Study Planner App").
     3. Individua o scarica automaticamente NSSM (Non-Sucking Service Manager) a 64-bit.
     4. Installa il servizio di avvio automatico di Windows ("UnimoreStudyPlanner") puntando a service-boot.bat.
-    5. Configura l'avvio con le credenziali dell'utente Windows corrente (ObjectName) per garantire
-       l'accesso alle credenziali Git / GitHub e alle chiavi SSH per il 'git pull' automatico.
+    5. Configura l'avvio con le credenziali dell'utente Windows corrente (ObjectName) oppure come LocalSystem.
+       NOTA DEV/SYSADMIN: Se utilizzi Windows Hello (PIN/impronta) o un account Microsoft, il Service Control
+       Manager di Windows non supporta l'autenticazione tramite PIN. Utilizzare -UseLocalSystem per avviare
+       il servizio automaticamente senza richiedere password (il repo https pubblico supporta git pull da LocalSystem).
     6. Configura la rotazione dei log (stdout e stderr).
 
 .PARAMETER ServiceName
@@ -24,6 +26,10 @@
 .PARAMETER Password
     Password dell'account Windows. Se omessa, verra' richiesta in modo interattivo e protetto.
 
+.PARAMETER UseLocalSystem
+    Esegue il servizio sotto l'account integrato LocalSystem (consigliato per account con PIN/Hello).
+    Zero password richiesta, avvio garantito al boot e compatibile con il repository Git pubblico.
+
 .PARAMETER NssmPath
     Percorso personalizzato all'eseguibile nssm.exe, se gia' presente altrove sul sistema.
 
@@ -34,8 +40,12 @@
     Avvia immediatamente il servizio al termine della configurazione.
 
 .EXAMPLE
-    .\setup_windows_service.ps1
-    Installa il servizio in modalita' guidata interattiva.
+    .\setup_windows_service.ps1 -UseLocalSystem -StartService
+    (Consigliato) Installa ed avvia immediatamente il servizio senza richiedere password.
+
+.EXAMPLE
+    .\setup_windows_service.ps1 -StartService
+    Installa il servizio in modalita' guidata chiedendo le credenziali utente.
 
 .EXAMPLE
     .\setup_windows_service.ps1 -Uninstall
@@ -48,6 +58,7 @@ param(
     [int]$Port = 3000,
     [string]$Account,
     [string]$Password,
+    [switch]$UseLocalSystem,
     [string]$NssmPath,
     [switch]$Uninstall,
     [switch]$StartService
@@ -76,6 +87,7 @@ if (-not $isAdmin) {
     $argList = "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`""
     if ($Uninstall) { $argList += " -Uninstall" }
     if ($StartService) { $argList += " -StartService" }
+    if ($UseLocalSystem) { $argList += " -UseLocalSystem" }
     if ($Account) { $argList += " -Account `"$Account`"" }
     if ($Password) { $argList += " -Password `"$Password`"" }
     if ($NssmPath) { $argList += " -NssmPath `"$NssmPath`"" }
@@ -329,74 +341,63 @@ Write-Host "  -> Configurazione rotazione log (1MB max per file)..." -Foreground
 & $nssmExecutable set $ServiceName AppRotateBytes 1048576 | Out-Null
 
 # ==============================================================================
-# 4. IMPERATIVO: CONFIGURAZIONE CREDENZIALI UTENTE (ObjectName)
+# 4. CONFIGURAZIONE ACCOUNT DI ESECUZIONE (LocalSystem vs ObjectName)
 # ==============================================================================
 Write-Host ""
-Write-Host "[Passo 4/4] Configurazione credenziali utente (ObjectName)..." -ForegroundColor White
-Write-Host "----------------------------------------------------------------------" -ForegroundColor DarkCyan
-Write-Host " [CRUCIALE] PERCHE' E' NECESSARIO L'ACCOUNT UTENTE:" -ForegroundColor Cyan
-Write-Host " 1. 'service-boot.bat' esegue 'git pull' prima di avviare il server." -ForegroundColor White
-Write-Host " 2. Git salva le credenziali HTTPS (Windows Credential Manager) e le" -ForegroundColor White
-Write-Host "    chiavi SSH (~/.ssh) ESCLUSIVAMENTE nel profilo del tuo utente." -ForegroundColor White
-Write-Host " 3. Se il servizio girasse sotto 'LocalSystem', il 'git pull' fallirebbe" -ForegroundColor White
-Write-Host "    sistematicamente per mancanza di autorizzazione." -ForegroundColor White
-Write-Host "----------------------------------------------------------------------" -ForegroundColor DarkCyan
+Write-Host "[Passo 4/4] Configurazione account di esecuzione del servizio..." -ForegroundColor White
 
-# Rilevamento dell'account utente target
-$effectiveAccount = $Account
-if (-not $effectiveAccount) {
-    # Default: Utente corrente nel formato DOMINIO\NomeUtente o .\NomeUtente
-    if ($env:USERDOMAIN) {
-        $effectiveAccount = "$env:USERDOMAIN\$env:USERNAME"
-    } else {
-        $effectiveAccount = ".\$env:USERNAME"
-    }
-}
+# Configura directory sicura per Git a livello di sistema
+try {
+    & git config --system --add safe.directory "$projectDir" 2>$null
+} catch {}
 
-Write-Host " Account selezionato per l'esecuzione: " -NoNewline
-Write-Host "$effectiveAccount" -ForegroundColor Yellow
+$effectiveAccount = "LocalSystem"
 
-$credentialsConfigured = $false
-
-if ($Password) {
-    # Password fornita da parametro
-    Write-Host "  -> Configurazione credenziali via parametro script..." -ForegroundColor Gray
-    $setAccountResult = & $nssmExecutable set $ServiceName ObjectName $effectiveAccount $Password 2>&1
-    if ($LASTEXITCODE -eq 0) {
-        $credentialsConfigured = $true
-        Write-Host "  [OK] Credenziali impostate con successo per $effectiveAccount." -ForegroundColor Green
-    } else {
-        Write-Warning "Impossibile impostare le credenziali fornite: $setAccountResult"
-    }
+if ($UseLocalSystem) {
+    Write-Host "  -> Configurazione con account di sistema 'LocalSystem' (nessuna password richiesta)..." -ForegroundColor Cyan
+    & $nssmExecutable reset $ServiceName ObjectName | Out-Null
+    Write-Host "  [OK] Servizio impostato su LocalSystem (avvio garantito all'accensione del PC)." -ForegroundColor Green
 } else {
-    # Richiesta interattiva sicura
-    Write-Host ""
-    Write-Host " Inserisci la password di Windows per l'account [$effectiveAccount]:" -ForegroundColor White
-    Write-Host " (Se utilizzi Windows Hello / PIN o preferisci la GUI, premi INVIO per aprire il configuratore grafico)" -ForegroundColor DarkGray
-    
-    $securePass = Read-Host -Prompt "Password Windows" -AsSecureString
-    $bstr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePass)
-    $plainPass = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr)
+    Write-Host "----------------------------------------------------------------------" -ForegroundColor DarkCyan
+    Write-Host " MODALITA' ACCOUNT UTENTE vs LOCAL SYSTEM:" -ForegroundColor Cyan
+    Write-Host " 1. 'LocalSystem': Avvio trasparente senza password, perfetto se utilizzi" -ForegroundColor White
+    Write-Host "    Windows Hello (PIN/impronta) o se il repository Git e' pubblico." -ForegroundColor White
+    Write-Host " 2. 'Account Utente': Utile se il repository richiede credenziali o chiavi SSH" -ForegroundColor White
+    Write-Host "    private. NOTA: Richiede la vera password dell'account (NON il PIN Hello)." -ForegroundColor White
+    Write-Host "----------------------------------------------------------------------" -ForegroundColor DarkCyan
 
-    if (-not [string]::IsNullOrWhiteSpace($plainPass)) {
-        Write-Host "  -> Applicazione credenziali su NSSM..." -ForegroundColor Gray
-        $setAccountResult = & $nssmExecutable set $ServiceName ObjectName $effectiveAccount $plainPass 2>&1
+    $targetUser = $Account
+    if (-not $targetUser) {
+        if ($env:USERDOMAIN) { $targetUser = "$env:USERDOMAIN\$env:USERNAME" }
+        else { $targetUser = ".\$env:USERNAME" }
+    }
+
+    $passToApply = $Password
+    if (-not $passToApply) {
+        Write-Host " Inserisci la vera password Windows per [$targetUser] (oppure premi INVIO per usare LocalSystem):" -ForegroundColor Yellow
+        $securePass = Read-Host -Prompt "Password" -AsSecureString
+        $bstr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePass)
+        $passToApply = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr)
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($passToApply)) {
+        Write-Host "  -> Applicazione credenziali per account $targetUser..." -ForegroundColor Gray
+        $setRes = & $nssmExecutable set $ServiceName ObjectName $targetUser $passToApply 2>&1
         if ($LASTEXITCODE -eq 0) {
-            $credentialsConfigured = $true
-            Write-Host "  [OK] Credenziali impostate con successo per $effectiveAccount." -ForegroundColor Green
-            Write-Host "  [INFO] NSSM ha concesso automaticamente il privilegio 'SeServiceLogonRight' (Accesso come servizio)." -ForegroundColor Gray
+            $effectiveAccount = $targetUser
+            Write-Host "  [OK] Credenziali impostate con successo per $targetUser." -ForegroundColor Green
+            Write-Host "  [INFO] NSSM ha assegnato il privilegio 'SeServiceLogonRight' all'account." -ForegroundColor Gray
         } else {
-            Write-Warning "Configurazione password automatica non riuscita: $setAccountResult"
+            Write-Warning "Impossibile impostare le credenziali: $setRes"
+            Write-Host "  -> Fallback su LocalSystem per garantire l'avvio..." -ForegroundColor Yellow
+            & $nssmExecutable reset $ServiceName ObjectName | Out-Null
+            $effectiveAccount = "LocalSystem"
         }
     } else {
-        Write-Host ""
-        Write-Host "  [i] Nessuna password digitata da riga di comando." -ForegroundColor Yellow
-        Write-Host "      Apertura della GUI di NSSM per inserire l'account nella scheda 'Log on'..." -ForegroundColor Cyan
-        Write-Host "      (Seleziona 'This account', inserisci $effectiveAccount e la tua password, poi clicca 'Edit service')" -ForegroundColor Yellow
-        
-        # Avvia l'editor grafico di NSSM
-        Start-Process -FilePath $nssmExecutable -ArgumentList "edit $ServiceName" -Wait
-        $credentialsConfigured = $true
+        Write-Host "  [i] Nessuna password inserita. Configurazione automatica su 'LocalSystem'..." -ForegroundColor Cyan
+        & $nssmExecutable reset $ServiceName ObjectName | Out-Null
+        $effectiveAccount = "LocalSystem"
+        Write-Host "  [OK] Servizio impostato su LocalSystem (avvio garantito al boot senza password)." -ForegroundColor Green
     }
 }
 
@@ -416,35 +417,36 @@ try {
 
 Write-Host ""
 Write-Host "======================================================================" -ForegroundColor Green
-Write-Host "  🎉 INSTALLAZIONE COMPLETATA CON SUCCESSO!" -ForegroundColor Green
+Write-Host "  🎉 CONFIGURAZIONE COMPLETATA!" -ForegroundColor Green
 Write-Host "======================================================================" -ForegroundColor Green
 Write-Host " Servizio Windows:     $ServiceName" -ForegroundColor White
-Write-Host " Eseguito da account:  $effectiveAccount" -ForegroundColor White
-Write-Host " Script avviato:       $bootScript" -ForegroundColor White
+Write-Host " Account Esecuzione:   $effectiveAccount" -ForegroundColor White
+Write-Host " Script di Boot:       $bootScript" -ForegroundColor White
 Write-Host " Regola Firewall:      $ruleName (Porta $Port TCP Inbound)" -ForegroundColor White
-Write-Host " File di Log:          $logDir\service-stdout.log" -ForegroundColor White
+Write-Host " Log di Servizio:      $stdoutLog" -ForegroundColor White
 Write-Host "----------------------------------------------------------------------" -ForegroundColor DarkGray
-Write-Host "  📍 URL Locale (questo PC):    http://localhost:$Port" -ForegroundColor Cyan
-Write-Host "  📱 URL LAN (iPad / MacBook):  http://${lanIp}:$Port" -ForegroundColor Yellow
+Write-Host "  📍 Accesso Locale (PC):       http://localhost:$Port" -ForegroundColor Cyan
+Write-Host "  📱 Accesso LAN (iPad/MacBook): http://${lanIp}:$Port" -ForegroundColor Yellow
 Write-Host "----------------------------------------------------------------------" -ForegroundColor DarkGray
-Write-Host " Comandi utili di gestione (PowerShell Amministratore):" -ForegroundColor White
-Write-Host "   - Avviare il servizio:       Start-Service $ServiceName" -ForegroundColor Gray
-Write-Host "   - Arrestare il servizio:     Stop-Service $ServiceName" -ForegroundColor Gray
-Write-Host "   - Riavviare il servizio:     Restart-Service $ServiceName" -ForegroundColor Gray
-Write-Host "   - Visualizzare lo stato:     Get-Service $ServiceName" -ForegroundColor Gray
-Write-Host "   - Modificare con GUI NSSM:   $nssmExecutable edit $ServiceName" -ForegroundColor Gray
-Write-Host "   - Monitorare log in tempo reale: Get-Content `"$stdoutLog`" -Wait" -ForegroundColor Gray
-Write-Host "======================================================================" -ForegroundColor Green
-Write-Host ""
 
 if ($StartService) {
-    Write-Host "[*] Avvio immediato del servizio '$ServiceName'..." -ForegroundColor Cyan
+    Write-Host "[*] Tentativo di avvio del servizio '$ServiceName'..." -ForegroundColor Cyan
     try {
-        & $nssmExecutable start $ServiceName
+        & $nssmExecutable start $ServiceName | Out-Null
         Start-Sleep -Seconds 2
-        $status = (Get-Service -Name $ServiceName).Status
-        Write-Host "[OK] Stato attuale del servizio: $status" -ForegroundColor Green
+        $currSvc = Get-Service -Name $ServiceName
+        if ($currSvc.Status -eq "Running") {
+            Write-Host "[OK] Servizio ATTIVO e in esecuzione (Status: Running)!" -ForegroundColor Green
+        } else {
+            Write-Warning "Il servizio si trova nello stato: $($currSvc.Status)"
+            Write-Host "Verifica i log in: $stdoutLog e $stderrLog" -ForegroundColor Yellow
+        }
     } catch {
         Write-Warning "Impossibile avviare il servizio: $_"
     }
+} else {
+    Write-Host "Per avviare il servizio ora:" -ForegroundColor White
+    Write-Host "   Start-Service $ServiceName" -ForegroundColor Yellow
 }
+Write-Host "======================================================================" -ForegroundColor Green
+Write-Host ""
