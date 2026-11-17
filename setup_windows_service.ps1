@@ -439,11 +439,16 @@ Write-Host "  📱 Accesso LAN (iPad/MacBook): http://${lanIp}:$Port" -Foregroun
 Write-Host "----------------------------------------------------------------------" -ForegroundColor DarkGray
 
 if ($StartService) {
-    Write-Host "[*] Riavvio pulito del servizio '$ServiceName'..." -ForegroundColor Cyan
+    Write-Host "[*] Avvio del servizio '$ServiceName'..." -ForegroundColor Cyan
     try {
-        & $nssmExecutable stop $ServiceName 2>$null | Out-Null
-        Start-Sleep -Seconds 1
-        & $nssmExecutable start $ServiceName | Out-Null
+        $svc = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
+        if ($svc -and $svc.Status -eq "Running") {
+            Write-Host "  -> Riavvio in corso..." -ForegroundColor Gray
+            Restart-Service -Name $ServiceName -Force
+        } else {
+            Write-Host "  -> Avvio in corso..." -ForegroundColor Gray
+            Start-Service -Name $ServiceName
+        }
         Start-Sleep -Seconds 2
         $currSvc = Get-Service -Name $ServiceName
         if ($currSvc.Status -eq "Running") {
@@ -453,7 +458,19 @@ if ($StartService) {
             Write-Host "Verifica i log in: $stdoutLog e $stderrLog" -ForegroundColor Yellow
         }
     } catch {
-        Write-Warning "Impossibile avviare il servizio: $_"
+        Write-Host "  -> Tentativo alternativo tramite NSSM start..." -ForegroundColor Gray
+        try {
+            & $nssmExecutable start $ServiceName
+            Start-Sleep -Seconds 2
+            $currSvc = Get-Service -Name $ServiceName
+            if ($currSvc.Status -eq "Running") {
+                Write-Host "[OK] Servizio ATTIVO e in esecuzione (Status: Running)!" -ForegroundColor Green
+            } else {
+                Write-Warning "Stato del servizio: $($currSvc.Status)"
+            }
+        } catch {
+            Write-Warning "Impossibile avviare il servizio: $_"
+        }
     }
 } else {
     Write-Host "Per avviare il servizio ora:" -ForegroundColor White
