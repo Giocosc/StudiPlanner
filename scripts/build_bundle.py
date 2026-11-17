@@ -9,6 +9,7 @@ files_order = [
     'src/components/AlertBanner.js',
     'src/components/NeuraDeckPromptGenerator.js',
     'src/components/ExamSimulator.js',
+    'src/components/DynamicMotivationWidget.js',
     'src/components/Dashboard.js',
     'src/components/ActivityHeatmap.js',
     'src/components/WeeklyTodo.js',
