@@ -1,0 +1,32 @@
+ID,Materia,Capitolo,Argomento,Ore_Stimate,Difficoltà_1_5,Priorità_Esame_1_5
+G-01,Geometria,Matrici e Determinanti,Operazioni sulle matrici e tipologie,2.0,1,3
+G-02,Geometria,Matrici e Determinanti,"Determinante (Definizione, Proprietà, Laplace, Binet)",3.5,3,5
+G-03,Geometria,Matrici e Determinanti,Matrice Inversa e Condizioni di invertibilità,2.0,2,4
+G-04,Geometria,Matrici e Determinanti,Rango di una matrice e trasformazioni elementari,3.0,3,5
+G-05,Geometria,Spazi Vettoriali,"Spazi vettoriali, sottospazi e chiusura lineare",2.5,2,3
+G-06,Geometria,Spazi Vettoriali,"Combinazioni lineari, dipendenza e indipendenza lineare",2.5,2,4
+G-07,Geometria,Spazi Vettoriali,"Sistemi di generatori, Base e Dimensione",3.5,3,5
+G-08,Geometria,Spazi Vettoriali,Componenti di un vettore rispetto a una base ordinata,2.0,3,4
+G-09,Geometria,Spazi Vettoriali,"Somma, intersezione di sottospazi e Relazione di Grassmann",3.0,4,5
+G-10,Geometria,Trasformazioni Lineari,"Definizione di trasformazione lineare, Nucleo e Immagine",3.5,3,5
+G-11,Geometria,Trasformazioni Lineari,"Iniettività, suriettività ed equazione dimensionale",2.5,3,4
+G-12,Geometria,Trasformazioni Lineari,Matrici associate ed equazione matriciale,3.5,4,5
+G-13,Geometria,Trasformazioni Lineari,Matrici simili e loro proprietà,2.0,4,4
+G-14,Geometria,Sistemi Lineari,Sistemi lineari e Teorema di Rouché-Capelli,2.5,3,5
+G-15,Geometria,Sistemi Lineari,"Spazio delle soluzioni, sistemi omogenei e sistemi di Cramer",3.0,3,4
+G-16,Geometria,Sistemi Lineari,Rappresentazione cartesiana e parametrica di sottospazi,3.0,4,5
+G-17,Geometria,Autovalori e Autovettori,"Polinomio caratteristico, autovalori, autovettori e autospazi",3.5,3,5
+G-18,Geometria,Autovalori e Autovettori,"Molteplicità algebrica, molteplicità geometrica e diagonalizzabilità",3.5,4,5
+G-19,Geometria,Autovalori e Autovettori,Teorema Spettrale,2.0,4,4
+G-20,Geometria,Spazi Vettoriali Euclidei,"Prodotto scalare, norma, angolo e Disuguaglianza di Schwarz",3.0,3,4
+G-21,Geometria,Spazi Vettoriali Euclidei,"Basi ortogonali, ortonormali e ortonormalizzazione di Gram-Schmidt",3.0,4,5
+G-22,Geometria,Spazi Vettoriali Euclidei,Complemento ortogonale,2.5,3,4
+G-23,Geometria,Geometria Euclidea,"Spazio euclideo, riferimenti cartesiani e componenti vettori",2.0,2,3
+G-24,Geometria,Geometria Euclidea,"Piano E2: rette, mutue posizioni, parallelismo, distanze",3.5,3,4
+G-25,Geometria,Geometria Euclidea,"Spazio E3: rette, piani, coefficienti direttori, mutue posizioni, distanze",4.0,4,5
+G-26,Geometria,Geometria Euclidea,"Prodotto vettoriale, misto, aree e volumi",2.0,2,3
+G-27,Geometria,Teoria delle Coniche,"Ampliamento proiettivo, equazioni, matrici associate, classificazione",3.5,4,5
+G-28,Geometria,Teoria delle Coniche,"Centro, diametri, asintoti, assi e vertici",3.5,4,5
+G-29,Geometria,Teoria delle Coniche,Riduzione in forma canonica,2.5,5,4
+G-30,Geometria,Teoria delle Coniche,Fasci di coniche e cenno alle quadriche,2.0,4,2
+G-31,Geometria,Strutture Algebriche,"Gruppi, anelli, campi e algebre di Boole",1.5,2,1

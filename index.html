@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="it" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Study Plan Rebalancer — Analisi 1 & Geometria UNIMORE</title>
+  
+  <meta name="description" content="Single Page Application responsive per il ribilanciamento dinamico del piano di studi per Analisi 1 e Geometria UNIMORE fino al 10 Gennaio 2027." />
+  <meta name="theme-color" content="#070b14" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            slate: {
+              850: '#111827',
+              900: '#0f172a',
+              950: '#070b14',
+            }
+          },
+          animation: {
+            'pulse-subtle': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'fade-in': 'fadeIn 0.25s ease-out forwards',
+          },
+          keyframes: {
+            fadeIn: {
+              '0%': { opacity: '0', transform: 'scale(0.98)' },
+              '100%': { opacity: '1', transform: 'scale(1)' },
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- React 18, ReactDOM 18 & SheetJS (XLSX) -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+
+  <!-- Babel Standalone (for in-browser JSX transpilation) -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    /* Custom dark scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #070b14;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #334155;
+    }
+    body {
+      background-color: #070b14;
+      color: #f1f5f9;
+      margin: 0;
+      padding: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+  </style>
+</head>
+<body class="bg-[#070b14] text-slate-100 min-h-screen">
+  <div id="root">
+    <!-- Initial Loading State -->
+    <div class="min-h-screen flex flex-col items-center justify-center p-4">
+      <div class="relative w-16 h-16 mb-4">
+        <div class="absolute inset-0 rounded-full border-4 border-cyan-500/20"></div>
+        <div class="absolute inset-0 rounded-full border-4 border-cyan-400 border-t-transparent animate-spin"></div>
+      </div>
+      <h2 class="text-lg font-bold text-white tracking-wide">Study Plan Rebalancer</h2>
+      <p class="text-xs text-slate-400 mt-1">Caricamento piano di studio UNIMORE in corso...</p>
+    </div>
+  </div>
+
+  <!-- Main Bundle Script -->
+  <script type="text/babel" src="bundle.js"></script>
+</body>
+</html>

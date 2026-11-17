@@ -1,0 +1,33 @@
+ID,Materia,Capitolo,Argomento,Ore_Stimate,Difficoltà_1_5,Priorità_Esame_1_5
+A-01,Analisi 1,Insiemi e Numeri,"Insiemi numerici (N, Z, Q, R), densità, sup, inf, max, min e induzione",2.5,2,3
+A-02,Analisi 1,Funzioni Elementari,"Proprietà funzioni (iniettività, suriettività, inversa, composta, monotonia) e valore assoluto",2.5,2,3
+A-03,Analisi 1,Numeri Complessi,"Numeri Complessi: forma algebrica, trigonometrica, esponenziale, De Moivre e radici n-esime",2.0,2,2
+A-04,Analisi 1,Successioni,"Successioni (Pt 1): Limite, unicità, limitatezza convergenti, permanenza segno, due carabinieri",3.0,3,4
+A-05,Analisi 1,Successioni,"Successioni (Pt 2): Operazioni limiti in R esteso, forme indeterminate, succ. monotone",2.5,3,4
+A-06,Analisi 1,Successioni,"Successioni (Pt 3): Numero e, Criterio rapporto, gerarchia infiniti, o-piccolo e asintotico",2.5,4,4
+A-07,Analisi 1,Limiti di Funzioni,"Limiti di Funzioni: Definizioni topologiche, limite dx/sx, Teorema ponte, limiti notevoli",2.0,3,4
+A-08,Analisi 1,Continuità,"Funzioni Continue: Teorema degli Zeri (bisezione), Bolzano, Weierstrass e discontinuità",3.0,3,4
+A-09,Analisi 1,Formula di Taylor,"Formula di Taylor: Resto di Peano (dim n=1,2) e sviluppi di Maclaurin fondamentali",2.5,4,5
+A-10,Analisi 1,Formula di Taylor,"Formula di Taylor e Limiti: Scelta ordine, algebra o-piccolo nei prodotti e somme",2.5,4,5
+A-11,Analisi 1,Consolidamento,"Simulazione I Parziale: Insiemi, successioni, limiti, continuità e Taylor",2.0,3,4
+A-12,Analisi 1,Calcolo Differenziale,"Calcolo Differenziale (Pt 1): Definizione derivata, retta tg, legame continuità-derivabilità",3.0,3,5
+A-13,Analisi 1,Calcolo Differenziale,"Calcolo Differenziale (Pt 2): Derivata funzione composta e inversa (arcsin, arccos, arctan)",2.5,4,5
+A-14,Analisi 1,Teoremi Differenziali,"Teoremi del Differenziale: Fermat, Rolle, Lagrange e Test di monotonia/derivata nulla",2.5,4,5
+A-15,Analisi 1,Convessità e Asintoti,"Convessità, Flessi e de L Hopital: Test convessità, Teorema di Cauchy e de L Hopital",2.0,4,5
+A-16,Analisi 1,Studio di Funzione,"Studio Completo di Funzione: Grafico, asintoti obliqui, derivata prima e seconda, cuspidi e flessi",3.0,4,5
+A-17,Analisi 1,Integrali Definiti,"Integrali Definiti: Somme sup/inf, definizione di Riemann, integrabilità e controesempi",2.5,3,5
+A-18,Analisi 1,Teoremi Integrale,"Teoremi Fondamentali Integrale: Teorema della Media, Funzione Integrale, I e II T. Fondamentale (Torricelli)",2.5,4,5
+A-19,Analisi 1,Metodi di Integrazione,"Metodi di Integrazione: Integrazione per Parti, per Sostituzione e Funzioni Razionali Fratte",2.0,3,5
+A-20,Analisi 1,Integrali Generalizzati,"Integrali Generalizzati: Impropri notevoli 1/x^a, criteri del confronto, asintotico e ass. convergenza",3.0,4,5
+A-21,Analisi 1,Serie Numeriche,"Serie Numeriche (Pt 1): Condizione necessaria an->0, Serie geometrica/armonica e criteri termini positivi",2.5,4,5
+A-22,Analisi 1,Serie Numeriche,"Serie Numeriche (Pt 2): Criterio Rapporto, Radice, Integrale e Serie a segno alterno (Leibniz)",2.5,4,5
+A-23,Analisi 1,Serie di Taylor,Serie di Taylor: Sviluppabilità in serie e controesempio fondamentale C-infinito non sviluppabile,2.0,3,3
+A-24,Analisi 1,Consolidamento,"Simulazione II Parziale: Derivate, Studio Funzione, Integrali, Serie e Complessi",3.0,4,5
+A-25,Analisi 1,Simulazione & Ripasso,Simulazione Prova Scritta #1 e Ripasso Blocco 1 (Limiti e Taylor),2.5,4,5
+A-26,Analisi 1,Simulazione & Ripasso,Simulazione Prova Scritta #2 e Ripasso Blocco 2 (Studio Funzione),2.5,4,5
+A-27,Analisi 1,Simulazione & Ripasso,Clinica di Recupero Lacune (Integrali Impropri e Serie numeriche),2.0,4,4
+A-28,Analisi 1,Simulazione & Ripasso,Simulazione Scritto #3 e Simulazione Interrogazione Orale (Derivate e Teoremi),3.0,4,5
+A-29,Analisi 1,Simulazione & Ripasso,Simulazione Scritto #4 e Simulazione Interrogazione Orale (Integrali e Torricelli),2.5,4,5
+A-30,Analisi 1,Simulazione & Ripasso,Simulazione Scritto #5 e Simulazione Interrogazione Orale (Serie e Teoremi),2.5,4,5
+A-31,Analisi 1,Simulazione & Ripasso,"Ripasso Sistematico Esempi, Controesempi e Ipotesi Teoremi",2.0,3,4
+A-32,Analisi 1,Simulazione & Ripasso,PROVA GENERALE FINALE SIMULATA: Scritto completo a tempo + Orale globale random,3.0,5,5

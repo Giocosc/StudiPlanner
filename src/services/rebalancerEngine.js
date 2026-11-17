@@ -1,0 +1,407 @@
+/**
+ * Study Plan Rebalancer Engine
+ * Handles calendar calculations, full-time work exclusions,
+ * +20% high-priority buffers, and dynamic weekly/daily schedule allocation.
+ * 
+ * Supports ROLLING REBALANCING:
+ * - If days are missed/skipped, uncompleted topics automatically roll forward to Today.
+ * - If topics are completed ahead of time, future days automatically pull forward.
+ * - Full historical tracking of past dates (completed vs skipped days).
+ */
+
+export const DEFAULT_SETTINGS = {
+  roadmapStartDate: "2026-11-16", // Start of winter session roadmap
+  targetExamDate: "2027-01-10",
+  currentSimulatedDate: "2026-11-17", // Active date (today)
+  criticalWeeklyHoursThreshold: 25.0, // Critical threshold for full-time workers
+  weekdayStudyHours: 2.5, // Evenings after work (Mon-Fri)
+  weekendStudyHours: 4.5, // Dedicated blocks (Sat, Sun)
+  highPriorityThreshold: 4, // 4 or 5 triggers high priority buffer
+  bufferMultiplier: 1.2, // +20% time buffer
+  interleaveSubjects: true, // Alternate Analisi and Geometria across days
+  studyDays: {
+    1: { name: "Lunedì", enabled: true, isWeekend: false, defaultSubject: "Analisi 1", timeSlot: "Sera (19:30 - 22:00)" },
+    2: { name: "Martedì", enabled: true, isWeekend: false, defaultSubject: "Geometria", timeSlot: "Sera (19:30 - 22:00)" },
+    3: { name: "Mercoledì", enabled: true, isWeekend: false, defaultSubject: "Analisi 1", timeSlot: "Sera (19:30 - 22:00)" },
+    4: { name: "Giovedì", enabled: true, isWeekend: false, defaultSubject: "Geometria", timeSlot: "Sera (19:30 - 22:00)" },
+    5: { name: "Venerdì", enabled: true, isWeekend: false, defaultSubject: "Analisi 1", timeSlot: "Sera (19:00 - 21:00)" },
+    6: { name: "Sabato", enabled: true, isWeekend: true, defaultSubject: "Misto", timeSlot: "Mattina + Pomeriggio" },
+    0: { name: "Domenica", enabled: true, isWeekend: true, defaultSubject: "Misto", timeSlot: "Pomeriggio + Ripasso" }
+  }
+};
+
+/**
+ * Calculates days and weeks difference
+ */
+export function getCalendarMetrics(startDateStr, endDateStr) {
+  const start = new Date(startDateStr);
+  const end = new Date(endDateStr);
+  
+  // Normalize to UTC midnight
+  const startUtc = Date.UTC(start.getFullYear(), start.getMonth(), start.getDate());
+  const endUtc = Date.UTC(end.getFullYear(), end.getMonth(), end.getDate());
+  
+  const diffMs = endUtc - startUtc;
+  const remainingDays = Math.max(1, Math.round(diffMs / (1000 * 60 * 60 * 24)));
+  const remainingWeeks = Math.max(0.1, remainingDays / 7);
+
+  return {
+    remainingDays,
+    remainingWeeks: Number(remainingWeeks.toFixed(1)),
+    isPastExam: diffMs <= 0
+  };
+}
+
+/**
+ * Calculates progress for each subject and total
+ */
+export function calculateSubjectProgress(topics) {
+  const result = {
+    analisi: { totalHours: 0, completedHours: 0, percent: 0, totalCount: 0, completedCount: 0, remainingHours: 0 },
+    geometria: { totalHours: 0, completedHours: 0, percent: 0, totalCount: 0, completedCount: 0, remainingHours: 0 },
+    global: { totalHours: 0, completedHours: 0, percent: 0, totalCount: 0, completedCount: 0, remainingHours: 0 }
+  };
+
+  topics.forEach(t => {
+    const isAnalisi = t.materia.toLowerCase().includes("analisi");
+    const sub = isAnalisi ? result.analisi : result.geometria;
+    const hours = Number(t.oreStimate) || 0;
+
+    sub.totalCount += 1;
+    sub.totalHours += hours;
+    result.global.totalCount += 1;
+    result.global.totalHours += hours;
+
+    if (t.isCompleted) {
+      sub.completedCount += 1;
+      sub.completedHours += hours;
+      result.global.completedCount += 1;
+      result.global.completedHours += hours;
+    } else {
+      sub.remainingHours += hours;
+      result.global.remainingHours += hours;
+    }
+  });
+
+  // Calculate percentages
+  result.analisi.percent = result.analisi.totalHours > 0
+    ? Math.round((result.analisi.completedHours / result.analisi.totalHours) * 100)
+    : 0;
+  result.geometria.percent = result.geometria.totalHours > 0
+    ? Math.round((result.geometria.completedHours / result.geometria.totalHours) * 100)
+    : 0;
+  result.global.percent = result.global.totalHours > 0
+    ? Math.round((result.global.completedHours / result.global.totalHours) * 100)
+    : 0;
+
+  // Round numbers
+  result.analisi.totalHours = Number(result.analisi.totalHours.toFixed(1));
+  result.analisi.completedHours = Number(result.analisi.completedHours.toFixed(1));
+  result.analisi.remainingHours = Number(result.analisi.remainingHours.toFixed(1));
+
+  result.geometria.totalHours = Number(result.geometria.totalHours.toFixed(1));
+  result.geometria.completedHours = Number(result.geometria.completedHours.toFixed(1));
+  result.geometria.remainingHours = Number(result.geometria.remainingHours.toFixed(1));
+
+  result.global.totalHours = Number(result.global.totalHours.toFixed(1));
+  result.global.completedHours = Number(result.global.completedHours.toFixed(1));
+  result.global.remainingHours = Number(result.global.remainingHours.toFixed(1));
+
+  return result;
+}
+
+/**
+ * Natural sequential ID comparator (e.g. A-01, A-02, ..., A-32 and G-01, G-02, ..., G-31)
+ */
+function sortBySequentialId(a, b) {
+  const matchA = String(a.id || "").match(/\d+/);
+  const matchB = String(b.id || "").match(/\d+/);
+  const numA = matchA ? parseInt(matchA[0], 10) : 999;
+  const numB = matchB ? parseInt(matchB[0], 10) : 999;
+  if (numA !== numB) return numA - numB;
+  return String(a.id || "").localeCompare(String(b.id || ""), undefined, { numeric: true, sensitivity: "base" });
+}
+
+/**
+ * Main rolling rebalancing function:
+ * 1. Tracks history of past days from roadmapStartDate to currentSimulatedDate.
+ * 2. Takes uncompleted topics and dynamically packs them starting from Today (currentSimulatedDate) onwards.
+ * 3. Shifts topics forward automatically if days were missed.
+ * 4. Pulls topics forward automatically if ahead of schedule.
+ */
+export function rebalanceStudyPlan(topics, customSettings = {}) {
+  const settings = { ...DEFAULT_SETTINGS, ...customSettings };
+  const { remainingDays, remainingWeeks } = getCalendarMetrics(settings.currentSimulatedDate, settings.targetExamDate);
+
+  // 1. Process and weigh uncompleted topics
+  const processedUncompleted = topics
+    .filter(t => !t.isCompleted)
+    .map(t => {
+      const isHighPriority = (t.prioritaEsame || 3) >= settings.highPriorityThreshold;
+      const isHighDifficulty = (t.difficolta || 3) >= settings.highPriorityThreshold;
+      const hasBuffer = isHighPriority || isHighDifficulty;
+
+      const baseHours = Number(t.oreStimate) || 2.0;
+      const effectiveHours = hasBuffer
+        ? Number((baseHours * settings.bufferMultiplier).toFixed(2))
+        : baseHours;
+
+      return {
+        ...t,
+        baseHours,
+        effectiveHours,
+        hasBuffer,
+        bufferDelta: Number((effectiveHours - baseHours).toFixed(2))
+      };
+    });
+
+  // Total remaining workload from Today forward
+  const totalRemainingBaseHours = Number(
+    processedUncompleted.reduce((acc, t) => acc + t.baseHours, 0).toFixed(1)
+  );
+  const totalRemainingEffectiveHours = Number(
+    processedUncompleted.reduce((acc, t) => acc + t.effectiveHours, 0).toFixed(1)
+  );
+  const totalBufferHours = Number((totalRemainingEffectiveHours - totalRemainingBaseHours).toFixed(1));
+
+  // Required weekly pace to finish by targetExamDate
+  const requiredWeeklyHours = Number((totalRemainingEffectiveHours / Math.max(1, remainingWeeks)).toFixed(1));
+  const isCriticalOverload = requiredWeeklyHours > settings.criticalWeeklyHoursThreshold;
+
+  // 2. Generate FULL calendar from roadmapStartDate to targetExamDate
+  const allCalendarDays = [];
+  const startDate = new Date(settings.roadmapStartDate || "2026-11-16");
+  const todayDate = new Date(settings.currentSimulatedDate);
+  const targetDate = new Date(settings.targetExamDate);
+
+  const startUtc = Date.UTC(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+
+  let curDate = new Date(startDate);
+  let dayOffset = 0;
+
+  while (curDate <= targetDate && dayOffset < 150) {
+    const dayOfWeek = curDate.getDay(); // 0 is Sunday, 1 is Monday...
+    const dayConfig = settings.studyDays[dayOfWeek] || { enabled: true, isWeekend: false, name: "Giorno" };
+    const dateStr = curDate.toISOString().split("T")[0];
+
+    const curUtc = Date.UTC(curDate.getFullYear(), curDate.getMonth(), curDate.getDate());
+    const weekIndex = Math.floor((curUtc - startUtc) / (1000 * 60 * 60 * 24 * 7)) + 1;
+
+    const isPast = dateStr < settings.currentSimulatedDate;
+    const isToday = dateStr === settings.currentSimulatedDate;
+    const isFuture = dateStr > settings.currentSimulatedDate;
+
+    allCalendarDays.push({
+      date: dateStr,
+      dayOfWeek,
+      dayName: dayConfig.name,
+      enabled: dayConfig.enabled,
+      isWeekend: dayConfig.isWeekend,
+      timeSlot: dayConfig.timeSlot || (dayConfig.isWeekend ? "Pomeriggio" : "Sera"),
+      preferredSubject: dayConfig.defaultSubject || "Misto",
+      maxHours: dayConfig.isWeekend ? settings.weekendStudyHours : settings.weekdayStudyHours,
+      allocatedHours: 0,
+      weekIndex,
+      isPast,
+      isToday,
+      isFuture,
+      dayStatus: isPast ? "pending" : "scheduled", // "completed", "skipped", "scheduled", "rest"
+      topics: []
+    });
+
+    curDate.setDate(curDate.getDate() + 1);
+    dayOffset++;
+  }
+
+  // 3. Populate PAST DAYS in calendar
+  let pastDaysStudied = 0;
+  let pastDaysSkipped = 0;
+  let totalPastHours = 0;
+
+  allCalendarDays.filter(d => d.isPast).forEach(day => {
+    // Find topics completed on this exact date
+    const completedOnThisDay = topics.filter(t => t.isCompleted && t.completedDate === day.date);
+
+    if (completedOnThisDay.length > 0) {
+      day.dayStatus = "completed";
+      day.topics = completedOnThisDay.map(t => ({
+        ...t,
+        effectiveHours: t.oreStimate,
+        assignedDate: day.date,
+        assignedWeek: day.weekIndex,
+        assignedDayName: day.dayName
+      }));
+      day.allocatedHours = Number(completedOnThisDay.reduce((acc, t) => acc + (Number(t.oreStimate) || 0), 0).toFixed(1));
+      pastDaysStudied++;
+      totalPastHours += day.allocatedHours;
+    } else {
+      if (day.enabled) {
+        day.dayStatus = "skipped"; // Missed study day
+        pastDaysSkipped++;
+      } else {
+        day.dayStatus = "rest";
+      }
+    }
+  });
+
+  // 4. Sequential queues for ACTIVE & FUTURE study (Starting from Today)
+  // Strictly respects the pedagogical sequence: A-01, A-02, ... and G-01, G-02, ...
+  const analisiQueue = processedUncompleted
+    .filter(t => t.materia.toLowerCase().includes("analisi"))
+    .sort(sortBySequentialId);
+
+  const geometriaQueue = processedUncompleted
+    .filter(t => t.materia.toLowerCase().includes("geometria"))
+    .sort(sortBySequentialId);
+
+  // Active / Future days where new study can be allocated (Today + Future)
+  const activeAndFutureDays = allCalendarDays.filter(d => (d.isToday || d.isFuture) && d.enabled);
+
+  activeAndFutureDays.forEach(day => {
+    let capacityLeft = day.maxHours;
+
+    while (capacityLeft > 0.4) {
+      let chosenTopic = null;
+      let chosenQueue = null;
+
+      // Select subject queue based on day preference or availability
+      if (day.preferredSubject === "Analisi 1") {
+        if (analisiQueue.length > 0) {
+          chosenTopic = analisiQueue[0];
+          chosenQueue = analisiQueue;
+        } else if (geometriaQueue.length > 0) {
+          chosenTopic = geometriaQueue[0];
+          chosenQueue = geometriaQueue;
+        }
+      } else if (day.preferredSubject === "Geometria") {
+        if (geometriaQueue.length > 0) {
+          chosenTopic = geometriaQueue[0];
+          chosenQueue = geometriaQueue;
+        } else if (analisiQueue.length > 0) {
+          chosenTopic = analisiQueue[0];
+          chosenQueue = analisiQueue;
+        }
+      } else {
+        // Misto (e.g. Weekend slots): alternate subjects sequentially
+        if (day.topics.length % 2 === 0) {
+          if (analisiQueue.length > 0) {
+            chosenTopic = analisiQueue[0];
+            chosenQueue = analisiQueue;
+          } else if (geometriaQueue.length > 0) {
+            chosenTopic = geometriaQueue[0];
+            chosenQueue = geometriaQueue;
+          }
+        } else {
+          if (geometriaQueue.length > 0) {
+            chosenTopic = geometriaQueue[0];
+            chosenQueue = geometriaQueue;
+          } else if (analisiQueue.length > 0) {
+            chosenTopic = analisiQueue[0];
+            chosenQueue = analisiQueue;
+          }
+        }
+      }
+
+      if (!chosenTopic) break; // All uncompleted topics have been allocated
+
+      // Allocate topic sequentially
+      chosenQueue.shift(); // Remove from queue
+      chosenTopic.assignedDate = day.date;
+      chosenTopic.assignedWeek = day.weekIndex;
+      chosenTopic.assignedDayName = day.dayName;
+
+      day.topics.push(chosenTopic);
+      day.allocatedHours = Number((day.allocatedHours + chosenTopic.effectiveHours).toFixed(2));
+      capacityLeft = Number((capacityLeft - chosenTopic.effectiveHours).toFixed(2));
+    }
+  });
+
+  // Handle any remaining unallocated topics if calendar was completely filled
+  const unallocated = [...analisiQueue, ...geometriaQueue];
+  if (unallocated.length > 0 && activeAndFutureDays.length > 0) {
+    unallocated.forEach((topic, idx) => {
+      const targetDay = activeAndFutureDays[activeAndFutureDays.length - 1 - (idx % Math.min(7, activeAndFutureDays.length))];
+      topic.assignedDate = targetDay.date;
+      topic.assignedWeek = targetDay.weekIndex;
+      topic.assignedDayName = targetDay.dayName;
+      targetDay.topics.push(topic);
+      targetDay.allocatedHours = Number((targetDay.allocatedHours + topic.effectiveHours).toFixed(2));
+    });
+  }
+
+  // 5. Group into Weekly Plans (including past, current, and future weeks)
+  const weeksMap = new Map();
+  allCalendarDays.forEach(day => {
+    if (!weeksMap.has(day.weekIndex)) {
+      weeksMap.set(day.weekIndex, {
+        weekNumber: day.weekIndex,
+        startDate: day.date,
+        endDate: day.date,
+        days: [],
+        totalAllocatedHours: 0,
+        totalTopicsCount: 0,
+        topics: [],
+        hasToday: false,
+        isPastWeek: false,
+        isCurrentWeek: false,
+        isOverloaded: false
+      });
+    }
+
+    const week = weeksMap.get(day.weekIndex);
+    week.endDate = day.date;
+    week.days.push(day);
+    week.totalAllocatedHours = Number((week.totalAllocatedHours + day.allocatedHours).toFixed(1));
+    week.topics.push(...day.topics);
+    week.totalTopicsCount = week.topics.length;
+    if (day.isToday) {
+      week.hasToday = true;
+      week.isCurrentWeek = true;
+    }
+    week.isOverloaded = week.totalAllocatedHours > settings.criticalWeeklyHoursThreshold;
+  });
+
+  const weeklyPlans = Array.from(weeksMap.values()).map(w => {
+    const allDaysPast = w.days.every(d => d.isPast);
+    return {
+      ...w,
+      isPastWeek: allDaysPast && !w.hasToday
+    };
+  });
+
+  // Identify current week: the week containing Today (or week 1 as fallback)
+  const currentWeekPlan = weeklyPlans.find(w => w.hasToday) || weeklyPlans[0] || null;
+
+  // 6. Detailed History Timeline
+  const historyDays = allCalendarDays
+    .filter(d => d.isPast || d.isToday)
+    .sort((a, b) => b.date.localeCompare(a.date)); // Most recent first
+
+  return {
+    metrics: {
+      remainingDays,
+      remainingWeeks,
+      totalRemainingBaseHours,
+      totalRemainingEffectiveHours,
+      totalBufferHours,
+      requiredWeeklyHours,
+      criticalWeeklyHoursThreshold: settings.criticalWeeklyHoursThreshold,
+      isCriticalOverload,
+      excessHours: Number(Math.max(0, requiredWeeklyHours - settings.criticalWeeklyHoursThreshold).toFixed(1)),
+      uncompletedCount: processedUncompleted.length,
+      targetExamDate: settings.targetExamDate,
+      currentSimulatedDate: settings.currentSimulatedDate,
+      roadmapStartDate: settings.roadmapStartDate,
+      // Historical stats
+      pastDaysStudied,
+      pastDaysSkipped,
+      totalPastHours: Number(totalPastHours.toFixed(1)),
+      historyCount: historyDays.length
+    },
+    weeklyPlans,
+    currentWeekPlan,
+    calendarDays: allCalendarDays,
+    historyDays,
+    progress: calculateSubjectProgress(topics)
+  };
+}

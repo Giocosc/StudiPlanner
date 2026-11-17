@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyd
+.Python
+env/
+venv/
+ENV/
+
+# OS specific
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE & Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Embedded or temp repos
+StudyPlanner/
+
+# Test temporary artifacts
+screenshot_test.png
+screenshot_alert.png
+screenshot_history_tab.png
+screenshot_week1_fixed.png
+screenshot_final_week.png

@@ -1,0 +1,68 @@
+### **1\. ANALISI DEI PESI E FORMATO D'ESAME**
+
+**Analisi dei Pesi (Macro-argomenti)** Sulla base del programma "\[UNIMORE\] Geometria", dei sillabi e degli appunti analizzati, il carico di studio è così ripartito:
+
+* **Spazi, Sottospazi Vettoriali e Trasformazioni Lineari (25%):** È il blocco teorico e applicativo più corposo, comprendente la chiusura lineare, l'estrazione di basi, l'equazione dimensionale (Teorema di Grassmann e Teorema della dimensione) e lo studio di Nucleo e Immagine.  
+* **Sistemi Lineari (20%):** Argomento trasversale ed essenziale, con focus sull'Algoritmo B (Gauss-Jordan) per la riduzione a gradini, il Teorema di Rouché-Capelli e l'analisi della variabilità delle soluzioni al variare di parametri.  
+* **Autovalori, Autovettori e Diagonalizzazione (15%):** Concetti chiave e frequenti negli esercizi d'esame, richiedono il calcolo del polinomio caratteristico, la ricerca degli autospazi e il confronto tra molteplicità algebrica e geometrica.  
+* **Geometria Euclidea nello Spazio e nel Piano (15%):** Include calcoli pratici su mutue posizioni, distanze (es. punto-iperpiano), parallelismo e ortogonalità in ${E}^{2}$ ed ${E}^{3}$.  
+* **Teoria delle Coniche (10%):** Riguarda l'ampliamento proiettivo, le matrici associate per la classificazione delle coniche, la ricerca di centro, assi, asintoti e la loro forma canonica.  
+* **Spazi Vettoriali Euclidei (10%):** Fondamentale per le basi ortonormali (Gram-Schmidt), il Teorema Spettrale e il calcolo del complemento ortogonale.  
+* **Matrici e Strutture Algebriche (5%):** Concetti introduttivi su campi, calcolo del rango, inversa e determinante tramite Teorema di Laplace.
+
+**Struttura tipica degli esercizi d'esame** Gli esercizi proposti nei temi e negli eserciziari richiedono la gestione fluida di parametri (spesso $k$ o $h$) per:
+
+* Discutere la risolubilità di sistemi lineari non omogenei o omogenei.  
+* Determinare basi di Nucleo e Immagine per applicazioni lineari definite da equazioni o da matrici.  
+* Studiare la diagonalizzabilità per similitudine di una matrice o endomorfismo al variare del parametro, costruendo la matrice diagonale e diagonalizzante.  
+* Calcolare l'intersezione e la somma di sottospazi (anche in forma parametrica e cartesiana) e il rispettivo complemento ortogonale.
+
+### **2\. TABELLA DEI 18 SLOT DI STUDIO (Settimane 1-6) \+ 6 SLOT SIMULAZIONE (Settimane 7-8)**
+
+| Settimana | Slot | Peso/Priorità | Argomenti Teorici Esatti | Fonti di Riferimento | Tipologia Esatta di Esercizi da Svolgere | Deliverable / Obiettivo di Fine Slot |
+| :---- | :---- | :---- | :---- | :---- | :---- | :---- |
+| **1** (16 Nov) | S1-A Mar 2.5h | Bassa | Matrici, operazioni, determinante, Teorema di Laplace, rango. | \[UNIMORE\] Geometria, Cap 3\. | Calcolo di determinanti 3x3 e 4x4 con Laplace; operazioni e rango. | Saper calcolare rapidamente determinanti e definire matrici simmetriche/ortogonali. |
+| **1** (16 Nov) | S1-B Gio 2.5h | Alta | Matrice inversa, trasformazioni elementari, Teorema di Rouché-Capelli, Algoritmo B. | Cap 6, Appunti Algoritmo B. | Riduzione a gradini di Gauss per studio del rango e risoluzione di sistemi lineari numerici. | Ridurre a gradini una matrice e determinare le soluzioni di un sistema (0, 1 o $\infty$). |
+| **1** (16 Nov) | S1-C Sab 3.5h | Alta | Spazi e sottospazi, chiusura lineare, sistemi di generatori, lineare dipendenza. | \[UNIMORE\] Geometria, Cap 4\. | Verifica di sottospazi, ricerca generatori e vettori linearmente indipendenti. | Stabilire se un set di vettori è una base e se un vettore appartiene allo span. |
+| **2** (23 Nov) | S2-A Mar 2.5h | Alta | Basi, dimensione, Teorema della base, componenti di un vettore. | Cap 4, Appunti Spazi Vettoriali. | Completamento a base ed estrazione di base; calcolo componenti rispetto a basi non canoniche. | Trovare la dimensione e una base di un sottospazio vettoriale generico. |
+| **2** (23 Nov) | S2-B Gio 2.5h | Alta | Somma e intersezione di sottospazi, Relazione di Grassmann, somma diretta. | Cap 4, Appunti. | Calcolo di basi per l'intersezione $U\cap W$ e la somma $U+W$. | Convertire sottospazi da equazioni parametriche a cartesiane e calcolare basi intersezione. |
+| **2** (23 Nov) | S2-C Sab 3.5h | Alta | Sistemi lineari parametrici, Teorema di Cramer, sistemi omogenei. | Cap 6\. | Risoluzione di sistemi lineari con parametro $k$ usando Rouché-Capelli e Cramer. | Discutere senza errori le soluzioni di un sistema lineare al variare del parametro. |
+| **3** (30 Nov) | S3-A Mar 2.5h | Alta | Trasformazioni lineari, Nucleo (Ker T), Immagine (Im T), Teorema equazione dimensionale. | \[UNIMORE\] Geometria, Cap 5, Appunti. | Ricerca equazioni per Ker T e generatori per Im T, verifica isomorfismi. | Calcolare base e dimensione di Nucleo e Immagine; verificare iniettività e suriettività. |
+| **3** (30 Nov) | S3-B Gio 2.5h | Alta | Matrici associate alle trasformazioni, equazione matriciale, matrici simili. | Cap 5, Appunti. | Costruzione della matrice associata rispetto a basi diverse, calcolo controimmagini. | Scrivere la matrice $M(T)$ rispetto a una base scelta e usarla per determinare T(v). |
+| **3** (30 Nov) | S3-C Sab 3.5h | Alta | Dimostrazioni fondamentali Cap 3, 4, 5\. Sottospazi complessi. | Dimostrazioni. | Scrittura mnemonica e rigorosa delle dimostrazioni richieste per l'orale (es. Laplace, Rouché-Capelli). | Esporre e scrivere a mano le prime 10 dimostrazioni del syllabus senza consultare gli appunti. |
+| **4** (7 Dic) | S4-A Mar 2.5h | Alta | Autovalori, autovettori, polinomio caratteristico. | \[UNIMORE\] Geometria, Cap 7\. | Calcolo autovalori di matrici 3x3 e relativi autospazi ${V}_{\lambda }$. | Fattorizzare correttamente il polinomio caratteristico ed estrarre la base dell'autospazio. |
+| **4** (7 Dic) | S4-B Gio 2.5h | Alta | Molteplicità algebrica e geometrica, diagonalizzabilità per similitudine. | Cap 7\. | Studio diagonalizzazione di matrici con parametri e costruzione matrice diagonalizzante $P$. | Sapere se una matrice è diagonalizzabile confrontando molteplicità algebrica e geometrica. |
+| **4** (7 Dic) | S4-C Sab 3.5h | Media | Spazi vettoriali euclidei, prodotto scalare, norma, disuguaglianza di Schwarz. | Cap 8\. | Calcolo norma e angoli; ortogonalità di vettori. | Dimostrare Schwarz e padroneggiare le definizioni del prodotto scalare. |
+| **5** (14 Dic) | S5-A Mar 2.5h | Alta | Basi ortogonali, Gram-Schmidt, complemento ortogonale, Teorema Spettrale. | Cap 8, Dimostrazioni. | Applicazione algoritmo di Gram-Schmidt; ricerca base del complemento ortogonale ${W}^{\bot }$. | Ortonormalizzare una base e diagonalizzare ortogonalmente matrici simmetriche. |
+| **5** (14 Dic) | S5-B Gio 2.5h | Media | Geometria euclidea in ${E}^{2}$ e ${E}^{3}$: rette, piani, mutue posizioni. | \[UNIMORE\] Geometria, Cap 9/10/11. | Passaggio cartesiana/parametrica di rette e piani; parallelismo e incidenza. | Scrivere al volo equazioni di rette e piani sotto condizioni di ortogonalità o parallelismo. |
+| **5** (14 Dic) | S5-C Sab 3.5h | Media | Distanze in ${E}^{2}$/${E}^{3}$ (punto-retta, punto-piano, retta-retta). Proiezioni. | Cap 9/10/11, Appunti. | Calcolo di distanze euclidee minime e proiezioni ortogonali di punti su iperpiani. | Usare la formula per la distanza punto-iperpiano e ricavare il punto proiettato. |
+| **6** (21 Dic) | S6-A Mar 2.5h | Alta | Ampliamento proiettivo, matrici associate alle coniche, classificazione. | \[UNIMORE\] Geometria, Cap 12\. | Studio determinanti $3\times 3$ e $2\times 2$ per classificare le coniche (ellisse, parabola, iperbole). | Distinguere coniche degeneri e non degeneri e classificarne il tipo affine. |
+| **6** (21 Dic) | S6-B Gio 2.5h | Media | Polarità, centro, diametri, assi, asintoti, forma canonica delle coniche. | Cap 12\. | Trovare le coordinate del centro risolvendo il sistema lineare associato, calcolo degli asintoti. | Costruire l'equazione canonica euclidea di una conica usando gli autovalori. |
+| **6** (21 Dic) | S6-C Sab 3.5h | Alta | Consolidamento dimostrazioni Cap 6, 7, 8, 9, 12 e prove trasversali. | Dimostrazioni. | Stesura di 5 dimostrazioni estratte a sorte dal programma completo. | Fine del programma. Saper scrivere e giustificare l'intera lista delle dimostrazioni. |
+| **7** (28 Dic) | S7-A Mar 2.5h | Alta | Simulazione 1: Sistemi parametrici e basi. | Temi d'esame, Eserciziari. | Risoluzione a tempo di sistemi $4\times 4$ e $3\times 4$ con $k$, ricerca basi intersezione/somma. | Esecuzione senza errori di calcolo dei sistemi lineari parametrici. |
+| **7** (28 Dic) | S7-B Gio 2.5h | Alta | Simulazione 2: Applicazioni Lineari e Diagonalizzazione. | Esercizi 13-27. | Costruzione matrice $M(T)$ e ricerca Ker/Im; diagonalizzazione con parametro a tempo. | Trovare gli autospazi di matrici con parametri in meno di 15 minuti. |
+| **7** (28 Dic) | S7-C Sab 3.5h | Alta | Simulazione 3: Teoria scritta (Simulazione quiz e/o domande aperte). | Dimostrazioni. | Risolvere quiz teorici e scrivere dimostrazioni del Teorema Spettrale o Laplace. | Rispondere con sicurezza ai trabocchetti su similitudine e relazioni dimensionali. |
+| **8** (4 Gen) | S8-A Mar 2.5h | Media | Simulazione 4: Geometria E3 e Coniche. | Cap 9-12. | Test incrociati su distanze in ${E}^{3}$ e classificazione coniche parametriche. | Determinare infallibilmente il tipo di conica al variare di un parametro. |
+| **8** (4 Gen) | S8-B Gio 2.5h | Alta | Simulazione 5: Prova generale cronometrata (Tema completo). | Temi d'esame. | Svolgimento esatto di un intero tema d'esame in 1h45m/2h. | Verificare l'aderenza ai tempi richiesti per la prova scritta. |
+| **8** (4 Gen) | S8-C Sab 3.5h | Alta | Simulazione 6: Prova orale globale (Review dimostrazioni). | Dimostrazioni 2020-2024. | Ripetizione a voce e scrittura dei teoremi chiave (es. Eq. dimensionale, Gram-Schmidt). | Padronanza dell'orale: esposizione chiara di definizioni ed enunciati con rigore matematico. |
+
+### **3\. LISTA TEOREMI, DIMOSTRAZIONI E ALGORITMI DI CALCOLO CHIAVE**
+
+**a) Teoremi principali e relative dimostrazioni (richieste per l'orale):** In base agli elenchi ufficiali (a.a. 2020/2021 e 2023/2024), devi padroneggiare queste dimostrazioni:
+
+* **Cap. 3 (Matrici):** Determinante di una matrice triangolare (Prop. 3.40); Teorema di Laplace (Teorema 3.41/3.42); Invertibilità di una matrice (Teorema 3.45/3.46).  
+* **Cap. 4 (Spazi Vettoriali):** Teorema della base (Teorema 4.26); Componenti rispetto ad una base e unicità (Prop. 4.31 e Corollario 4.32).  
+* **Cap. 5 (Trasformazioni Lineari):** Iniettività e suriettività (Prop. 5.5 c,d); Sistema generatori di Im T (Prop. 5.6 a); Teorema equazione dimensionale per Ker T/Im T (Teorema 5.9); Equazione matriciale delle trasformazioni lineari (Teorema 5.18); Legame tra rango matrice e dim(Im T) (Teorema 5.29); Caratterizzazione matrici simili (Teorema 5.38 a) e loro proprietà (Cor. 5.39, Prop. 5.40).  
+* **Cap. 6 (Sistemi Lineari):** Teorema di Rouché-Capelli (Prop. 6.7); Dimensione spazio soluzioni sistema lineare omogeneo (Prop. 6.9); Rappresentazione cartesiana sottospazi vettoriali (Teorema 6.25).  
+* **Cap. 7 (Autovalori):** Polinomio caratteristico e rappresentazione autospazi (Prop. 7.5); Relazione tra molteplicità algebrica e geometrica (Prop. 7.12); Teorema Spettrale (Oss. 7.15 e Prop. 7.17).  
+* **Cap. 8 (Spazi Euclidei):** Disuguaglianza di Schwarz (Prop. 8.4); Proprietà delle basi ortonormali (Prop. 8.16 b,c,d); Intersezione tra sottospazio e complemento ortogonale (Prop. 8.24 c); Dimensione e ricerca base del complemento ortogonale (Teorema 8.26 a, Prop. 8.27).  
+* **Cap. 9 (Geometria Euclidea):** Componenti di un vettore dagli estremi (Prop. 9.7); Distanza tra due punti (Prop. 9.40); Distanza punto-iperpiano (Prop. 9.42).  
+* **Cap. 12 (Coniche):** Classificazione delle coniche non degeneri (Prop. 12.30); Coordinate del centro (Prop. 12.36); Ricerca degli assi di una conica (Teorema 12.41).
+
+**b) Algoritmi di calcolo chiave da saper applicare:**
+
+* **Algoritmo B (Riduzione di Gauss / Metodo di eliminazione):** Procedimento iterativo per trasformare una matrice completa in una a gradini tramite scambi di righe e somme di una riga con un'altra moltiplicata per uno scalare. Serve per estrarre il rango e discutere la compatibilità del sistema (se rango incompleta \= rango completa).  
+* **Risoluzione di Sistemi di Cramer e Omogenei:** Per i sistemi determinati ($n$ incognite, rango $n$), ricerca della singola soluzione; per i sistemi omogenei di $n-1$ equazioni indipendenti in $n$ incognite, generazione della soluzione tramite minori di ordine $n-1$ alternando i segni.  
+* **Ortogonalizzazione di Gram-Schmidt:** Data una base \$\\{v\_1, v\_2, \\dots, v\_n\\}\$ non ortogonale, l'algoritmo costruisce una base ortogonale proiettando e sottraendo progressivamente la componente dei nuovi vettori lungo le direzioni dei precedenti.  
+* **Diagonalizzazione Ortogonale (Teorema Spettrale):** Per matrici simmetriche reali: 1\. Calcolo autovalori; 2\. Calcolo autovettori; 3\. Applicazione di Gram-Schmidt agli autospazi se degeneri; 4\. Normalizzazione degli autovettori; 5\. Inserimento in colonna per formare la matrice ortogonale diagonalizzante.  
+* **Riduzione di una Conica a Forma Canonica:** Partendo dalla matrice $3\times 3$ associata alla conica e dalla sua sottomatrice $2\times 2$ (termini di 2° grado), si calcolano gli autovalori di quest'ultima per orientare gli assi euclidei ed eliminare i termini rettangolari, procedendo poi alla traslazione dell'origine nel centro per le coniche a centro.
