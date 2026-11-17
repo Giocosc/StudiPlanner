@@ -62,7 +62,7 @@ L'applicazione segue i più moderni standard dello sviluppo web front-end:
 ## 3. Guida all'Avvio Rapido
 
 ### Metodo 1: Avvio con Server Locale (Consigliato per Windows)
-1. Entra nella cartella di lavoro `c:\tmp\Planner`.
+1. Entra nella cartella di lavoro `c:\tmp\StudiPlanner`.
 2. Fai doppio clic sul file eseguibile batch:
    ```cmd
    start-app.bat

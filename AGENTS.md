@@ -3,7 +3,7 @@
 
 Per tutte le linee guida architetturali, i vincoli algoritmici immutabili, le istruzioni di build e le regole di propedeuticità matematica, fare riferimento al file principale:
 
-👉 **[GEMINI.md](file:///c:/tmp/Planner/GEMINI.md)**
+👉 **[GEMINI.md](file:///c:/tmp/StudiPlanner/GEMINI.md)**
 
 ### Promemoria Rapido dei Vincoli:
 1. **Propedeuticità Sequenziale:** Mai ordinare gli argomenti matematici per priorità/difficoltà. Seguire rigorosamente `A-01 -> A-32` e `G-01 -> G-31`.

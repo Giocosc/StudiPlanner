@@ -101,7 +101,7 @@ Se $F_{\text{settimanale}} > 25\text{ h/settimana}$, viene mostrato l'**Alert Vi
 ## 📂 Struttura del Repository
 
 ```
-Planner/
+StudiPlanner/
 ├── .gitignore                     # Regole di esclusione Git
 ├── index.html                     # Entry point SPA responsive (Dark Mode)
 ├── bundle.js                      # Bundle applicativo compilato
