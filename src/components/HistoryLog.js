@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { IconHistory, IconCheckCircle, IconClock, IconFlame, IconCheck, IconCalendar } from "./Icons.js";
+import { ActivityHeatmap } from "./ActivityHeatmap.js";
 
-export function HistoryLog({ historyDays, metrics, onAdvanceDate, onRetrocedeDate, onSetDate }) {
+export function HistoryLog({ historyDays, calendarDays = [], metrics, onAdvanceDate, onRetrocedeDate, onSetDate }) {
   const [filterType, setFilterType] = useState("all"); // "all" | "completed" | "skipped"
 
   const filteredHistory = historyDays.filter(day => {
@@ -81,6 +82,14 @@ export function HistoryLog({ historyDays, metrics, onAdvanceDate, onRetrocedeDat
           </p>
         </div>
       </div>
+
+      {/* GitHub-like Contribution Activity Heatmap */}
+      <ActivityHeatmap
+        calendarDays={calendarDays}
+        historyDays={historyDays}
+        metrics={metrics}
+        onSetDate={onSetDate}
+      />
 
       {/* Header Bar with Filters */}
       <div className="bg-slate-900/90 border border-slate-800/90 rounded-3xl p-4 md:p-5 backdrop-blur-md shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">

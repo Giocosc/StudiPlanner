@@ -15,11 +15,16 @@ export function AlertBanner({ metrics, onOpenSettings }) {
             <div className="flex items-center space-x-2">
               <span className="text-sm font-semibold text-emerald-300">Carico Settimanale Sostenibile</span>
               <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono">
-                {metrics.requiredWeeklyHours}h / sett. (Max {metrics.criticalWeeklyHoursThreshold}h)
+                {metrics.requiredWeeklyHours}h / sett. (Soglia Max {metrics.criticalWeeklyHoursThreshold}h)
               </span>
+              {metrics.enableAfternoonSlot && (
+                <span className="hidden sm:inline text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                  +Slot Pomeridiano Attivo
+                </span>
+              )}
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
-              Il ritmo di studio è ben calibrato per un lavoratore full-time: le serate e i weekend coprono interamente il programma entro il 10 Gennaio 2027.
+              Il ritmo di studio è ben calibrato: {metrics.enableAfternoonSlot ? "l'unione dello slot pomeridiano (16:30 - 19:00) con le serate e i weekend garantisce sostenibilità elevata senza sovraccarico" : "le serate e i weekend coprono interamente il programma"} entro il 10 Gennaio 2027.
             </p>
           </div>
         </div>
@@ -85,20 +90,20 @@ export function AlertBanner({ metrics, onOpenSettings }) {
           <div className="bg-black/30 p-3 rounded-xl border border-rose-500/20">
             <div className="font-semibold text-rose-300 flex items-center gap-1.5 mb-1">
               <IconBriefcase className="w-4 h-4 text-rose-400" />
-              1. Ottimizzazione Weekend
+              1. Slot Pomeridiano (16:30 - 19:00)
             </div>
             <p className="text-rose-200/80">
-              Aumenta le ore nei blocchi di Sabato e Domenica da 4.5h a 6h per sgravare le sere infrasettimanali dopo il lavoro.
+              Attiva lo slot pomeridiano nei Parametri: aggiungere 2.5h/pomeriggio aumenta la capacità feriale a 5h/giorno distribuendo lo sforzo.
             </p>
           </div>
 
           <div className="bg-black/30 p-3 rounded-xl border border-rose-500/20">
             <div className="font-semibold text-rose-300 flex items-center gap-1.5 mb-1">
               <IconClock className="w-4 h-4 text-amber-400" />
-              2. Anticipo Serale
+              2. Weekend Intensivi
             </div>
             <p className="text-rose-200/80">
-              Inizia la sessione serale alle 19:00 anziché 19:30, oppure effettua un micro-slot da 30 min di ripasso definizioni prima di pranzo.
+              Aumenta le ore nei blocchi di Sabato e Domenica da 4.5h a 6h per accumulare ore diurne di qualità ed evitare affaticamento.
             </p>
           </div>
 

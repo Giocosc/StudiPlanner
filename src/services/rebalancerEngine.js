@@ -13,18 +13,21 @@ export const DEFAULT_SETTINGS = {
   roadmapStartDate: "2026-11-16", // Start of winter session roadmap
   targetExamDate: "2027-01-10",
   currentSimulatedDate: "2026-11-17", // Active date (today)
-  criticalWeeklyHoursThreshold: 25.0, // Critical threshold for full-time workers
-  weekdayStudyHours: 2.5, // Evenings after work (Mon-Fri)
+  criticalWeeklyHoursThreshold: 35.0, // Dynamic threshold elevated with afternoon slot
+  enableAfternoonSlot: true, // Slot Pomeridiano attivo
+  afternoonStudyHours: 2.5, // 16:30 - 19:00 (2.5h)
+  eveningStudyHours: 2.5, // 19:30 - 22:00 (2.5h)
+  weekdayStudyHours: 5.0, // Somma: Pomeriggio (2.5h) + Sera (2.5h)
   weekendStudyHours: 4.5, // Dedicated blocks (Sat, Sun)
   highPriorityThreshold: 4, // 4 or 5 triggers high priority buffer
   bufferMultiplier: 1.2, // +20% time buffer
   interleaveSubjects: true, // Alternate Analisi and Geometria across days
   studyDays: {
-    1: { name: "Lunedì", enabled: true, isWeekend: false, defaultSubject: "Analisi 1", timeSlot: "Sera (19:30 - 22:00)" },
-    2: { name: "Martedì", enabled: true, isWeekend: false, defaultSubject: "Geometria", timeSlot: "Sera (19:30 - 22:00)" },
-    3: { name: "Mercoledì", enabled: true, isWeekend: false, defaultSubject: "Analisi 1", timeSlot: "Sera (19:30 - 22:00)" },
-    4: { name: "Giovedì", enabled: true, isWeekend: false, defaultSubject: "Geometria", timeSlot: "Sera (19:30 - 22:00)" },
-    5: { name: "Venerdì", enabled: true, isWeekend: false, defaultSubject: "Analisi 1", timeSlot: "Sera (19:00 - 21:00)" },
+    1: { name: "Lunedì", enabled: true, isWeekend: false, defaultSubject: "Analisi 1", timeSlot: "Pomeriggio (16:30 - 19:00) + Sera (19:30 - 22:00)" },
+    2: { name: "Martedì", enabled: true, isWeekend: false, defaultSubject: "Geometria", timeSlot: "Pomeriggio (16:30 - 19:00) + Sera (19:30 - 22:00)" },
+    3: { name: "Mercoledì", enabled: true, isWeekend: false, defaultSubject: "Analisi 1", timeSlot: "Pomeriggio (16:30 - 19:00) + Sera (19:30 - 22:00)" },
+    4: { name: "Giovedì", enabled: true, isWeekend: false, defaultSubject: "Geometria", timeSlot: "Pomeriggio (16:30 - 19:00) + Sera (19:30 - 22:00)" },
+    5: { name: "Venerdì", enabled: true, isWeekend: false, defaultSubject: "Analisi 1", timeSlot: "Pomeriggio (16:30 - 19:00) + Sera (19:00 - 21:00)" },
     6: { name: "Sabato", enabled: true, isWeekend: true, defaultSubject: "Misto", timeSlot: "Mattina + Pomeriggio" },
     0: { name: "Domenica", enabled: true, isWeekend: true, defaultSubject: "Misto", timeSlot: "Pomeriggio + Ripasso" }
   }
@@ -164,9 +167,24 @@ export function rebalanceStudyPlan(topics, customSettings = {}) {
   );
   const totalBufferHours = Number((totalRemainingEffectiveHours - totalRemainingBaseHours).toFixed(1));
 
+  // Effective study capacities and dynamic critical threshold
+  const enableAfternoon = settings.enableAfternoonSlot !== false;
+  const afternoonHours = enableAfternoon ? Number(settings.afternoonStudyHours !== undefined ? settings.afternoonStudyHours : 2.5) : 0;
+  const eveningHours = Number(settings.eveningStudyHours !== undefined ? settings.eveningStudyHours : (settings.weekdayStudyHours || 2.5));
+  const effectiveWeekdayHours = Number((afternoonHours + eveningHours).toFixed(1));
+  const effectiveWeekendHours = Number(settings.weekendStudyHours || 4.5);
+
+  // Dynamic Critical Burnout Threshold calculation:
+  // With afternoon slot, nominal weekly capacity is (5 * 5h) + (2 * 4.5h) = 34h.
+  // The burnout threshold dynamically raises to 35.0h (or custom settings).
+  const nominalWeeklyCapacity = Number(((effectiveWeekdayHours * 5) + (effectiveWeekendHours * 2)).toFixed(1));
+  const dynamicCriticalThreshold = (customSettings && customSettings.criticalWeeklyHoursThreshold)
+    ? Number(customSettings.criticalWeeklyHoursThreshold)
+    : (enableAfternoon ? 35.0 : 25.0);
+
   // Required weekly pace to finish by targetExamDate
   const requiredWeeklyHours = Number((totalRemainingEffectiveHours / Math.max(1, remainingWeeks)).toFixed(1));
-  const isCriticalOverload = requiredWeeklyHours > settings.criticalWeeklyHoursThreshold;
+  const isCriticalOverload = requiredWeeklyHours > dynamicCriticalThreshold;
 
   // 2. Generate FULL calendar from roadmapStartDate to targetExamDate
   const allCalendarDays = [];
@@ -191,15 +209,23 @@ export function rebalanceStudyPlan(topics, customSettings = {}) {
     const isToday = dateStr === settings.currentSimulatedDate;
     const isFuture = dateStr > settings.currentSimulatedDate;
 
+    const timeSlotDescription = dayConfig.isWeekend
+      ? (dayConfig.timeSlot || "Mattina + Pomeriggio")
+      : (enableAfternoon
+          ? `Pomeriggio (16:30 - 19:00, ${afternoonHours}h) + Sera (19:30 - 22:00, ${eveningHours}h)`
+          : `Sera (19:30 - 22:00, ${eveningHours}h)`);
+
+    const maxDayHours = dayConfig.isWeekend ? effectiveWeekendHours : effectiveWeekdayHours;
+
     allCalendarDays.push({
       date: dateStr,
       dayOfWeek,
       dayName: dayConfig.name,
       enabled: dayConfig.enabled,
       isWeekend: dayConfig.isWeekend,
-      timeSlot: dayConfig.timeSlot || (dayConfig.isWeekend ? "Pomeriggio" : "Sera"),
+      timeSlot: timeSlotDescription,
       preferredSubject: dayConfig.defaultSubject || "Misto",
-      maxHours: dayConfig.isWeekend ? settings.weekendStudyHours : settings.weekdayStudyHours,
+      maxHours: maxDayHours,
       allocatedHours: 0,
       weekIndex,
       isPast,
@@ -213,17 +239,19 @@ export function rebalanceStudyPlan(topics, customSettings = {}) {
     dayOffset++;
   }
 
-  // 3. Populate PAST DAYS in calendar
+  // 3. Populate COMPLETED TOPICS on their completion dates (Past + Today + Future if completed ahead)
   let pastDaysStudied = 0;
   let pastDaysSkipped = 0;
   let totalPastHours = 0;
 
-  allCalendarDays.filter(d => d.isPast).forEach(day => {
+  allCalendarDays.forEach(day => {
     // Find topics completed on this exact date
     const completedOnThisDay = topics.filter(t => t.isCompleted && t.completedDate === day.date);
 
     if (completedOnThisDay.length > 0) {
-      day.dayStatus = "completed";
+      if (day.isPast || day.isToday) {
+        day.dayStatus = "completed";
+      }
       day.topics = completedOnThisDay.map(t => ({
         ...t,
         effectiveHours: t.oreStimate,
@@ -232,9 +260,11 @@ export function rebalanceStudyPlan(topics, customSettings = {}) {
         assignedDayName: day.dayName
       }));
       day.allocatedHours = Number(completedOnThisDay.reduce((acc, t) => acc + (Number(t.oreStimate) || 0), 0).toFixed(1));
-      pastDaysStudied++;
-      totalPastHours += day.allocatedHours;
-    } else {
+      if (day.isPast || day.isToday) {
+        pastDaysStudied++;
+        totalPastHours += day.allocatedHours;
+      }
+    } else if (day.isPast) {
       if (day.enabled) {
         day.dayStatus = "skipped"; // Missed study day
         pastDaysSkipped++;
@@ -258,7 +288,7 @@ export function rebalanceStudyPlan(topics, customSettings = {}) {
   const activeAndFutureDays = allCalendarDays.filter(d => (d.isToday || d.isFuture) && d.enabled);
 
   activeAndFutureDays.forEach(day => {
-    let capacityLeft = day.maxHours;
+    let capacityLeft = Math.max(0, Number((day.maxHours - day.allocatedHours).toFixed(2)));
 
     while (capacityLeft > 0.4) {
       let chosenTopic = null;
@@ -385,9 +415,15 @@ export function rebalanceStudyPlan(topics, customSettings = {}) {
       totalRemainingEffectiveHours,
       totalBufferHours,
       requiredWeeklyHours,
-      criticalWeeklyHoursThreshold: settings.criticalWeeklyHoursThreshold,
+      criticalWeeklyHoursThreshold: dynamicCriticalThreshold,
+      nominalWeeklyCapacity,
+      effectiveWeekdayHours,
+      effectiveWeekendHours,
+      enableAfternoonSlot: enableAfternoon,
+      afternoonStudyHours: afternoonHours,
+      eveningStudyHours: eveningHours,
       isCriticalOverload,
-      excessHours: Number(Math.max(0, requiredWeeklyHours - settings.criticalWeeklyHoursThreshold).toFixed(1)),
+      excessHours: Number(Math.max(0, requiredWeeklyHours - dynamicCriticalThreshold).toFixed(1)),
       uncompletedCount: processedUncompleted.length,
       targetExamDate: settings.targetExamDate,
       currentSimulatedDate: settings.currentSimulatedDate,

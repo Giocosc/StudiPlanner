@@ -18,7 +18,8 @@ import {
   IconFlame,
   IconBookOpen,
   IconHistory,
-  IconSave
+  IconSave,
+  IconFileCheck
 } from "./components/Icons.js";
 
 const LOCAL_STORAGE_KEY_TOPICS = "unimore_rebalancer_topics_v2";
@@ -50,6 +51,16 @@ export function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [lastSavedTime, setLastSavedTime] = useState("");
 
+  // Transparent File System Access API synchronization
+  const [fileHandle, setFileHandle] = useState(null);
+  const [fsSyncStatus, setFsSyncStatus] = useState({
+    active: false,
+    fileName: "",
+    lastSaved: null,
+    isSaving: false,
+    error: null
+  });
+
   // Save to localStorage on change with visual confirmation
   useEffect(() => {
     try {
@@ -67,6 +78,140 @@ export function App() {
       console.warn("Failed to persist settings", e);
     }
   }, [settings]);
+
+  // Transparent Auto-Sync: Automatically overwrite connected JSON file on any global state change
+  useEffect(() => {
+    if (!fileHandle) return;
+
+    let isMounted = true;
+    const autoSaveToFile = async () => {
+      try {
+        if (isMounted) setFsSyncStatus(prev => ({ ...prev, isSaving: true, error: null }));
+        const writable = await fileHandle.createWritable();
+        const backupData = {
+          exportDate: new Date().toISOString(),
+          settings,
+          topics
+        };
+        await writable.write(JSON.stringify(backupData, null, 2));
+        await writable.close();
+        if (isMounted) {
+          setFsSyncStatus({
+            active: true,
+            fileName: fileHandle.name,
+            lastSaved: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+            isSaving: false,
+            error: null
+          });
+        }
+      } catch (err) {
+        console.warn("Auto-sync write error:", err);
+        if (isMounted) {
+          setFsSyncStatus(prev => ({ ...prev, isSaving: false, error: err.message }));
+        }
+      }
+    };
+
+    autoSaveToFile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [topics, settings, fileHandle]);
+
+  // Connect file handle using File System Access API
+  const handleConnectFileSystem = async () => {
+    if (typeof window === "undefined" || !("showOpenFilePicker" in window)) {
+      throw new Error("La File System Access API non è supportata da questo browser.");
+    }
+    const [handle] = await window.showOpenFilePicker({
+      types: [
+        {
+          description: "File di Backup JSON (*.json)",
+          accept: { "application/json": [".json"] }
+        }
+      ],
+      multiple: false
+    });
+    if (!handle) return null;
+
+    const file = await handle.getFile();
+    const text = await file.text();
+    let imported = false;
+    if (text.trim()) {
+      try {
+        const backup = JSON.parse(text);
+        if (backup.topics && Array.isArray(backup.topics)) {
+          setTopics(backup.topics);
+          if (backup.settings) {
+            setSettings(backup.settings);
+          }
+          imported = true;
+        }
+      } catch (e) {
+        console.warn("File JSON iniziale vuoto o non valido; verrà popolato con i dati attuali.", e);
+      }
+    }
+
+    setFileHandle(handle);
+    setFsSyncStatus({
+      active: true,
+      fileName: handle.name,
+      lastSaved: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      isSaving: false,
+      error: null
+    });
+
+    if (!imported) {
+      try {
+        const writable = await handle.createWritable();
+        await writable.write(JSON.stringify({
+          exportDate: new Date().toISOString(),
+          settings,
+          topics
+        }, null, 2));
+        await writable.close();
+      } catch (err) {
+        console.warn("Scrittura iniziale fallita:", err);
+      }
+    }
+
+    return { fileName: handle.name, imported };
+  };
+
+  const handleDisconnectFileSystem = () => {
+    setFileHandle(null);
+    setFsSyncStatus({
+      active: false,
+      fileName: "",
+      lastSaved: null,
+      isSaving: false,
+      error: null
+    });
+  };
+
+  const handleTriggerManualSave = async () => {
+    if (!fileHandle) return;
+    try {
+      setFsSyncStatus(prev => ({ ...prev, isSaving: true, error: null }));
+      const writable = await fileHandle.createWritable();
+      await writable.write(JSON.stringify({
+        exportDate: new Date().toISOString(),
+        settings,
+        topics
+      }, null, 2));
+      await writable.close();
+      setFsSyncStatus({
+        active: true,
+        fileName: fileHandle.name,
+        lastSaved: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        isSaving: false,
+        error: null
+      });
+    } catch (err) {
+      setFsSyncStatus(prev => ({ ...prev, isSaving: false, error: err.message }));
+    }
+  };
 
   // Reactive Rebalancing calculation
   const rebalancedPlan = useMemo(() => {
@@ -215,6 +360,19 @@ export function App() {
 
           {/* Right Action: Date Simulation Controls & Settings */}
           <div className="flex items-center space-x-2.5">
+            {/* Auto-Sync status badge if connected */}
+            {fsSyncStatus.active && (
+              <button
+                type="button"
+                onClick={() => setActiveTab("import")}
+                className="hidden lg:flex items-center space-x-1.5 bg-emerald-950/80 border border-emerald-500/40 px-2.5 py-1.5 rounded-xl text-xs font-mono text-emerald-300 hover:bg-emerald-900/60 transition"
+                title={`Sincronizzazione automatica attiva su: ${fsSyncStatus.fileName} (Ultimo salvataggio: ${fsSyncStatus.lastSaved || "In corso..."})`}
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span className="truncate max-w-[120px] font-bold">{fsSyncStatus.fileName}</span>
+              </button>
+            )}
+
             {/* Quick date simulator pill */}
             <div className="hidden sm:flex items-center bg-slate-900/90 border border-slate-800 rounded-xl p-1 text-xs font-mono">
               <button
@@ -309,6 +467,7 @@ export function App() {
         {activeTab === "history" && (
           <HistoryLog
             historyDays={historyDays}
+            calendarDays={rebalancedPlan.calendarDays}
             metrics={metrics}
             onAdvanceDate={handleAdvanceDate}
             onRetrocedeDate={handleRetrocedeDate}
@@ -330,6 +489,10 @@ export function App() {
             settings={settings}
             onTopicsUpdated={handleTopicsUpdated}
             onSettingsUpdated={(newSettings) => setSettings(newSettings)}
+            fsSyncStatus={fsSyncStatus}
+            onConnectFileSystem={handleConnectFileSystem}
+            onDisconnectFileSystem={handleDisconnectFileSystem}
+            onTriggerManualSave={handleTriggerManualSave}
           />
         )}
       </main>

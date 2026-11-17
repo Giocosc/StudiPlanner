@@ -1,5 +1,19 @@
 import React, { useState, useEffect } from "react";
-import { IconChevronLeft, IconChevronRight, IconCheck, IconClock, IconBriefcase, IconFlame, IconCheckCircle } from "./Icons.js";
+import {
+  IconChevronLeft,
+  IconChevronRight,
+  IconCheck,
+  IconClock,
+  IconBriefcase,
+  IconFlame,
+  IconCheckCircle,
+  IconPlay,
+  IconPause,
+  IconRotateCcw,
+  IconTomato
+} from "./Icons.js";
+
+const LOCAL_STORAGE_KEY_POMODORO = "unimore_rebalancer_pomodoro_v2";
 
 export function WeeklyTodo({ weeklyPlans, onToggleComplete, settings }) {
   // Default to the week containing Today
@@ -9,6 +23,171 @@ export function WeeklyTodo({ weeklyPlans, onToggleComplete, settings }) {
   });
 
   const [filterSubject, setFilterSubject] = useState("all");
+
+  // Pomodoro timer state for topic cards
+  // { [topicId]: { accumulatedSeconds: number, isRunning: boolean, cycleRemaining: number, isBreak: boolean, completedByTimer: boolean } }
+  const [pomodoroMap, setPomodoroMap] = useState(() => {
+    try {
+      const saved = localStorage.getItem(LOCAL_STORAGE_KEY_POMODORO);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.warn("Failed to load pomodoro state from localStorage", e);
+    }
+    return {};
+  });
+
+  // Persist Pomodoro map to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(LOCAL_STORAGE_KEY_POMODORO, JSON.stringify(pomodoroMap));
+    } catch (e) {
+      console.warn("Failed to persist pomodoro state", e);
+    }
+  }, [pomodoroMap]);
+
+  // Global Pomodoro ticker (1 second per tick)
+  useEffect(() => {
+    const hasRunning = Object.values(pomodoroMap).some(p => p.isRunning);
+    if (!hasRunning) return;
+
+    const interval = setInterval(() => {
+      setPomodoroMap(prev => {
+        let changed = false;
+        const nextMap = { ...prev };
+
+        Object.entries(prev).forEach(([topicId, pState]) => {
+          if (!pState.isRunning) return;
+          changed = true;
+
+          const isBreak = pState.isBreak || false;
+          let cycleRemaining = (pState.cycleRemaining !== undefined ? pState.cycleRemaining : 50 * 60) - 1;
+          let newIsBreak = isBreak;
+
+          if (cycleRemaining <= 0) {
+            // Switch between 50 min study and 10 min break
+            newIsBreak = !isBreak;
+            cycleRemaining = newIsBreak ? 10 * 60 : 50 * 60;
+          }
+
+          // Accumulate focus time only during focus study phase
+          const accumulated = isBreak ? (pState.accumulatedSeconds || 0) : (pState.accumulatedSeconds || 0) + 1;
+          const targetSeconds = Math.round((Number(pState.targetHours) || 2.0) * 3600);
+          const reachedTarget = accumulated >= targetSeconds;
+
+          nextMap[topicId] = {
+            ...pState,
+            accumulatedSeconds: accumulated,
+            cycleRemaining,
+            isBreak: newIsBreak,
+            isRunning: reachedTarget ? false : pState.isRunning,
+            completedByTimer: reachedTarget ? true : pState.completedByTimer
+          };
+
+          // Auto-check topic when accumulated timer reaches estimated hours!
+          if (reachedTarget && !pState.completedByTimer) {
+            onToggleComplete(topicId);
+          }
+        });
+
+        return changed ? nextMap : prev;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [pomodoroMap, onToggleComplete]);
+
+  // Pomodoro Actions
+  const togglePomodoro = (topicId, targetHours) => {
+    setPomodoroMap(prev => {
+      const current = prev[topicId] || {
+        accumulatedSeconds: 0,
+        cycleRemaining: 50 * 60,
+        isBreak: false,
+        isRunning: false,
+        completedByTimer: false
+      };
+      return {
+        ...prev,
+        [topicId]: {
+          ...current,
+          targetHours: Number(targetHours) || 2.0,
+          isRunning: !current.isRunning
+        }
+      };
+    });
+  };
+
+  const resetPomodoro = (topicId, targetHours) => {
+    setPomodoroMap(prev => ({
+      ...prev,
+      [topicId]: {
+        accumulatedSeconds: 0,
+        cycleRemaining: 50 * 60,
+        isBreak: false,
+        isRunning: false,
+        targetHours: Number(targetHours) || 2.0,
+        completedByTimer: false
+      }
+    }));
+  };
+
+  const addPomodoroMinutes = (topicId, targetHours, minutes) => {
+    setPomodoroMap(prev => {
+      const current = prev[topicId] || {
+        accumulatedSeconds: 0,
+        cycleRemaining: 50 * 60,
+        isBreak: false,
+        isRunning: false,
+        completedByTimer: false
+      };
+      const added = minutes * 60;
+      const accumulated = (current.accumulatedSeconds || 0) + added;
+      const targetSeconds = Math.round((Number(targetHours) || 2.0) * 3600);
+      const reachedTarget = accumulated >= targetSeconds;
+
+      if (reachedTarget && !current.completedByTimer) {
+        onToggleComplete(topicId);
+      }
+
+      return {
+        ...prev,
+        [topicId]: {
+          ...current,
+          targetHours: Number(targetHours) || 2.0,
+          accumulatedSeconds: accumulated,
+          isRunning: reachedTarget ? false : current.isRunning,
+          completedByTimer: reachedTarget ? true : current.completedByTimer
+        }
+      };
+    });
+  };
+
+  const completePomodoroTarget = (topicId, targetHours) => {
+    const targetSec = Math.round((Number(targetHours) || 2.0) * 3600);
+    setPomodoroMap(prev => {
+      const current = prev[topicId] || {};
+      return {
+        ...prev,
+        [topicId]: {
+          ...current,
+          targetHours: Number(targetHours) || 2.0,
+          accumulatedSeconds: targetSec,
+          isRunning: false,
+          cycleRemaining: 0,
+          completedByTimer: true
+        }
+      };
+    });
+    // Trigger auto-check of the topic
+    onToggleComplete(topicId);
+  };
+
+  const formatMinutesSeconds = (totalSec) => {
+    const s = Math.max(0, totalSec);
+    const mins = Math.floor(s / 60);
+    const secs = s % 60;
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  };
 
   // Keep selected week in sync if currentSimulatedDate changes week
   useEffect(() => {
@@ -250,11 +429,21 @@ export function WeeklyTodo({ weeklyPlans, onToggleComplete, settings }) {
                 <div className="space-y-2.5">
                   {visibleTopics.map(topic => {
                     const isAnalisi = topic.materia.toLowerCase().includes("analisi");
+                    const pState = pomodoroMap[topic.id] || {
+                      accumulatedSeconds: 0,
+                      cycleRemaining: 50 * 60,
+                      isRunning: false,
+                      isBreak: false,
+                      completedByTimer: false
+                    };
+                    const targetSeconds = Math.round((Number(topic.oreStimate) || 2.0) * 3600);
+                    const accumulated = pState.accumulatedSeconds || 0;
+                    const percentPomodoro = Math.min(100, Math.round((accumulated / targetSeconds) * 100));
 
                     return (
                       <div
                         key={topic.id}
-                        className={`flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-2xl border transition-all ${
+                        className={`flex flex-col p-3.5 rounded-2xl border transition-all ${
                           topic.isCompleted
                             ? "bg-slate-950/60 border-slate-800/50 opacity-60"
                             : isAnalisi
@@ -262,92 +451,186 @@ export function WeeklyTodo({ weeklyPlans, onToggleComplete, settings }) {
                             : "bg-slate-950/80 hover:bg-slate-900 border-indigo-500/20 hover:border-indigo-500/40"
                         }`}
                       >
-                        {/* Checkbox and Title */}
-                        <div className="flex items-start space-x-3.5 flex-1 min-w-0 pr-2">
-                          <button
-                            type="button"
-                            onClick={() => onToggleComplete(topic.id)}
-                            className={`w-5 h-5 rounded-lg border mt-0.5 flex items-center justify-center transition-colors flex-shrink-0 ${
-                              topic.isCompleted
-                                ? "bg-emerald-500 border-emerald-400 text-white"
-                                : "border-slate-600 hover:border-slate-400 bg-slate-900"
-                            }`}
-                            title={topic.isCompleted ? "Segna come da fare" : "Segna come completato"}
-                          >
-                            {topic.isCompleted && <IconCheck className="w-3.5 h-3.5" />}
-                          </button>
+                        {/* Upper row: Checkbox, Title and Meta Pills */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          {/* Checkbox and Title */}
+                          <div className="flex items-start space-x-3.5 flex-1 min-w-0 pr-2">
+                            <button
+                              type="button"
+                              onClick={() => onToggleComplete(topic.id)}
+                              className={`w-5 h-5 rounded-lg border mt-0.5 flex items-center justify-center transition-colors flex-shrink-0 ${
+                                topic.isCompleted
+                                  ? "bg-emerald-500 border-emerald-400 text-white"
+                                  : "border-slate-600 hover:border-slate-400 bg-slate-900"
+                              }`}
+                              title={topic.isCompleted ? "Segna come da fare" : "Segna come completato"}
+                            >
+                              {topic.isCompleted && <IconCheck className="w-3.5 h-3.5" />}
+                            </button>
 
-                          <div className="min-w-0">
-                            <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                              {/* Subject Badge */}
-                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
-                                isAnalisi
-                                  ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                                  : "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                                {/* Subject Badge */}
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                                  isAnalisi
+                                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                                    : "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                                }`}>
+                                  {topic.materia}
+                                </span>
+
+                                {/* Topic ID */}
+                                <span className="text-[11px] font-mono font-bold text-slate-300">
+                                  {topic.id}
+                                </span>
+
+                                {/* Chapter */}
+                                <span className="text-[11px] text-slate-400 truncate max-w-[200px]">
+                                  • {topic.capitolo}
+                                </span>
+
+                                {/* Buffer +20% badge */}
+                                {topic.hasBuffer && (
+                                  <span className="text-[10px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.2 rounded">
+                                    +20% Buffer Priorità
+                                  </span>
+                                )}
+
+                                {topic.isCompleted && topic.completedDate && (
+                                  <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded">
+                                    ✓ Svolto il {formatDateDisplay(topic.completedDate)}
+                                  </span>
+                                )}
+                              </div>
+
+                              <p className={`text-xs md:text-sm font-medium ${
+                                topic.isCompleted ? "line-through text-slate-500" : "text-slate-200"
                               }`}>
-                                {topic.materia}
-                              </span>
+                                {topic.argomento}
+                              </p>
 
-                              {/* Topic ID */}
-                              <span className="text-[11px] font-mono font-bold text-slate-300">
-                                {topic.id}
-                              </span>
-
-                              {/* Chapter */}
-                              <span className="text-[11px] text-slate-400 truncate max-w-[200px]">
-                                • {topic.capitolo}
-                              </span>
-
-                              {/* Buffer +20% badge */}
-                              {topic.hasBuffer && (
-                                <span className="text-[10px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.2 rounded">
-                                  +20% Buffer Priorità
-                                </span>
+                              {topic.note && (
+                                <p className="text-[11px] text-slate-500 mt-0.5 truncate">
+                                  Obiettivo: {topic.note}
+                                </p>
                               )}
+                            </div>
+                          </div>
 
-                              {topic.isCompleted && topic.completedDate && (
-                                <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded">
-                                  ✓ Svolto il {formatDateDisplay(topic.completedDate)}
-                                </span>
+                          {/* Meta Pills (Hours, Difficulty, Priority) */}
+                          <div className="flex items-center space-x-2 mt-2 sm:mt-0 flex-shrink-0 self-end sm:self-center">
+                            {/* Hours */}
+                            <div className="text-right">
+                              <div className="text-xs font-mono font-bold text-white">
+                                {topic.effectiveHours}h
+                              </div>
+                              {topic.hasBuffer && (
+                                <div className="text-[10px] text-slate-500 font-mono">
+                                  (base {topic.oreStimate}h)
+                                </div>
                               )}
                             </div>
 
-                            <p className={`text-xs md:text-sm font-medium ${
-                              topic.isCompleted ? "line-through text-slate-500" : "text-slate-200"
-                            }`}>
-                              {topic.argomento}
-                            </p>
-
-                            {topic.note && (
-                              <p className="text-[11px] text-slate-500 mt-0.5 truncate">
-                                Obiettivo: {topic.note}
-                              </p>
-                            )}
+                            {/* Difficulty and Priority indicators */}
+                            <div className="flex flex-col items-end gap-0.5">
+                              <span className="text-[10px] text-slate-400">
+                                Priorità: <strong className="text-amber-400">{topic.prioritaEsame}/5</strong>
+                              </span>
+                              <span className="text-[10px] text-slate-400">
+                                Difficoltà: <strong className="text-cyan-400">{topic.difficolta}/5</strong>
+                              </span>
+                            </div>
                           </div>
                         </div>
 
-                        {/* Meta Pills (Hours, Difficulty, Priority) */}
-                        <div className="flex items-center space-x-2 mt-2 sm:mt-0 flex-shrink-0 self-end sm:self-center">
-                          {/* Hours */}
-                          <div className="text-right">
-                            <div className="text-xs font-mono font-bold text-white">
-                              {topic.effectiveHours}h
+                        {/* Pomodoro 50/10 Interactive Tracker Strip */}
+                        <div className="mt-2.5 pt-2 border-t border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-900/50 p-2.5 rounded-xl">
+                          <div className="flex items-center space-x-2.5">
+                            <div className={`p-1.5 rounded-lg border flex-shrink-0 ${
+                              pState.isRunning
+                                ? (pState.isBreak ? "bg-amber-500/20 text-amber-300 border-amber-500/30" : "bg-cyan-500/20 text-cyan-300 border-cyan-500/30 animate-pulse")
+                                : "bg-slate-800 text-slate-400 border-slate-700"
+                            }`}>
+                              <IconTomato className="w-4 h-4" />
                             </div>
-                            {topic.hasBuffer && (
-                              <div className="text-[10px] text-slate-500 font-mono">
-                                (base {topic.oreStimate}h)
+
+                            <div>
+                              <div className="flex items-center space-x-2">
+                                <span className="text-[11px] font-bold text-slate-200">
+                                  Pomodoro 50/10
+                                </span>
+                                <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded font-bold ${
+                                  pState.isBreak
+                                    ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                                    : pState.isRunning
+                                    ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"
+                                    : "bg-slate-800 text-slate-400"
+                                }`}>
+                                  {pState.isBreak ? "☕ Pausa" : "🍅 Studio"} {formatMinutesSeconds(pState.cycleRemaining !== undefined ? pState.cycleRemaining : 50 * 60)}
+                                </span>
+                                {accumulated >= targetSeconds && (
+                                  <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded">
+                                    ✓ Target Raggiunto
+                                  </span>
+                                )}
                               </div>
-                            )}
+
+                              <div className="flex items-center space-x-2 mt-1">
+                                <div className="w-24 sm:w-32 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full bg-gradient-to-r from-cyan-400 to-emerald-400 rounded-full transition-all duration-300"
+                                    style={{ width: `${percentPomodoro}%` }}
+                                  />
+                                </div>
+                                <span className="text-[10px] text-slate-400 font-mono">
+                                  {(accumulated / 3600).toFixed(1)}h / {topic.oreStimate}h ({percentPomodoro}%)
+                                </span>
+                              </div>
+                            </div>
                           </div>
 
-                          {/* Difficulty and Priority indicators */}
-                          <div className="flex flex-col items-end gap-0.5">
-                            <span className="text-[10px] text-slate-400">
-                              Priorità: <strong className="text-amber-400">{topic.prioritaEsame}/5</strong>
-                            </span>
-                            <span className="text-[10px] text-slate-400">
-                              Difficoltà: <strong className="text-cyan-400">{topic.difficolta}/5</strong>
-                            </span>
+                          {/* Pomodoro Timer Controls */}
+                          <div className="flex items-center space-x-1.5 self-end sm:self-center flex-shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => togglePomodoro(topic.id, topic.oreStimate)}
+                              className={`px-2.5 py-1 rounded-xl text-xs font-bold transition flex items-center gap-1 ${
+                                pState.isRunning
+                                  ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30"
+                                  : "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 hover:bg-cyan-500/30"
+                              }`}
+                              title={pState.isRunning ? "Metti in pausa il timer" : "Avvia il timer pomodoro"}
+                            >
+                              {pState.isRunning ? <IconPause className="w-3.5 h-3.5" /> : <IconPlay className="w-3.5 h-3.5" />}
+                              <span>{pState.isRunning ? "Pausa" : "Avvia"}</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => resetPomodoro(topic.id, topic.oreStimate)}
+                              className="p-1.5 text-slate-500 hover:text-slate-200 rounded-lg hover:bg-slate-800 transition"
+                              title="Azzera il tempo accumulato per questo argomento"
+                            >
+                              <IconRotateCcw className="w-3.5 h-3.5" />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => addPomodoroMinutes(topic.id, topic.oreStimate, 30)}
+                              className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-lg text-[10px] font-mono transition"
+                              title="Aggiungi 30 minuti di studio completati"
+                            >
+                              +30m
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => completePomodoroTarget(topic.id, topic.oreStimate)}
+                              className="px-2.5 py-1 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 rounded-lg text-[10px] font-bold transition"
+                              title="Simula raggiungimento completo delle ore stimate (auto-check automatico)"
+                            >
+                              Target Raggiunto
+                            </button>
                           </div>
                         </div>
                       </div>

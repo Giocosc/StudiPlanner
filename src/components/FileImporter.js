@@ -1,12 +1,54 @@
 import React, { useState } from "react";
-import { IconUpload, IconDownload, IconCheckCircle, IconRefresh, IconLayers, IconBookOpen, IconSave } from "./Icons.js";
+import { IconUpload, IconDownload, IconCheckCircle, IconRefresh, IconLayers, IconBookOpen, IconSave, IconFileCheck } from "./Icons.js";
 import { parseCSVString, parseExcelData, mergeTopicsWithExcelData } from "../services/parserService.js";
 import { INITIAL_TOPICS } from "../data/defaultData.js";
 
-export function FileImporter({ topics, settings, onTopicsUpdated, onSettingsUpdated }) {
+export function FileImporter({
+  topics,
+  settings,
+  onTopicsUpdated,
+  onSettingsUpdated,
+  fsSyncStatus,
+  onConnectFileSystem,
+  onDisconnectFileSystem,
+  onTriggerManualSave
+}) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [notification, setNotification] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
+
+  const isFsAccessSupported = typeof window !== "undefined" && "showOpenFilePicker" in window;
+
+  // Handle transparent File System Access connection
+  const handleConnectFileClick = async () => {
+    if (!onConnectFileSystem) {
+      setNotification({
+        type: "error",
+        message: "Gestore sincronizzazione File System non configurato."
+      });
+      return;
+    }
+    setIsProcessing(true);
+    setNotification(null);
+    try {
+      const res = await onConnectFileSystem();
+      if (res && res.fileName) {
+        setNotification({
+          type: "success",
+          message: `Sincronizzazione attiva con "${res.fileName}"! ${res.imported ? "Dati importati dal file." : "Stato attuale salvato nel file."} Ogni modifica verrà riscritta automaticamente.`
+        });
+      }
+    } catch (err) {
+      if (err.name !== "AbortError") {
+        setNotification({
+          type: "error",
+          message: `Errore durante il collegamento file: ${err.message}`
+        });
+      }
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   // Process a selected or dropped file
   const handleFile = async (file) => {
@@ -170,6 +212,97 @@ export function FileImporter({ topics, settings, onTopicsUpdated, onSettingsUpda
 
   return (
     <div className="space-y-6">
+      {/* File System Access API Transparent Auto-Sync Box */}
+      <div className="bg-gradient-to-r from-slate-900/90 via-indigo-950/40 to-cyan-950/40 border border-cyan-500/30 rounded-3xl p-5 md:p-6 shadow-xl backdrop-blur-md">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-start space-x-3.5">
+            <div className={`p-3 rounded-2xl flex-shrink-0 border ${
+              fsSyncStatus?.active
+                ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-lg shadow-emerald-500/20"
+                : "bg-cyan-500/10 text-cyan-400 border-cyan-500/20"
+            }`}>
+              <IconFileCheck className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center space-x-2">
+                <h3 className="text-base font-bold text-white">
+                  Sincronizzazione Trasparente File System
+                </h3>
+                {fsSyncStatus?.active ? (
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1 animate-pulse-subtle">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block"></span>
+                    ATTIVA
+                  </span>
+                ) : (
+                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
+                    Non collegato
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
+                Collega direttamente un file JSON salvato su <strong>iCloud Drive</strong>, <strong>Google Drive</strong> o sul tuo computer tramite la <em>File System Access API</em>. L'app sovrascriverà automaticamente il file ad ogni modifica, eliminando la necessità di scaricare backup manuali!
+              </p>
+
+              {fsSyncStatus?.active && (
+                <div className="mt-2.5 flex flex-wrap items-center gap-2 text-xs">
+                  <span className="bg-slate-950/80 px-2.5 py-1 rounded-xl border border-slate-800 font-mono text-cyan-300">
+                    📁 File: <strong>{fsSyncStatus.fileName}</strong>
+                  </span>
+                  <span className="bg-slate-950/80 px-2.5 py-1 rounded-xl border border-slate-800 font-mono text-emerald-400">
+                    ✓ Ultimo salvataggio: {fsSyncStatus.lastSaved || "In attesa..."}
+                  </span>
+                  {fsSyncStatus.isSaving && (
+                    <span className="text-cyan-400 animate-pulse text-[11px]">
+                      Scrittura su disco in corso...
+                    </span>
+                  )}
+                  {fsSyncStatus.error && (
+                    <span className="text-rose-400 text-[11px]">
+                      ⚠️ {fsSyncStatus.error}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5 self-start md:self-center flex-shrink-0">
+            {fsSyncStatus?.active ? (
+              <>
+                <button
+                  type="button"
+                  onClick={onTriggerManualSave}
+                  className="px-3.5 py-2 bg-emerald-600/30 hover:bg-emerald-600/40 text-emerald-200 border border-emerald-500/40 rounded-xl text-xs font-bold transition flex items-center gap-1.5"
+                >
+                  <IconSave className="w-4 h-4" />
+                  Salva Ora su File
+                </button>
+                <button
+                  type="button"
+                  onClick={onDisconnectFileSystem}
+                  className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl text-xs font-semibold transition"
+                >
+                  Disconnetti
+                </button>
+              </>
+            ) : isFsAccessSupported ? (
+              <button
+                type="button"
+                onClick={handleConnectFileClick}
+                className="px-4 py-2.5 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white rounded-xl text-xs font-bold transition shadow-lg shadow-cyan-950/50 flex items-center gap-2"
+              >
+                <IconFileCheck className="w-4 h-4" />
+                <span>Collega File JSON (iCloud / Drive)</span>
+              </button>
+            ) : (
+              <div className="text-[11px] text-amber-300/80 bg-amber-950/30 border border-amber-500/30 p-2.5 rounded-xl max-w-xs">
+                La File System Access API non è supportata da questo browser (usa Chrome, Edge o Opera per l'auto-sync trasparente).
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Persistence Status Box */}
       <div className="bg-emerald-950/40 border border-emerald-500/30 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 backdrop-blur-md">
         <div className="flex items-center space-x-3">

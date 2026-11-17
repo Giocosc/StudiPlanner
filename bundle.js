@@ -938,6 +938,64 @@ function IconSave({ className = "w-5 h-5" }) {
   );
 }
 
+function IconPlay({ className = "w-4 h-4" }) {
+  return (
+    <svg className={className} fill="currentColor" viewBox="0 0 24 24">
+      <path d="M8 5v14l11-7z" />
+    </svg>
+  );
+}
+
+function IconPause({ className = "w-4 h-4" }) {
+  return (
+    <svg className={className} fill="currentColor" viewBox="0 0 24 24">
+      <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+    </svg>
+  );
+}
+
+function IconRotateCcw({ className = "w-4 h-4" }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+    </svg>
+  );
+}
+
+function IconSun({ className = "w-4 h-4" }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="5" strokeWidth="2" />
+      <path strokeLinecap="round" strokeWidth="2" d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+    </svg>
+  );
+}
+
+function IconMoon({ className = "w-4 h-4" }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+    </svg>
+  );
+}
+
+function IconFileCheck({ className = "w-5 h-5" }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+    </svg>
+  );
+}
+
+function IconTomato({ className = "w-4 h-4" }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v2m-3-1c1-1 3-1 3-1s2 0 3 1m-6 3a7 7 0 1012 4 7 7 0 00-12-4z" />
+      <circle cx="12" cy="14" r="6" strokeWidth="2" />
+    </svg>
+  );
+}
+
 
 
 // --- src/services/rebalancerEngine.js ---
@@ -956,18 +1014,21 @@ const DEFAULT_SETTINGS = {
   roadmapStartDate: "2026-11-16", // Start of winter session roadmap
   targetExamDate: "2027-01-10",
   currentSimulatedDate: "2026-11-17", // Active date (today)
-  criticalWeeklyHoursThreshold: 25.0, // Critical threshold for full-time workers
-  weekdayStudyHours: 2.5, // Evenings after work (Mon-Fri)
+  criticalWeeklyHoursThreshold: 35.0, // Dynamic threshold elevated with afternoon slot
+  enableAfternoonSlot: true, // Slot Pomeridiano attivo
+  afternoonStudyHours: 2.5, // 16:30 - 19:00 (2.5h)
+  eveningStudyHours: 2.5, // 19:30 - 22:00 (2.5h)
+  weekdayStudyHours: 5.0, // Somma: Pomeriggio (2.5h) + Sera (2.5h)
   weekendStudyHours: 4.5, // Dedicated blocks (Sat, Sun)
   highPriorityThreshold: 4, // 4 or 5 triggers high priority buffer
   bufferMultiplier: 1.2, // +20% time buffer
   interleaveSubjects: true, // Alternate Analisi and Geometria across days
   studyDays: {
-    1: { name: "Lunedì", enabled: true, isWeekend: false, defaultSubject: "Analisi 1", timeSlot: "Sera (19:30 - 22:00)" },
-    2: { name: "Martedì", enabled: true, isWeekend: false, defaultSubject: "Geometria", timeSlot: "Sera (19:30 - 22:00)" },
-    3: { name: "Mercoledì", enabled: true, isWeekend: false, defaultSubject: "Analisi 1", timeSlot: "Sera (19:30 - 22:00)" },
-    4: { name: "Giovedì", enabled: true, isWeekend: false, defaultSubject: "Geometria", timeSlot: "Sera (19:30 - 22:00)" },
-    5: { name: "Venerdì", enabled: true, isWeekend: false, defaultSubject: "Analisi 1", timeSlot: "Sera (19:00 - 21:00)" },
+    1: { name: "Lunedì", enabled: true, isWeekend: false, defaultSubject: "Analisi 1", timeSlot: "Pomeriggio (16:30 - 19:00) + Sera (19:30 - 22:00)" },
+    2: { name: "Martedì", enabled: true, isWeekend: false, defaultSubject: "Geometria", timeSlot: "Pomeriggio (16:30 - 19:00) + Sera (19:30 - 22:00)" },
+    3: { name: "Mercoledì", enabled: true, isWeekend: false, defaultSubject: "Analisi 1", timeSlot: "Pomeriggio (16:30 - 19:00) + Sera (19:30 - 22:00)" },
+    4: { name: "Giovedì", enabled: true, isWeekend: false, defaultSubject: "Geometria", timeSlot: "Pomeriggio (16:30 - 19:00) + Sera (19:30 - 22:00)" },
+    5: { name: "Venerdì", enabled: true, isWeekend: false, defaultSubject: "Analisi 1", timeSlot: "Pomeriggio (16:30 - 19:00) + Sera (19:00 - 21:00)" },
     6: { name: "Sabato", enabled: true, isWeekend: true, defaultSubject: "Misto", timeSlot: "Mattina + Pomeriggio" },
     0: { name: "Domenica", enabled: true, isWeekend: true, defaultSubject: "Misto", timeSlot: "Pomeriggio + Ripasso" }
   }
@@ -1107,9 +1168,24 @@ function rebalanceStudyPlan(topics, customSettings = {}) {
   );
   const totalBufferHours = Number((totalRemainingEffectiveHours - totalRemainingBaseHours).toFixed(1));
 
+  // Effective study capacities and dynamic critical threshold
+  const enableAfternoon = settings.enableAfternoonSlot !== false;
+  const afternoonHours = enableAfternoon ? Number(settings.afternoonStudyHours !== undefined ? settings.afternoonStudyHours : 2.5) : 0;
+  const eveningHours = Number(settings.eveningStudyHours !== undefined ? settings.eveningStudyHours : (settings.weekdayStudyHours || 2.5));
+  const effectiveWeekdayHours = Number((afternoonHours + eveningHours).toFixed(1));
+  const effectiveWeekendHours = Number(settings.weekendStudyHours || 4.5);
+
+  // Dynamic Critical Burnout Threshold calculation:
+  // With afternoon slot, nominal weekly capacity is (5 * 5h) + (2 * 4.5h) = 34h.
+  // The burnout threshold dynamically raises to 35.0h (or custom settings).
+  const nominalWeeklyCapacity = Number(((effectiveWeekdayHours * 5) + (effectiveWeekendHours * 2)).toFixed(1));
+  const dynamicCriticalThreshold = (customSettings && customSettings.criticalWeeklyHoursThreshold)
+    ? Number(customSettings.criticalWeeklyHoursThreshold)
+    : (enableAfternoon ? 35.0 : 25.0);
+
   // Required weekly pace to finish by targetExamDate
   const requiredWeeklyHours = Number((totalRemainingEffectiveHours / Math.max(1, remainingWeeks)).toFixed(1));
-  const isCriticalOverload = requiredWeeklyHours > settings.criticalWeeklyHoursThreshold;
+  const isCriticalOverload = requiredWeeklyHours > dynamicCriticalThreshold;
 
   // 2. Generate FULL calendar from roadmapStartDate to targetExamDate
   const allCalendarDays = [];
@@ -1134,15 +1210,23 @@ function rebalanceStudyPlan(topics, customSettings = {}) {
     const isToday = dateStr === settings.currentSimulatedDate;
     const isFuture = dateStr > settings.currentSimulatedDate;
 
+    const timeSlotDescription = dayConfig.isWeekend
+      ? (dayConfig.timeSlot || "Mattina + Pomeriggio")
+      : (enableAfternoon
+          ? `Pomeriggio (16:30 - 19:00, ${afternoonHours}h) + Sera (19:30 - 22:00, ${eveningHours}h)`
+          : `Sera (19:30 - 22:00, ${eveningHours}h)`);
+
+    const maxDayHours = dayConfig.isWeekend ? effectiveWeekendHours : effectiveWeekdayHours;
+
     allCalendarDays.push({
       date: dateStr,
       dayOfWeek,
       dayName: dayConfig.name,
       enabled: dayConfig.enabled,
       isWeekend: dayConfig.isWeekend,
-      timeSlot: dayConfig.timeSlot || (dayConfig.isWeekend ? "Pomeriggio" : "Sera"),
+      timeSlot: timeSlotDescription,
       preferredSubject: dayConfig.defaultSubject || "Misto",
-      maxHours: dayConfig.isWeekend ? settings.weekendStudyHours : settings.weekdayStudyHours,
+      maxHours: maxDayHours,
       allocatedHours: 0,
       weekIndex,
       isPast,
@@ -1156,17 +1240,19 @@ function rebalanceStudyPlan(topics, customSettings = {}) {
     dayOffset++;
   }
 
-  // 3. Populate PAST DAYS in calendar
+  // 3. Populate COMPLETED TOPICS on their completion dates (Past + Today + Future if completed ahead)
   let pastDaysStudied = 0;
   let pastDaysSkipped = 0;
   let totalPastHours = 0;
 
-  allCalendarDays.filter(d => d.isPast).forEach(day => {
+  allCalendarDays.forEach(day => {
     // Find topics completed on this exact date
     const completedOnThisDay = topics.filter(t => t.isCompleted && t.completedDate === day.date);
 
     if (completedOnThisDay.length > 0) {
-      day.dayStatus = "completed";
+      if (day.isPast || day.isToday) {
+        day.dayStatus = "completed";
+      }
       day.topics = completedOnThisDay.map(t => ({
         ...t,
         effectiveHours: t.oreStimate,
@@ -1175,9 +1261,11 @@ function rebalanceStudyPlan(topics, customSettings = {}) {
         assignedDayName: day.dayName
       }));
       day.allocatedHours = Number(completedOnThisDay.reduce((acc, t) => acc + (Number(t.oreStimate) || 0), 0).toFixed(1));
-      pastDaysStudied++;
-      totalPastHours += day.allocatedHours;
-    } else {
+      if (day.isPast || day.isToday) {
+        pastDaysStudied++;
+        totalPastHours += day.allocatedHours;
+      }
+    } else if (day.isPast) {
       if (day.enabled) {
         day.dayStatus = "skipped"; // Missed study day
         pastDaysSkipped++;
@@ -1201,7 +1289,7 @@ function rebalanceStudyPlan(topics, customSettings = {}) {
   const activeAndFutureDays = allCalendarDays.filter(d => (d.isToday || d.isFuture) && d.enabled);
 
   activeAndFutureDays.forEach(day => {
-    let capacityLeft = day.maxHours;
+    let capacityLeft = Math.max(0, Number((day.maxHours - day.allocatedHours).toFixed(2)));
 
     while (capacityLeft > 0.4) {
       let chosenTopic = null;
@@ -1328,9 +1416,15 @@ function rebalanceStudyPlan(topics, customSettings = {}) {
       totalRemainingEffectiveHours,
       totalBufferHours,
       requiredWeeklyHours,
-      criticalWeeklyHoursThreshold: settings.criticalWeeklyHoursThreshold,
+      criticalWeeklyHoursThreshold: dynamicCriticalThreshold,
+      nominalWeeklyCapacity,
+      effectiveWeekdayHours,
+      effectiveWeekendHours,
+      enableAfternoonSlot: enableAfternoon,
+      afternoonStudyHours: afternoonHours,
+      eveningStudyHours: eveningHours,
       isCriticalOverload,
-      excessHours: Number(Math.max(0, requiredWeeklyHours - settings.criticalWeeklyHoursThreshold).toFixed(1)),
+      excessHours: Number(Math.max(0, requiredWeeklyHours - dynamicCriticalThreshold).toFixed(1)),
       uncompletedCount: processedUncompleted.length,
       targetExamDate: settings.targetExamDate,
       currentSimulatedDate: settings.currentSimulatedDate,
@@ -1643,11 +1737,16 @@ function AlertBanner({ metrics, onOpenSettings }) {
             <div className="flex items-center space-x-2">
               <span className="text-sm font-semibold text-emerald-300">Carico Settimanale Sostenibile</span>
               <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono">
-                {metrics.requiredWeeklyHours}h / sett. (Max {metrics.criticalWeeklyHoursThreshold}h)
+                {metrics.requiredWeeklyHours}h / sett. (Soglia Max {metrics.criticalWeeklyHoursThreshold}h)
               </span>
+              {metrics.enableAfternoonSlot && (
+                <span className="hidden sm:inline text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                  +Slot Pomeridiano Attivo
+                </span>
+              )}
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
-              Il ritmo di studio è ben calibrato per un lavoratore full-time: le serate e i weekend coprono interamente il programma entro il 10 Gennaio 2027.
+              Il ritmo di studio è ben calibrato: {metrics.enableAfternoonSlot ? "l'unione dello slot pomeridiano (16:30 - 19:00) con le serate e i weekend garantisce sostenibilità elevata senza sovraccarico" : "le serate e i weekend coprono interamente il programma"} entro il 10 Gennaio 2027.
             </p>
           </div>
         </div>
@@ -1713,20 +1812,20 @@ function AlertBanner({ metrics, onOpenSettings }) {
           <div className="bg-black/30 p-3 rounded-xl border border-rose-500/20">
             <div className="font-semibold text-rose-300 flex items-center gap-1.5 mb-1">
               <IconBriefcase className="w-4 h-4 text-rose-400" />
-              1. Ottimizzazione Weekend
+              1. Slot Pomeridiano (16:30 - 19:00)
             </div>
             <p className="text-rose-200/80">
-              Aumenta le ore nei blocchi di Sabato e Domenica da 4.5h a 6h per sgravare le sere infrasettimanali dopo il lavoro.
+              Attiva lo slot pomeridiano nei Parametri: aggiungere 2.5h/pomeriggio aumenta la capacità feriale a 5h/giorno distribuendo lo sforzo.
             </p>
           </div>
 
           <div className="bg-black/30 p-3 rounded-xl border border-rose-500/20">
             <div className="font-semibold text-rose-300 flex items-center gap-1.5 mb-1">
               <IconClock className="w-4 h-4 text-amber-400" />
-              2. Anticipo Serale
+              2. Weekend Intensivi
             </div>
             <p className="text-rose-200/80">
-              Inizia la sessione serale alle 19:00 anziché 19:30, oppure effettua un micro-slot da 30 min di ripasso definizioni prima di pranzo.
+              Aumenta le ore nei blocchi di Sabato e Domenica da 4.5h a 6h per accumulare ore diurne di qualità ed evitare affaticamento.
             </p>
           </div>
 
@@ -2020,9 +2119,311 @@ function Dashboard({ progress, metrics, onTabChange }) {
 }
 
 
+// --- src/components/ActivityHeatmap.js ---
+
+
+
+function ActivityHeatmap({ calendarDays = [], historyDays = [], metrics = {}, onSetDate }) {
+  const [selectedDay, setSelectedDay] = useState(null);
+
+  // Group days into weeks for the GitHub-like grid
+  // Standard UNIMORE roadmap starts Monday 16 Nov 2026
+  const { weeksGrid, streakDays, totalCompletedHours, completedDaysCount } = useMemo(() => {
+    const days = calendarDays.length > 0 ? calendarDays : historyDays;
+    
+    // Sort chronologically
+    const sorted = [...days].sort((a, b) => a.date.localeCompare(b.date));
+
+    // Group by weekIndex
+    const map = new Map();
+    let compHours = 0;
+    let compCount = 0;
+
+    sorted.forEach(day => {
+      if (!map.has(day.weekIndex)) {
+        map.set(day.weekIndex, []);
+      }
+      map.get(day.weekIndex).push(day);
+
+      if ((day.isPast || day.isToday) && day.dayStatus === "completed") {
+        compHours += Number(day.allocatedHours) || 0;
+        compCount += 1;
+      }
+    });
+
+    const weeks = Array.from(map.entries()).map(([wIndex, wDays]) => {
+      // Ensure days are ordered Monday (1) to Sunday (0)
+      const daySlots = [null, null, null, null, null, null, null]; // 0=Mon ... 6=Sun
+      wDays.forEach(d => {
+        // Javascript getDay(): 0 is Sun, 1 is Mon...
+        const slotIdx = d.dayOfWeek === 0 ? 6 : d.dayOfWeek - 1;
+        daySlots[slotIdx] = d;
+      });
+      return {
+        weekIndex: wIndex,
+        startDate: wDays[0]?.date,
+        endDate: wDays[wDays.length - 1]?.date,
+        daySlots
+      };
+    });
+
+    // Calculate active study streak
+    let currentStreak = 0;
+    const pastDaysChronological = sorted.filter(d => d.isPast || d.isToday);
+    for (let i = pastDaysChronological.length - 1; i >= 0; i--) {
+      const d = pastDaysChronological[i];
+      if (d.dayStatus === "completed") {
+        currentStreak++;
+      } else if (d.dayStatus === "skipped") {
+        break;
+      }
+    }
+
+    return {
+      weeksGrid: weeks,
+      streakDays: currentStreak,
+      totalCompletedHours: Number(compHours.toFixed(1)),
+      completedDaysCount: compCount
+    };
+  }, [calendarDays, historyDays]);
+
+  const formatDateDisplay = (dateStr) => {
+    if (!dateStr) return "";
+    const [y, m, d] = dateStr.split("-");
+    return `${d}/${m}/${y}`;
+  };
+
+  // Cell style logic based on completed hours and day status
+  const getCellClasses = (day) => {
+    if (!day) return "bg-transparent opacity-0 cursor-default";
+
+    const isToday = day.isToday;
+    const isCompleted = (day.isPast || day.isToday) && day.dayStatus === "completed";
+    const isSkipped = day.isPast && day.dayStatus === "skipped";
+    const isFuture = day.isFuture;
+    const hours = Number(day.allocatedHours) || 0;
+
+    let base = "w-6 h-6 sm:w-7 sm:h-7 rounded-lg transition-all flex items-center justify-center text-[10px] font-mono cursor-pointer relative ";
+
+    if (isToday) {
+      return base + "ring-2 ring-cyan-400 bg-cyan-950/80 border border-cyan-400 text-cyan-200 font-bold shadow-lg shadow-cyan-500/20";
+    }
+
+    if (isCompleted) {
+      if (hours >= 4.0) {
+        return base + "bg-emerald-400 text-slate-950 font-bold border border-emerald-300 shadow-sm shadow-emerald-400/40 hover:scale-110";
+      } else if (hours >= 2.0) {
+        return base + "bg-emerald-600 text-white font-semibold border border-emerald-500/60 shadow-sm shadow-emerald-600/30 hover:scale-110";
+      } else {
+        return base + "bg-emerald-800/80 text-emerald-200 border border-emerald-700/40 hover:scale-110";
+      }
+    }
+
+    if (isSkipped) {
+      return base + "bg-slate-900 border border-amber-500/50 text-amber-400 hover:border-amber-400";
+    }
+
+    if (isFuture) {
+      if (day.topics && day.topics.length > 0) {
+        return base + "bg-slate-900/60 border border-slate-700/60 text-slate-500 hover:border-slate-500 hover:text-slate-300";
+      }
+      return base + "bg-slate-950/60 border border-slate-800/60 text-slate-600";
+    }
+
+    return base + "bg-slate-950 border border-slate-800/40 text-slate-700";
+  };
+
+  const dayLabels = ["L", "M", "M", "G", "V", "S", "D"];
+
+  return (
+    <div className="bg-slate-900/90 border border-slate-800/90 rounded-3xl p-5 md:p-6 backdrop-blur-md shadow-xl space-y-4">
+      {/* Top Banner / Heatmap Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
+        <div>
+          <div className="flex items-center space-x-2">
+            <h3 className="text-base md:text-lg font-bold text-white flex items-center gap-2">
+              <IconCalendar className="w-5 h-5 text-emerald-400" />
+              Activity Heatmap (Mappa di Studio)
+            </h3>
+            <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+              UNIMORE Contribution
+            </span>
+          </div>
+          <p className="text-xs text-slate-400 mt-0.5">
+            Tracciamento visivo delle ore di studio effettuate e programmate fino al 10 Gennaio 2027.
+          </p>
+        </div>
+
+        {/* Quick Streak & Stats Pills */}
+        <div className="flex items-center space-x-2 flex-wrap">
+          <div className="bg-slate-950/80 border border-slate-800 px-3 py-1.5 rounded-xl flex items-center space-x-2">
+            <IconFlame className="w-4 h-4 text-amber-400" />
+            <span className="text-xs text-slate-400">Streak attiva:</span>
+            <span className="text-xs font-bold text-amber-300 font-mono">{streakDays} gg</span>
+          </div>
+
+          <div className="bg-slate-950/80 border border-slate-800 px-3 py-1.5 rounded-xl flex items-center space-x-2">
+            <IconCheckCircle className="w-4 h-4 text-emerald-400" />
+            <span className="text-xs text-slate-400">Ore svolte:</span>
+            <span className="text-xs font-bold text-emerald-300 font-mono">{totalCompletedHours}h</span>
+          </div>
+        </div>
+      </div>
+
+      {/* The GitHub-style Grid */}
+      <div className="overflow-x-auto pb-2 pt-1">
+        <div className="min-w-[650px] flex gap-2">
+          {/* Day of Week Labels Column */}
+          <div className="flex flex-col justify-between py-1 pr-1 text-[11px] font-bold text-slate-400 font-mono select-none">
+            {dayLabels.map((l, idx) => (
+              <span key={idx} className="h-6 sm:h-7 flex items-center justify-center w-4">
+                {l}
+              </span>
+            ))}
+          </div>
+
+          {/* Weeks Columns */}
+          <div className="flex gap-2">
+            {weeksGrid.map((week) => (
+              <div key={week.weekIndex} className="flex flex-col gap-1.5">
+                {/* Week Header */}
+                <div className="text-[10px] font-mono text-slate-400 text-center font-bold">
+                  W{week.weekIndex}
+                </div>
+
+                {/* 7 Days in Week */}
+                {week.daySlots.map((day, dIdx) => (
+                  <button
+                    type="button"
+                    key={dIdx}
+                    onClick={() => day && setSelectedDay(day)}
+                    className={getCellClasses(day)}
+                    title={day ? `${day.dayName} ${day.date} — ${day.allocatedHours}h (${day.dayStatus})` : ""}
+                  >
+                    {day?.isToday ? (
+                      <span className="text-[9px] font-black">★</span>
+                    ) : day?.dayStatus === "completed" ? (
+                      <span>{day.allocatedHours > 0 ? Math.round(day.allocatedHours) : "✓"}</span>
+                    ) : day?.dayStatus === "skipped" ? (
+                      <span className="text-amber-400 text-[10px]">✕</span>
+                    ) : null}
+                  </button>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Legend & Explanations */}
+      <div className="flex flex-wrap items-center justify-between text-xs text-slate-400 pt-2 border-t border-slate-800/70 gap-2">
+        <div className="flex items-center space-x-2">
+          <span className="text-[11px]">Intensità ore:</span>
+          <span className="text-[10px]">Meno</span>
+          <div className="flex items-center space-x-1">
+            <div className="w-3.5 h-3.5 rounded bg-slate-900 border border-slate-800" title="0h" />
+            <div className="w-3.5 h-3.5 rounded bg-emerald-800/80 border border-emerald-700" title="< 2h" />
+            <div className="w-3.5 h-3.5 rounded bg-emerald-600 border border-emerald-500" title="2h - 3.5h" />
+            <div className="w-3.5 h-3.5 rounded bg-emerald-400 border border-emerald-300" title="> 3.5h" />
+          </div>
+          <span className="text-[10px]">Più</span>
+        </div>
+
+        <div className="flex items-center space-x-3 text-[11px]">
+          <span className="flex items-center gap-1">
+            <span className="w-3.5 h-3.5 rounded ring-2 ring-cyan-400 bg-cyan-950 inline-block" /> Oggi
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-3.5 h-3.5 rounded border border-amber-500/60 bg-slate-900 text-amber-400 flex items-center justify-center text-[9px]">✕</span> Saltato
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-3.5 h-3.5 rounded border border-slate-700 bg-slate-900/60 inline-block" /> Programmato
+          </span>
+        </div>
+      </div>
+
+      {/* Selected Day Details Drawer (if clicked) */}
+      {selectedDay && (
+        <div className="mt-3 p-4 bg-slate-950/80 rounded-2xl border border-slate-800 animate-fade-in text-xs space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <span className={`px-2 py-0.5 rounded-lg font-mono font-bold ${
+                selectedDay.isToday
+                  ? "bg-cyan-500 text-black"
+                  : selectedDay.dayStatus === "completed"
+                  ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                  : "bg-slate-800 text-slate-300"
+              }`}>
+                {selectedDay.dayName} {formatDateDisplay(selectedDay.date)}
+              </span>
+              <span className="text-slate-400 font-mono">
+                {selectedDay.timeSlot}
+              </span>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              {onSetDate && !selectedDay.isToday && (
+                <button
+                  type="button"
+                  onClick={() => onSetDate(selectedDay.date)}
+                  className="px-2.5 py-1 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 rounded-lg font-bold transition text-[11px]"
+                >
+                  Simula come "Oggi"
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setSelectedDay(null)}
+                className="text-slate-500 hover:text-white px-1.5 py-0.5 rounded"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-1 text-slate-300">
+            <div>
+              Stato: <strong className={selectedDay.dayStatus === "completed" ? "text-emerald-400" : selectedDay.dayStatus === "skipped" ? "text-amber-400" : "text-cyan-300"}>
+                {selectedDay.dayStatus === "completed" ? `Completato (${selectedDay.allocatedHours}h)` : selectedDay.dayStatus === "skipped" ? "Giorno saltato (ribilanciato)" : `Programmato (${selectedDay.allocatedHours}h)`}
+              </strong>
+            </div>
+            <div className="text-slate-400">
+              Materia: <strong>{selectedDay.preferredSubject}</strong>
+            </div>
+          </div>
+
+          {selectedDay.topics && selectedDay.topics.length > 0 ? (
+            <div className="space-y-1.5 pt-1">
+              <span className="text-[11px] text-slate-400 font-semibold">Argomenti del giorno:</span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                {selectedDay.topics.map(t => (
+                  <div key={t.id} className="p-2 bg-slate-900 rounded-xl border border-slate-800 flex items-center justify-between">
+                    <div className="flex items-center space-x-2 truncate">
+                      <span className="font-mono font-bold text-cyan-300">{t.id}</span>
+                      <span className="text-slate-200 truncate">{t.argomento}</span>
+                    </div>
+                    <span className="font-mono text-emerald-400 font-semibold flex-shrink-0 ml-2">
+                      {t.effectiveHours || t.oreStimate}h
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <p className="text-slate-500 italic text-[11px] pt-1">Nessun argomento specifico assegnato per questo giorno.</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 // --- src/components/WeeklyTodo.js ---
 
 
+
+const LOCAL_STORAGE_KEY_POMODORO = "unimore_rebalancer_pomodoro_v2";
 
 function WeeklyTodo({ weeklyPlans, onToggleComplete, settings }) {
   // Default to the week containing Today
@@ -2032,6 +2433,171 @@ function WeeklyTodo({ weeklyPlans, onToggleComplete, settings }) {
   });
 
   const [filterSubject, setFilterSubject] = useState("all");
+
+  // Pomodoro timer state for topic cards
+  // { [topicId]: { accumulatedSeconds: number, isRunning: boolean, cycleRemaining: number, isBreak: boolean, completedByTimer: boolean } }
+  const [pomodoroMap, setPomodoroMap] = useState(() => {
+    try {
+      const saved = localStorage.getItem(LOCAL_STORAGE_KEY_POMODORO);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.warn("Failed to load pomodoro state from localStorage", e);
+    }
+    return {};
+  });
+
+  // Persist Pomodoro map to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(LOCAL_STORAGE_KEY_POMODORO, JSON.stringify(pomodoroMap));
+    } catch (e) {
+      console.warn("Failed to persist pomodoro state", e);
+    }
+  }, [pomodoroMap]);
+
+  // Global Pomodoro ticker (1 second per tick)
+  useEffect(() => {
+    const hasRunning = Object.values(pomodoroMap).some(p => p.isRunning);
+    if (!hasRunning) return;
+
+    const interval = setInterval(() => {
+      setPomodoroMap(prev => {
+        let changed = false;
+        const nextMap = { ...prev };
+
+        Object.entries(prev).forEach(([topicId, pState]) => {
+          if (!pState.isRunning) return;
+          changed = true;
+
+          const isBreak = pState.isBreak || false;
+          let cycleRemaining = (pState.cycleRemaining !== undefined ? pState.cycleRemaining : 50 * 60) - 1;
+          let newIsBreak = isBreak;
+
+          if (cycleRemaining <= 0) {
+            // Switch between 50 min study and 10 min break
+            newIsBreak = !isBreak;
+            cycleRemaining = newIsBreak ? 10 * 60 : 50 * 60;
+          }
+
+          // Accumulate focus time only during focus study phase
+          const accumulated = isBreak ? (pState.accumulatedSeconds || 0) : (pState.accumulatedSeconds || 0) + 1;
+          const targetSeconds = Math.round((Number(pState.targetHours) || 2.0) * 3600);
+          const reachedTarget = accumulated >= targetSeconds;
+
+          nextMap[topicId] = {
+            ...pState,
+            accumulatedSeconds: accumulated,
+            cycleRemaining,
+            isBreak: newIsBreak,
+            isRunning: reachedTarget ? false : pState.isRunning,
+            completedByTimer: reachedTarget ? true : pState.completedByTimer
+          };
+
+          // Auto-check topic when accumulated timer reaches estimated hours!
+          if (reachedTarget && !pState.completedByTimer) {
+            onToggleComplete(topicId);
+          }
+        });
+
+        return changed ? nextMap : prev;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [pomodoroMap, onToggleComplete]);
+
+  // Pomodoro Actions
+  const togglePomodoro = (topicId, targetHours) => {
+    setPomodoroMap(prev => {
+      const current = prev[topicId] || {
+        accumulatedSeconds: 0,
+        cycleRemaining: 50 * 60,
+        isBreak: false,
+        isRunning: false,
+        completedByTimer: false
+      };
+      return {
+        ...prev,
+        [topicId]: {
+          ...current,
+          targetHours: Number(targetHours) || 2.0,
+          isRunning: !current.isRunning
+        }
+      };
+    });
+  };
+
+  const resetPomodoro = (topicId, targetHours) => {
+    setPomodoroMap(prev => ({
+      ...prev,
+      [topicId]: {
+        accumulatedSeconds: 0,
+        cycleRemaining: 50 * 60,
+        isBreak: false,
+        isRunning: false,
+        targetHours: Number(targetHours) || 2.0,
+        completedByTimer: false
+      }
+    }));
+  };
+
+  const addPomodoroMinutes = (topicId, targetHours, minutes) => {
+    setPomodoroMap(prev => {
+      const current = prev[topicId] || {
+        accumulatedSeconds: 0,
+        cycleRemaining: 50 * 60,
+        isBreak: false,
+        isRunning: false,
+        completedByTimer: false
+      };
+      const added = minutes * 60;
+      const accumulated = (current.accumulatedSeconds || 0) + added;
+      const targetSeconds = Math.round((Number(targetHours) || 2.0) * 3600);
+      const reachedTarget = accumulated >= targetSeconds;
+
+      if (reachedTarget && !current.completedByTimer) {
+        onToggleComplete(topicId);
+      }
+
+      return {
+        ...prev,
+        [topicId]: {
+          ...current,
+          targetHours: Number(targetHours) || 2.0,
+          accumulatedSeconds: accumulated,
+          isRunning: reachedTarget ? false : current.isRunning,
+          completedByTimer: reachedTarget ? true : current.completedByTimer
+        }
+      };
+    });
+  };
+
+  const completePomodoroTarget = (topicId, targetHours) => {
+    const targetSec = Math.round((Number(targetHours) || 2.0) * 3600);
+    setPomodoroMap(prev => {
+      const current = prev[topicId] || {};
+      return {
+        ...prev,
+        [topicId]: {
+          ...current,
+          targetHours: Number(targetHours) || 2.0,
+          accumulatedSeconds: targetSec,
+          isRunning: false,
+          cycleRemaining: 0,
+          completedByTimer: true
+        }
+      };
+    });
+    // Trigger auto-check of the topic
+    onToggleComplete(topicId);
+  };
+
+  const formatMinutesSeconds = (totalSec) => {
+    const s = Math.max(0, totalSec);
+    const mins = Math.floor(s / 60);
+    const secs = s % 60;
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  };
 
   // Keep selected week in sync if currentSimulatedDate changes week
   useEffect(() => {
@@ -2273,11 +2839,21 @@ function WeeklyTodo({ weeklyPlans, onToggleComplete, settings }) {
                 <div className="space-y-2.5">
                   {visibleTopics.map(topic => {
                     const isAnalisi = topic.materia.toLowerCase().includes("analisi");
+                    const pState = pomodoroMap[topic.id] || {
+                      accumulatedSeconds: 0,
+                      cycleRemaining: 50 * 60,
+                      isRunning: false,
+                      isBreak: false,
+                      completedByTimer: false
+                    };
+                    const targetSeconds = Math.round((Number(topic.oreStimate) || 2.0) * 3600);
+                    const accumulated = pState.accumulatedSeconds || 0;
+                    const percentPomodoro = Math.min(100, Math.round((accumulated / targetSeconds) * 100));
 
                     return (
                       <div
                         key={topic.id}
-                        className={`flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-2xl border transition-all ${
+                        className={`flex flex-col p-3.5 rounded-2xl border transition-all ${
                           topic.isCompleted
                             ? "bg-slate-950/60 border-slate-800/50 opacity-60"
                             : isAnalisi
@@ -2285,92 +2861,186 @@ function WeeklyTodo({ weeklyPlans, onToggleComplete, settings }) {
                             : "bg-slate-950/80 hover:bg-slate-900 border-indigo-500/20 hover:border-indigo-500/40"
                         }`}
                       >
-                        {/* Checkbox and Title */}
-                        <div className="flex items-start space-x-3.5 flex-1 min-w-0 pr-2">
-                          <button
-                            type="button"
-                            onClick={() => onToggleComplete(topic.id)}
-                            className={`w-5 h-5 rounded-lg border mt-0.5 flex items-center justify-center transition-colors flex-shrink-0 ${
-                              topic.isCompleted
-                                ? "bg-emerald-500 border-emerald-400 text-white"
-                                : "border-slate-600 hover:border-slate-400 bg-slate-900"
-                            }`}
-                            title={topic.isCompleted ? "Segna come da fare" : "Segna come completato"}
-                          >
-                            {topic.isCompleted && <IconCheck className="w-3.5 h-3.5" />}
-                          </button>
+                        {/* Upper row: Checkbox, Title and Meta Pills */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          {/* Checkbox and Title */}
+                          <div className="flex items-start space-x-3.5 flex-1 min-w-0 pr-2">
+                            <button
+                              type="button"
+                              onClick={() => onToggleComplete(topic.id)}
+                              className={`w-5 h-5 rounded-lg border mt-0.5 flex items-center justify-center transition-colors flex-shrink-0 ${
+                                topic.isCompleted
+                                  ? "bg-emerald-500 border-emerald-400 text-white"
+                                  : "border-slate-600 hover:border-slate-400 bg-slate-900"
+                              }`}
+                              title={topic.isCompleted ? "Segna come da fare" : "Segna come completato"}
+                            >
+                              {topic.isCompleted && <IconCheck className="w-3.5 h-3.5" />}
+                            </button>
 
-                          <div className="min-w-0">
-                            <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                              {/* Subject Badge */}
-                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
-                                isAnalisi
-                                  ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                                  : "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                                {/* Subject Badge */}
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                                  isAnalisi
+                                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                                    : "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                                }`}>
+                                  {topic.materia}
+                                </span>
+
+                                {/* Topic ID */}
+                                <span className="text-[11px] font-mono font-bold text-slate-300">
+                                  {topic.id}
+                                </span>
+
+                                {/* Chapter */}
+                                <span className="text-[11px] text-slate-400 truncate max-w-[200px]">
+                                  • {topic.capitolo}
+                                </span>
+
+                                {/* Buffer +20% badge */}
+                                {topic.hasBuffer && (
+                                  <span className="text-[10px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.2 rounded">
+                                    +20% Buffer Priorità
+                                  </span>
+                                )}
+
+                                {topic.isCompleted && topic.completedDate && (
+                                  <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded">
+                                    ✓ Svolto il {formatDateDisplay(topic.completedDate)}
+                                  </span>
+                                )}
+                              </div>
+
+                              <p className={`text-xs md:text-sm font-medium ${
+                                topic.isCompleted ? "line-through text-slate-500" : "text-slate-200"
                               }`}>
-                                {topic.materia}
-                              </span>
+                                {topic.argomento}
+                              </p>
 
-                              {/* Topic ID */}
-                              <span className="text-[11px] font-mono font-bold text-slate-300">
-                                {topic.id}
-                              </span>
-
-                              {/* Chapter */}
-                              <span className="text-[11px] text-slate-400 truncate max-w-[200px]">
-                                • {topic.capitolo}
-                              </span>
-
-                              {/* Buffer +20% badge */}
-                              {topic.hasBuffer && (
-                                <span className="text-[10px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.2 rounded">
-                                  +20% Buffer Priorità
-                                </span>
+                              {topic.note && (
+                                <p className="text-[11px] text-slate-500 mt-0.5 truncate">
+                                  Obiettivo: {topic.note}
+                                </p>
                               )}
+                            </div>
+                          </div>
 
-                              {topic.isCompleted && topic.completedDate && (
-                                <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded">
-                                  ✓ Svolto il {formatDateDisplay(topic.completedDate)}
-                                </span>
+                          {/* Meta Pills (Hours, Difficulty, Priority) */}
+                          <div className="flex items-center space-x-2 mt-2 sm:mt-0 flex-shrink-0 self-end sm:self-center">
+                            {/* Hours */}
+                            <div className="text-right">
+                              <div className="text-xs font-mono font-bold text-white">
+                                {topic.effectiveHours}h
+                              </div>
+                              {topic.hasBuffer && (
+                                <div className="text-[10px] text-slate-500 font-mono">
+                                  (base {topic.oreStimate}h)
+                                </div>
                               )}
                             </div>
 
-                            <p className={`text-xs md:text-sm font-medium ${
-                              topic.isCompleted ? "line-through text-slate-500" : "text-slate-200"
-                            }`}>
-                              {topic.argomento}
-                            </p>
-
-                            {topic.note && (
-                              <p className="text-[11px] text-slate-500 mt-0.5 truncate">
-                                Obiettivo: {topic.note}
-                              </p>
-                            )}
+                            {/* Difficulty and Priority indicators */}
+                            <div className="flex flex-col items-end gap-0.5">
+                              <span className="text-[10px] text-slate-400">
+                                Priorità: <strong className="text-amber-400">{topic.prioritaEsame}/5</strong>
+                              </span>
+                              <span className="text-[10px] text-slate-400">
+                                Difficoltà: <strong className="text-cyan-400">{topic.difficolta}/5</strong>
+                              </span>
+                            </div>
                           </div>
                         </div>
 
-                        {/* Meta Pills (Hours, Difficulty, Priority) */}
-                        <div className="flex items-center space-x-2 mt-2 sm:mt-0 flex-shrink-0 self-end sm:self-center">
-                          {/* Hours */}
-                          <div className="text-right">
-                            <div className="text-xs font-mono font-bold text-white">
-                              {topic.effectiveHours}h
+                        {/* Pomodoro 50/10 Interactive Tracker Strip */}
+                        <div className="mt-2.5 pt-2 border-t border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-900/50 p-2.5 rounded-xl">
+                          <div className="flex items-center space-x-2.5">
+                            <div className={`p-1.5 rounded-lg border flex-shrink-0 ${
+                              pState.isRunning
+                                ? (pState.isBreak ? "bg-amber-500/20 text-amber-300 border-amber-500/30" : "bg-cyan-500/20 text-cyan-300 border-cyan-500/30 animate-pulse")
+                                : "bg-slate-800 text-slate-400 border-slate-700"
+                            }`}>
+                              <IconTomato className="w-4 h-4" />
                             </div>
-                            {topic.hasBuffer && (
-                              <div className="text-[10px] text-slate-500 font-mono">
-                                (base {topic.oreStimate}h)
+
+                            <div>
+                              <div className="flex items-center space-x-2">
+                                <span className="text-[11px] font-bold text-slate-200">
+                                  Pomodoro 50/10
+                                </span>
+                                <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded font-bold ${
+                                  pState.isBreak
+                                    ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                                    : pState.isRunning
+                                    ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"
+                                    : "bg-slate-800 text-slate-400"
+                                }`}>
+                                  {pState.isBreak ? "☕ Pausa" : "🍅 Studio"} {formatMinutesSeconds(pState.cycleRemaining !== undefined ? pState.cycleRemaining : 50 * 60)}
+                                </span>
+                                {accumulated >= targetSeconds && (
+                                  <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded">
+                                    ✓ Target Raggiunto
+                                  </span>
+                                )}
                               </div>
-                            )}
+
+                              <div className="flex items-center space-x-2 mt-1">
+                                <div className="w-24 sm:w-32 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full bg-gradient-to-r from-cyan-400 to-emerald-400 rounded-full transition-all duration-300"
+                                    style={{ width: `${percentPomodoro}%` }}
+                                  />
+                                </div>
+                                <span className="text-[10px] text-slate-400 font-mono">
+                                  {(accumulated / 3600).toFixed(1)}h / {topic.oreStimate}h ({percentPomodoro}%)
+                                </span>
+                              </div>
+                            </div>
                           </div>
 
-                          {/* Difficulty and Priority indicators */}
-                          <div className="flex flex-col items-end gap-0.5">
-                            <span className="text-[10px] text-slate-400">
-                              Priorità: <strong className="text-amber-400">{topic.prioritaEsame}/5</strong>
-                            </span>
-                            <span className="text-[10px] text-slate-400">
-                              Difficoltà: <strong className="text-cyan-400">{topic.difficolta}/5</strong>
-                            </span>
+                          {/* Pomodoro Timer Controls */}
+                          <div className="flex items-center space-x-1.5 self-end sm:self-center flex-shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => togglePomodoro(topic.id, topic.oreStimate)}
+                              className={`px-2.5 py-1 rounded-xl text-xs font-bold transition flex items-center gap-1 ${
+                                pState.isRunning
+                                  ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30"
+                                  : "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 hover:bg-cyan-500/30"
+                              }`}
+                              title={pState.isRunning ? "Metti in pausa il timer" : "Avvia il timer pomodoro"}
+                            >
+                              {pState.isRunning ? <IconPause className="w-3.5 h-3.5" /> : <IconPlay className="w-3.5 h-3.5" />}
+                              <span>{pState.isRunning ? "Pausa" : "Avvia"}</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => resetPomodoro(topic.id, topic.oreStimate)}
+                              className="p-1.5 text-slate-500 hover:text-slate-200 rounded-lg hover:bg-slate-800 transition"
+                              title="Azzera il tempo accumulato per questo argomento"
+                            >
+                              <IconRotateCcw className="w-3.5 h-3.5" />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => addPomodoroMinutes(topic.id, topic.oreStimate, 30)}
+                              className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-lg text-[10px] font-mono transition"
+                              title="Aggiungi 30 minuti di studio completati"
+                            >
+                              +30m
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => completePomodoroTarget(topic.id, topic.oreStimate)}
+                              className="px-2.5 py-1 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 rounded-lg text-[10px] font-bold transition"
+                              title="Simula raggiungimento completo delle ore stimate (auto-check automatico)"
+                            >
+                              Target Raggiunto
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -2391,7 +3061,8 @@ function WeeklyTodo({ weeklyPlans, onToggleComplete, settings }) {
 
 
 
-function HistoryLog({ historyDays, metrics, onAdvanceDate, onRetrocedeDate, onSetDate }) {
+
+function HistoryLog({ historyDays, calendarDays = [], metrics, onAdvanceDate, onRetrocedeDate, onSetDate }) {
   const [filterType, setFilterType] = useState("all"); // "all" | "completed" | "skipped"
 
   const filteredHistory = historyDays.filter(day => {
@@ -2471,6 +3142,14 @@ function HistoryLog({ historyDays, metrics, onAdvanceDate, onRetrocedeDate, onSe
           </p>
         </div>
       </div>
+
+      {/* GitHub-like Contribution Activity Heatmap */}
+      <ActivityHeatmap
+        calendarDays={calendarDays}
+        historyDays={historyDays}
+        metrics={metrics}
+        onSetDate={onSetDate}
+      />
 
       {/* Header Bar with Filters */}
       <div className="bg-slate-900/90 border border-slate-800/90 rounded-3xl p-4 md:p-5 backdrop-blur-md shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
@@ -2843,10 +3522,52 @@ function TopicsTable({ topics, onToggleComplete, onBatchUpdate }) {
 
 
 
-function FileImporter({ topics, settings, onTopicsUpdated, onSettingsUpdated }) {
+function FileImporter({
+  topics,
+  settings,
+  onTopicsUpdated,
+  onSettingsUpdated,
+  fsSyncStatus,
+  onConnectFileSystem,
+  onDisconnectFileSystem,
+  onTriggerManualSave
+}) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [notification, setNotification] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
+
+  const isFsAccessSupported = typeof window !== "undefined" && "showOpenFilePicker" in window;
+
+  // Handle transparent File System Access connection
+  const handleConnectFileClick = async () => {
+    if (!onConnectFileSystem) {
+      setNotification({
+        type: "error",
+        message: "Gestore sincronizzazione File System non configurato."
+      });
+      return;
+    }
+    setIsProcessing(true);
+    setNotification(null);
+    try {
+      const res = await onConnectFileSystem();
+      if (res && res.fileName) {
+        setNotification({
+          type: "success",
+          message: `Sincronizzazione attiva con "${res.fileName}"! ${res.imported ? "Dati importati dal file." : "Stato attuale salvato nel file."} Ogni modifica verrà riscritta automaticamente.`
+        });
+      }
+    } catch (err) {
+      if (err.name !== "AbortError") {
+        setNotification({
+          type: "error",
+          message: `Errore durante il collegamento file: ${err.message}`
+        });
+      }
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   // Process a selected or dropped file
   const handleFile = async (file) => {
@@ -3010,6 +3731,97 @@ function FileImporter({ topics, settings, onTopicsUpdated, onSettingsUpdated }) 
 
   return (
     <div className="space-y-6">
+      {/* File System Access API Transparent Auto-Sync Box */}
+      <div className="bg-gradient-to-r from-slate-900/90 via-indigo-950/40 to-cyan-950/40 border border-cyan-500/30 rounded-3xl p-5 md:p-6 shadow-xl backdrop-blur-md">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-start space-x-3.5">
+            <div className={`p-3 rounded-2xl flex-shrink-0 border ${
+              fsSyncStatus?.active
+                ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-lg shadow-emerald-500/20"
+                : "bg-cyan-500/10 text-cyan-400 border-cyan-500/20"
+            }`}>
+              <IconFileCheck className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center space-x-2">
+                <h3 className="text-base font-bold text-white">
+                  Sincronizzazione Trasparente File System
+                </h3>
+                {fsSyncStatus?.active ? (
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1 animate-pulse-subtle">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block"></span>
+                    ATTIVA
+                  </span>
+                ) : (
+                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
+                    Non collegato
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
+                Collega direttamente un file JSON salvato su <strong>iCloud Drive</strong>, <strong>Google Drive</strong> o sul tuo computer tramite la <em>File System Access API</em>. L'app sovrascriverà automaticamente il file ad ogni modifica, eliminando la necessità di scaricare backup manuali!
+              </p>
+
+              {fsSyncStatus?.active && (
+                <div className="mt-2.5 flex flex-wrap items-center gap-2 text-xs">
+                  <span className="bg-slate-950/80 px-2.5 py-1 rounded-xl border border-slate-800 font-mono text-cyan-300">
+                    📁 File: <strong>{fsSyncStatus.fileName}</strong>
+                  </span>
+                  <span className="bg-slate-950/80 px-2.5 py-1 rounded-xl border border-slate-800 font-mono text-emerald-400">
+                    ✓ Ultimo salvataggio: {fsSyncStatus.lastSaved || "In attesa..."}
+                  </span>
+                  {fsSyncStatus.isSaving && (
+                    <span className="text-cyan-400 animate-pulse text-[11px]">
+                      Scrittura su disco in corso...
+                    </span>
+                  )}
+                  {fsSyncStatus.error && (
+                    <span className="text-rose-400 text-[11px]">
+                      ⚠️ {fsSyncStatus.error}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5 self-start md:self-center flex-shrink-0">
+            {fsSyncStatus?.active ? (
+              <>
+                <button
+                  type="button"
+                  onClick={onTriggerManualSave}
+                  className="px-3.5 py-2 bg-emerald-600/30 hover:bg-emerald-600/40 text-emerald-200 border border-emerald-500/40 rounded-xl text-xs font-bold transition flex items-center gap-1.5"
+                >
+                  <IconSave className="w-4 h-4" />
+                  Salva Ora su File
+                </button>
+                <button
+                  type="button"
+                  onClick={onDisconnectFileSystem}
+                  className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl text-xs font-semibold transition"
+                >
+                  Disconnetti
+                </button>
+              </>
+            ) : isFsAccessSupported ? (
+              <button
+                type="button"
+                onClick={handleConnectFileClick}
+                className="px-4 py-2.5 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white rounded-xl text-xs font-bold transition shadow-lg shadow-cyan-950/50 flex items-center gap-2"
+              >
+                <IconFileCheck className="w-4 h-4" />
+                <span>Collega File JSON (iCloud / Drive)</span>
+              </button>
+            ) : (
+              <div className="text-[11px] text-amber-300/80 bg-amber-950/30 border border-amber-500/30 p-2.5 rounded-xl max-w-xs">
+                La File System Access API non è supportata da questo browser (usa Chrome, Edge o Opera per l'auto-sync trasparente).
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Persistence Status Box */}
       <div className="bg-emerald-950/40 border border-emerald-500/30 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 backdrop-blur-md">
         <div className="flex items-center space-x-3">
@@ -3158,22 +3970,54 @@ function FileImporter({ topics, settings, onTopicsUpdated, onSettingsUpdated }) 
 
 
 function SettingsModal({ isOpen, onClose, settings, onSaveSettings }) {
-  const [formData, setFormData] = useState({ ...settings });
+  const [formData, setFormData] = useState({
+    ...settings,
+    enableAfternoonSlot: settings.enableAfternoonSlot !== false,
+    afternoonStudyHours: settings.afternoonStudyHours !== undefined ? settings.afternoonStudyHours : 2.5,
+    eveningStudyHours: settings.eveningStudyHours !== undefined ? settings.eveningStudyHours : 2.5,
+  });
 
   if (!isOpen) return null;
 
   const handleChange = (field, val) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: val
-    }));
+    setFormData(prev => {
+      const updated = {
+        ...prev,
+        [field]: val
+      };
+
+      // Keep weekdayStudyHours synced with afternoon + evening sum
+      const afternoon = updated.enableAfternoonSlot ? Number(updated.afternoonStudyHours || 2.5) : 0;
+      const evening = Number(updated.eveningStudyHours || 2.5);
+      updated.weekdayStudyHours = Number((afternoon + evening).toFixed(1));
+
+      // If user toggles afternoon slot, suggest updated burnout threshold
+      if (field === "enableAfternoonSlot") {
+        updated.criticalWeeklyHoursThreshold = val ? 35.0 : 25.0;
+      }
+
+      return updated;
+    });
   };
 
   const handleSave = (e) => {
     e.preventDefault();
-    onSaveSettings(formData);
+    const afternoon = formData.enableAfternoonSlot ? Number(formData.afternoonStudyHours || 2.5) : 0;
+    const evening = Number(formData.eveningStudyHours || 2.5);
+    const combinedWeekday = Number((afternoon + evening).toFixed(1));
+
+    const toSave = {
+      ...formData,
+      weekdayStudyHours: combinedWeekday
+    };
+    onSaveSettings(toSave);
     onClose();
   };
+
+  const currentAfternoon = formData.enableAfternoonSlot ? Number(formData.afternoonStudyHours || 2.5) : 0;
+  const currentEvening = Number(formData.eveningStudyHours || 2.5);
+  const totalWeekdayCapacity = Number((currentAfternoon + currentEvening).toFixed(1));
+  const nominalWeeklyCapacity = Number(((totalWeekdayCapacity * 5) + (Number(formData.weekendStudyHours || 4.5) * 2)).toFixed(1));
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
@@ -3223,36 +4067,81 @@ function SettingsModal({ isOpen, onClose, settings, onSaveSettings }) {
             </div>
           </div>
 
-          {/* Full-time work and Study Hours */}
-          <div className="bg-slate-950/60 p-3.5 rounded-2xl border border-slate-800/80 space-y-3">
-            <div className="flex items-center space-x-2 text-cyan-400 font-bold">
-              <IconBriefcase className="w-4 h-4" />
-              <span>Orari Lavoratore Full-Time</span>
+          {/* Work and Study Slots */}
+          <div className="bg-slate-950/60 p-4 rounded-2xl border border-slate-800/80 space-y-3.5">
+            <div className="flex items-center justify-between text-cyan-400 font-bold">
+              <div className="flex items-center space-x-2">
+                <IconBriefcase className="w-4 h-4" />
+                <span>Orari & Fasce di Studio Feriali e Weekend</span>
+              </div>
+              <span className="text-[11px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-lg">
+                Feriale: {totalWeekdayCapacity}h/gg
+              </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-slate-400 mb-1">
-                  Ore serali (Lun-Ven)
+            {/* Afternoon Slot (16:30 - 19:00) */}
+            <div className="p-3 bg-slate-900/80 rounded-xl border border-slate-800 space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.enableAfternoonSlot}
+                    onChange={(e) => handleChange("enableAfternoonSlot", e.target.checked)}
+                    className="w-4 h-4 rounded border-slate-700 bg-slate-950 text-cyan-500 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                  />
+                  <span className="text-slate-200 font-semibold flex items-center gap-1.5">
+                    <IconSun className="w-4 h-4 text-amber-400" />
+                    Slot Pomeridiano (16:30 - 19:00)
+                  </span>
                 </label>
+                <span className="text-[10px] uppercase font-bold text-slate-400">Lun - Ven</span>
+              </div>
+
+              {formData.enableAfternoonSlot && (
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-[11px] text-slate-400">Ore dedicate allo slot pomeridiano:</span>
+                  <div className="flex items-center space-x-1.5 w-28">
+                    <input
+                      type="number"
+                      step="0.5"
+                      min="0.5"
+                      max="4.0"
+                      value={formData.afternoonStudyHours}
+                      onChange={(e) => handleChange("afternoonStudyHours", parseFloat(e.target.value) || 2.5)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-white font-mono text-right focus:outline-none focus:border-cyan-500"
+                    />
+                    <span className="text-slate-500 font-mono text-xs">h</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Evening & Weekend Slots */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-3 bg-slate-900/80 rounded-xl border border-slate-800 space-y-1.5">
+                <div className="flex items-center space-x-1.5 text-slate-300 font-semibold text-[11px]">
+                  <IconMoon className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Slot Serale (19:30 - 22:00)</span>
+                </div>
                 <div className="flex items-center space-x-1.5">
                   <input
                     type="number"
                     step="0.5"
                     min="1"
-                    max="6"
-                    value={formData.weekdayStudyHours}
-                    onChange={(e) => handleChange("weekdayStudyHours", parseFloat(e.target.value) || 2.5)}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-white font-mono focus:outline-none focus:border-cyan-500"
+                    max="5"
+                    value={formData.eveningStudyHours}
+                    onChange={(e) => handleChange("eveningStudyHours", parseFloat(e.target.value) || 2.5)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-white font-mono focus:outline-none focus:border-cyan-500"
                   />
                   <span className="text-slate-500 font-mono">h/sera</span>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-slate-400 mb-1">
-                  Ore weekend (Sab-Dom)
-                </label>
+              <div className="p-3 bg-slate-900/80 rounded-xl border border-slate-800 space-y-1.5">
+                <div className="flex items-center space-x-1.5 text-slate-300 font-semibold text-[11px]">
+                  <IconClock className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Weekend (Sab - Dom)</span>
+                </div>
                 <div className="flex items-center space-x-1.5">
                   <input
                     type="number"
@@ -3261,11 +4150,16 @@ function SettingsModal({ isOpen, onClose, settings, onSaveSettings }) {
                     max="10"
                     value={formData.weekendStudyHours}
                     onChange={(e) => handleChange("weekendStudyHours", parseFloat(e.target.value) || 4.5)}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-white font-mono focus:outline-none focus:border-cyan-500"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-white font-mono focus:outline-none focus:border-cyan-500"
                   />
-                  <span className="text-slate-500 font-mono">h/giorno</span>
+                  <span className="text-slate-500 font-mono">h/gg</span>
                 </div>
               </div>
+            </div>
+
+            <div className="text-[11px] text-slate-400 bg-slate-900/50 p-2 rounded-xl flex items-center justify-between">
+              <span>Capacità nominale totale settimanale:</span>
+              <strong className="text-cyan-300 font-mono">{nominalWeeklyCapacity}h / settimana</strong>
             </div>
           </div>
 
@@ -3274,21 +4168,25 @@ function SettingsModal({ isOpen, onClose, settings, onSaveSettings }) {
             <div>
               <label className="block text-slate-300 font-semibold mb-1 flex items-center gap-1">
                 <IconFlame className="w-3.5 h-3.5 text-rose-400" />
-                Soglia Critica Settimanale
+                Soglia Burnout Critica
               </label>
               <div className="flex items-center space-x-1.5">
                 <input
                   type="number"
                   step="1"
                   min="10"
-                  max="40"
+                  max="45"
                   value={formData.criticalWeeklyHoursThreshold}
-                  onChange={(e) => handleChange("criticalWeeklyHoursThreshold", parseFloat(e.target.value) || 25)}
+                  onChange={(e) => handleChange("criticalWeeklyHoursThreshold", parseFloat(e.target.value) || (formData.enableAfternoonSlot ? 35 : 25))}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-rose-500"
                 />
                 <span className="text-slate-500 font-mono">h/sett.</span>
               </div>
-              <p className="text-[10px] text-slate-500 mt-1">Scatta l'alert visivo se superata</p>
+              <p className="text-[10px] text-slate-500 mt-1">
+                {formData.enableAfternoonSlot
+                  ? "Consigliata a 35h con slot pomeridiano attivo"
+                  : "Consigliata a 25h per solo studio serale"}
+              </p>
             </div>
 
             <div>
@@ -3379,6 +4277,16 @@ function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [lastSavedTime, setLastSavedTime] = useState("");
 
+  // Transparent File System Access API synchronization
+  const [fileHandle, setFileHandle] = useState(null);
+  const [fsSyncStatus, setFsSyncStatus] = useState({
+    active: false,
+    fileName: "",
+    lastSaved: null,
+    isSaving: false,
+    error: null
+  });
+
   // Save to localStorage on change with visual confirmation
   useEffect(() => {
     try {
@@ -3396,6 +4304,140 @@ function App() {
       console.warn("Failed to persist settings", e);
     }
   }, [settings]);
+
+  // Transparent Auto-Sync: Automatically overwrite connected JSON file on any global state change
+  useEffect(() => {
+    if (!fileHandle) return;
+
+    let isMounted = true;
+    const autoSaveToFile = async () => {
+      try {
+        if (isMounted) setFsSyncStatus(prev => ({ ...prev, isSaving: true, error: null }));
+        const writable = await fileHandle.createWritable();
+        const backupData = {
+          exportDate: new Date().toISOString(),
+          settings,
+          topics
+        };
+        await writable.write(JSON.stringify(backupData, null, 2));
+        await writable.close();
+        if (isMounted) {
+          setFsSyncStatus({
+            active: true,
+            fileName: fileHandle.name,
+            lastSaved: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+            isSaving: false,
+            error: null
+          });
+        }
+      } catch (err) {
+        console.warn("Auto-sync write error:", err);
+        if (isMounted) {
+          setFsSyncStatus(prev => ({ ...prev, isSaving: false, error: err.message }));
+        }
+      }
+    };
+
+    autoSaveToFile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [topics, settings, fileHandle]);
+
+  // Connect file handle using File System Access API
+  const handleConnectFileSystem = async () => {
+    if (typeof window === "undefined" || !("showOpenFilePicker" in window)) {
+      throw new Error("La File System Access API non è supportata da questo browser.");
+    }
+    const [handle] = await window.showOpenFilePicker({
+      types: [
+        {
+          description: "File di Backup JSON (*.json)",
+          accept: { "application/json": [".json"] }
+        }
+      ],
+      multiple: false
+    });
+    if (!handle) return null;
+
+    const file = await handle.getFile();
+    const text = await file.text();
+    let imported = false;
+    if (text.trim()) {
+      try {
+        const backup = JSON.parse(text);
+        if (backup.topics && Array.isArray(backup.topics)) {
+          setTopics(backup.topics);
+          if (backup.settings) {
+            setSettings(backup.settings);
+          }
+          imported = true;
+        }
+      } catch (e) {
+        console.warn("File JSON iniziale vuoto o non valido; verrà popolato con i dati attuali.", e);
+      }
+    }
+
+    setFileHandle(handle);
+    setFsSyncStatus({
+      active: true,
+      fileName: handle.name,
+      lastSaved: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      isSaving: false,
+      error: null
+    });
+
+    if (!imported) {
+      try {
+        const writable = await handle.createWritable();
+        await writable.write(JSON.stringify({
+          exportDate: new Date().toISOString(),
+          settings,
+          topics
+        }, null, 2));
+        await writable.close();
+      } catch (err) {
+        console.warn("Scrittura iniziale fallita:", err);
+      }
+    }
+
+    return { fileName: handle.name, imported };
+  };
+
+  const handleDisconnectFileSystem = () => {
+    setFileHandle(null);
+    setFsSyncStatus({
+      active: false,
+      fileName: "",
+      lastSaved: null,
+      isSaving: false,
+      error: null
+    });
+  };
+
+  const handleTriggerManualSave = async () => {
+    if (!fileHandle) return;
+    try {
+      setFsSyncStatus(prev => ({ ...prev, isSaving: true, error: null }));
+      const writable = await fileHandle.createWritable();
+      await writable.write(JSON.stringify({
+        exportDate: new Date().toISOString(),
+        settings,
+        topics
+      }, null, 2));
+      await writable.close();
+      setFsSyncStatus({
+        active: true,
+        fileName: fileHandle.name,
+        lastSaved: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        isSaving: false,
+        error: null
+      });
+    } catch (err) {
+      setFsSyncStatus(prev => ({ ...prev, isSaving: false, error: err.message }));
+    }
+  };
 
   // Reactive Rebalancing calculation
   const rebalancedPlan = useMemo(() => {
@@ -3544,6 +4586,19 @@ function App() {
 
           {/* Right Action: Date Simulation Controls & Settings */}
           <div className="flex items-center space-x-2.5">
+            {/* Auto-Sync status badge if connected */}
+            {fsSyncStatus.active && (
+              <button
+                type="button"
+                onClick={() => setActiveTab("import")}
+                className="hidden lg:flex items-center space-x-1.5 bg-emerald-950/80 border border-emerald-500/40 px-2.5 py-1.5 rounded-xl text-xs font-mono text-emerald-300 hover:bg-emerald-900/60 transition"
+                title={`Sincronizzazione automatica attiva su: ${fsSyncStatus.fileName} (Ultimo salvataggio: ${fsSyncStatus.lastSaved || "In corso..."})`}
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span className="truncate max-w-[120px] font-bold">{fsSyncStatus.fileName}</span>
+              </button>
+            )}
+
             {/* Quick date simulator pill */}
             <div className="hidden sm:flex items-center bg-slate-900/90 border border-slate-800 rounded-xl p-1 text-xs font-mono">
               <button
@@ -3638,6 +4693,7 @@ function App() {
         {activeTab === "history" && (
           <HistoryLog
             historyDays={historyDays}
+            calendarDays={rebalancedPlan.calendarDays}
             metrics={metrics}
             onAdvanceDate={handleAdvanceDate}
             onRetrocedeDate={handleRetrocedeDate}
@@ -3659,6 +4715,10 @@ function App() {
             settings={settings}
             onTopicsUpdated={handleTopicsUpdated}
             onSettingsUpdated={(newSettings) => setSettings(newSettings)}
+            fsSyncStatus={fsSyncStatus}
+            onConnectFileSystem={handleConnectFileSystem}
+            onDisconnectFileSystem={handleDisconnectFileSystem}
+            onTriggerManualSave={handleTriggerManualSave}
           />
         )}
       </main>

@@ -8,6 +8,7 @@ files_order = [
     'src/services/parserService.js',
     'src/components/AlertBanner.js',
     'src/components/Dashboard.js',
+    'src/components/ActivityHeatmap.js',
     'src/components/WeeklyTodo.js',
     'src/components/HistoryLog.js',
     'src/components/TopicsTable.js',
