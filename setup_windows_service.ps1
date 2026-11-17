@@ -340,13 +340,17 @@ Write-Host "  -> Configurazione rotazione log (1MB max per file)..." -Foreground
 & $nssmExecutable set $ServiceName AppRotateOnline 1 | Out-Null
 & $nssmExecutable set $ServiceName AppRotateBytes 1048576 | Out-Null
 
-# Iniezione percorso Python e Git nell'ambiente di servizio
+# Iniezione percorso Python, Git e variabili UTF-8 nell'ambiente di servizio
 $pyCmd = Get-Command python.exe -ErrorAction SilentlyContinue
-if ($pyCmd) {
-    $pyDir = Split-Path $pyCmd.Source
-    Write-Host "  -> Iniezione PATH Python ($pyDir) nell'ambiente di servizio..." -ForegroundColor Gray
-    & $nssmExecutable set $ServiceName AppEnvironmentExtra "PATH=%PATH%;$pyDir;$pyDir\Scripts;C:\Program Files\Git\cmd" | Out-Null
-}
+$pyDir = if ($pyCmd) { Split-Path $pyCmd.Source } else { "" }
+Write-Host "  -> Iniezione PATH Python ($pyDir) e variabili UTF-8 nell'ambiente di servizio..." -ForegroundColor Gray
+$envExtra = @(
+    "PATH=%PATH%;$pyDir;$pyDir\Scripts;C:\Program Files\Git\cmd",
+    "PYTHONUTF8=1",
+    "PYTHONIOENCODING=utf-8"
+)
+& $nssmExecutable set $ServiceName AppEnvironmentExtra $envExtra | Out-Null
+
 
 
 # ==============================================================================

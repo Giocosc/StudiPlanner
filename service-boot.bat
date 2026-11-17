@@ -1,6 +1,11 @@
 @echo off
 setlocal EnableDelayedExpansion
 
+:: Forza UTF-8 per il terminale e per l'output di Python
+chcp 65001 >nul 2>&1
+set PYTHONUTF8=1
+set PYTHONIOENCODING=utf-8
+
 :: 1. Posizionamento dinamico nella cartella del repository
 cd /d "%~dp0"
 

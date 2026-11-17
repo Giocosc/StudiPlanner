@@ -5,6 +5,18 @@ import os
 import sys
 import socket
 
+# Forza la codifica UTF-8 su stdout e stderr (necessario per Windows Service stdout redirect)
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 HOST = "0.0.0.0"  # Binding su tutte le interfacce per accesso locale e LAN
 PORT = 3000
 DIRECTORY = os.path.dirname(os.path.abspath(__file__))
@@ -33,6 +45,17 @@ def get_local_ip():
         except Exception:
             return "127.0.0.1"
 
+def safe_print(*args, **kwargs):
+    """Stampa sicura che non genera eccezioni anche se l'encoding della pipe e' ristretto."""
+    try:
+        print(*args, **kwargs)
+    except Exception:
+        try:
+            cleaned = [str(a).encode("ascii", errors="replace").decode("ascii") for a in args]
+            print(*cleaned, **kwargs)
+        except Exception:
+            pass
+
 def run():
     port = PORT
     max_tries = 10
@@ -49,21 +72,21 @@ def run():
             continue
 
     if not httpd:
-        print(f"Could not bind to any port between {PORT} and {PORT + max_tries}")
+        safe_print(f"Could not bind to any port between {PORT} and {PORT + max_tries}")
         sys.exit(1)
 
     local_ip = get_local_ip()
     local_url = f"http://localhost:{port}"
     lan_url = f"http://{local_ip}:{port}"
 
-    print("=" * 60)
-    print("🚀 StudiPlanner — Server Avviato!")
-    print(f"📍 Accesso Locale (PC):     {local_url}")
-    print(f"📱 Accesso LAN (iPad/Mac):  {lan_url}")
-    print(f"🌐 Host Binding:            {HOST}:{port}")
-    print(f"📂 Cartella radice:         {DIRECTORY}")
-    print("Premere CTRL+C per arrestare il server.")
-    print("=" * 60)
+    safe_print("=" * 60)
+    safe_print("🚀 StudiPlanner — Server Avviato!")
+    safe_print(f"📍 Accesso Locale (PC):     {local_url}")
+    safe_print(f"📱 Accesso LAN (iPad/Mac):  {lan_url}")
+    safe_print(f"🌐 Host Binding:            {HOST}:{port}")
+    safe_print(f"📂 Cartella radice:         {DIRECTORY}")
+    safe_print("Premere CTRL+C per arrestare il server.")
+    safe_print("=" * 60)
 
     # Apre il browser solo se non avviato con --no-browser (es. esecuzione come servizio)
     if "--no-browser" not in sys.argv:
@@ -75,7 +98,7 @@ def run():
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
-        print("\nArresto del server...")
+        safe_print("\nArresto del server...")
         httpd.server_close()
 
 if __name__ == "__main__":
