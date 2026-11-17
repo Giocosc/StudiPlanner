@@ -996,6 +996,44 @@ function IconTomato({ className = "w-4 h-4" }) {
   );
 }
 
+function IconSparkles({ className = "w-5 h-5" }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+    </svg>
+  );
+}
+
+function IconCopy({ className = "w-5 h-5" }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+    </svg>
+  );
+}
+
+function IconDice({ className = "w-5 h-5" }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <rect x="3" y="3" width="18" height="18" rx="3" strokeWidth="2" />
+      <circle cx="8" cy="8" r="1.5" fill="currentColor" />
+      <circle cx="16" cy="16" r="1.5" fill="currentColor" />
+      <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+      <circle cx="16" cy="8" r="1.5" fill="currentColor" />
+      <circle cx="8" cy="16" r="1.5" fill="currentColor" />
+    </svg>
+  );
+}
+
+function IconX({ className = "w-5 h-5" }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+    </svg>
+  );
+}
+
+
 
 
 // --- src/services/rebalancerEngine.js ---
@@ -1845,12 +1883,926 @@ function AlertBanner({ metrics, onOpenSettings }) {
 }
 
 
+// --- src/components/NeuraDeckPromptGenerator.js ---
+
+
+
+/**
+ * NeuraDeckPromptGenerator.js
+ * Genera dinamicamente prompt ottimizzati per Google NotebookLM
+ * mirati all'estrazione di flashcard CSV ("Fronte,Retro") per NeuraDeck
+ * basandosi sugli argomenti completati nell'ultima settimana.
+ */
+function NeuraDeckPromptGenerator({ isOpen, onClose, topics = [], settings = {} }) {
+  const [selectedSubject, setSelectedSubject] = useState("all"); // "all" | "analisi" | "geometria"
+  const [dateRange, setDateRange] = useState("week"); // "week" (ultimi 7gg) | "twoweeks" | "all_completed"
+  const [selectedTopicIds, setSelectedTopicIds] = useState(new Set());
+  const [copied, setCopied] = useState(false);
+
+  const refDateStr = settings.currentSimulatedDate || new Date().toISOString().split("T")[0];
+
+  // Calcolo finestra temporale (ultimi 7 giorni rispetto alla data simulata/corrente)
+  const { sevenDaysAgoStr, fourteenDaysAgoStr } = useMemo(() => {
+    const ref = new Date(refDateStr + "T00:00:00");
+    const d7 = new Date(ref);
+    d7.setDate(d7.getDate() - 7);
+    const d14 = new Date(ref);
+    d14.setDate(d14.getDate() - 14);
+    return {
+      sevenDaysAgoStr: d7.toISOString().split("T")[0],
+      fourteenDaysAgoStr: d14.toISOString().split("T")[0]
+    };
+  }, [refDateStr]);
+
+  // Filtra gli argomenti completati in base a materia e finestra temporale
+  const filteredCompletedTopics = useMemo(() => {
+    return (topics || []).filter(t => {
+      if (!t.isCompleted) return false;
+
+      // Filtro Materia
+      if (selectedSubject !== "all") {
+        const isAnalisi = t.materia.toLowerCase().includes("analisi");
+        if (selectedSubject === "analisi" && !isAnalisi) return false;
+        if (selectedSubject === "geometria" && isAnalisi) return false;
+      }
+
+      // Filtro Data Completamento
+      if (dateRange === "week") {
+        if (t.completedDate) {
+          return t.completedDate >= sevenDaysAgoStr && t.completedDate <= refDateStr;
+        }
+        // Se non ha data specifica ma è completato, consideralo recente
+        return true;
+      } else if (dateRange === "twoweeks") {
+        if (t.completedDate) {
+          return t.completedDate >= fourteenDaysAgoStr && t.completedDate <= refDateStr;
+        }
+        return true;
+      }
+      return true; // "all_completed"
+    });
+  }, [topics, selectedSubject, dateRange, sevenDaysAgoStr, fourteenDaysAgoStr, refDateStr]);
+
+  // Inizializza/Aggiorna la selezione attiva quando cambia la lista filtrata
+  useEffect(() => {
+    setSelectedTopicIds(new Set(filteredCompletedTopics.map(t => t.id)));
+  }, [filteredCompletedTopics]);
+
+  // Toggle selezione singolo argomento
+  const handleToggleTopic = (id) => {
+    setSelectedTopicIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAll = () => {
+    setSelectedTopicIds(new Set(filteredCompletedTopics.map(t => t.id)));
+  };
+
+  const handleDeselectAll = () => {
+    setSelectedTopicIds(new Set());
+  };
+
+  // Costruzione della lista formattata degli argomenti inclusi
+  const activeSelectedTopics = useMemo(() => {
+    return filteredCompletedTopics.filter(t => selectedTopicIds.has(t.id));
+  }, [filteredCompletedTopics, selectedTopicIds]);
+
+  // Generazione del prompt completo
+  const generatedPrompt = useMemo(() => {
+    if (activeSelectedTopics.length === 0) {
+      return "";
+    }
+
+    const topicsFormattedList = activeSelectedTopics
+      .map(t => {
+        const fontiStr = t.fonti ? ` (Fonti didattiche: ${t.fonti})` : "";
+        const noteStr = t.note ? ` [Note chiave: ${t.note}]` : "";
+        return `• [${t.id}] ${t.materia} - ${t.capitolo ? t.capitolo + ": " : ""}${t.argomento}${fontiStr}${noteStr}`;
+      })
+      .join("\n");
+
+    return `Agisci da professore universitario di Ingegneria. Basandoti esclusivamente sulle fonti di questo notebook, generami delle flashcard di ripasso sui seguenti argomenti:\n${topicsFormattedList}\n\nRestituisci l'output ESCLUSIVAMENTE in un blocco di codice CSV raw nel formato 'Fronte,Retro', ottimizzato per l'importazione massiva su NeuraDeck.`;
+  }, [activeSelectedTopics]);
+
+  // Copia negli appunti
+  const handleCopyPrompt = async () => {
+    if (!generatedPrompt) return;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(generatedPrompt);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = generatedPrompt;
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch (err) {
+      console.error("Copia fallita:", err);
+    }
+  };
+
+  // Chiusura con tasto ESC
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape" && isOpen && onClose) {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-fade-in overflow-y-auto">
+      <div className="bg-[#0b1120] border border-cyan-500/30 rounded-3xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl shadow-cyan-950/40 overflow-hidden my-auto">
+        {/* Header Modal */}
+        <div className="px-6 py-4.5 bg-gradient-to-r from-slate-900 via-slate-900 to-cyan-950/60 border-b border-slate-800 flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="p-2.5 bg-gradient-to-tr from-cyan-500 to-indigo-600 rounded-2xl text-white shadow-lg shadow-cyan-500/20">
+              <IconSparkles className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center space-x-2">
+                <h3 className="text-lg font-bold text-white tracking-tight">
+                  Generatore Flashcard NeuraDeck
+                </h3>
+                <span className="text-[10px] font-extrabold uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 px-2 py-0.5 rounded-full">
+                  NotebookLM AI
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Estrae automaticamente gli argomenti completati nell'ultima settimana e formatta il prompt CSV ("Fronte,Retro").
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={onClose}
+            className="p-2 text-slate-400 hover:text-white bg-slate-800/60 hover:bg-slate-800 rounded-xl transition"
+            title="Chiudi"
+          >
+            <IconX className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Modal Body */}
+        <div className="p-6 overflow-y-auto space-y-6 flex-1 text-sm custom-scrollbar">
+          {/* Controls Filter Bar */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-900/70 border border-slate-800/80 p-4 rounded-2xl">
+            {/* Materia Filter */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-2">
+                Materia di Studio:
+              </label>
+              <div className="grid grid-cols-3 gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setSelectedSubject("all")}
+                  className={`py-1.5 text-xs font-semibold rounded-lg transition ${
+                    selectedSubject === "all"
+                      ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  Tutte
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedSubject("analisi")}
+                  className={`py-1.5 text-xs font-semibold rounded-lg transition ${
+                    selectedSubject === "analisi"
+                      ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  Analisi 1
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedSubject("geometria")}
+                  className={`py-1.5 text-xs font-semibold rounded-lg transition ${
+                    selectedSubject === "geometria"
+                      ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 shadow-sm"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  Geometria
+                </button>
+              </div>
+            </div>
+
+            {/* Time Window Filter */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-2">
+                Finestra Temporale di Completamento:
+              </label>
+              <div className="grid grid-cols-3 gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setDateRange("week")}
+                  className={`py-1.5 text-xs font-semibold rounded-lg transition ${
+                    dateRange === "week"
+                      ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                  title="Ultimi 7 giorni fino ad oggi"
+                >
+                  Ultima Settimana
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDateRange("twoweeks")}
+                  className={`py-1.5 text-xs font-semibold rounded-lg transition ${
+                    dateRange === "twoweeks"
+                      ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  Ultimi 14 gg
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDateRange("all_completed")}
+                  className={`py-1.5 text-xs font-semibold rounded-lg transition ${
+                    dateRange === "all_completed"
+                      ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  Tutti i Completati
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Topics Selection Section */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                  Argomenti Rilevati ({activeSelectedTopics.length} di {filteredCompletedTopics.length} inclusi)
+                </span>
+                {dateRange === "week" && (
+                  <span className="text-[11px] text-cyan-400 font-mono">
+                    (da {sevenDaysAgoStr.slice(5)} a {refDateStr.slice(5)})
+                  </span>
+                )}
+              </div>
+
+              {filteredCompletedTopics.length > 0 && (
+                <div className="flex items-center space-x-2 text-xs">
+                  <button
+                    type="button"
+                    onClick={handleSelectAll}
+                    className="text-cyan-400 hover:text-cyan-300 font-semibold"
+                  >
+                    Seleziona tutti
+                  </button>
+                  <span className="text-slate-600">•</span>
+                  <button
+                    type="button"
+                    onClick={handleDeselectAll}
+                    className="text-slate-400 hover:text-slate-300 font-semibold"
+                  >
+                    Deseleziona tutti
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {filteredCompletedTopics.length === 0 ? (
+              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 text-center space-y-2">
+                <div className="p-2.5 bg-amber-500/10 text-amber-400 w-10 h-10 rounded-xl mx-auto flex items-center justify-center">
+                  <IconAlertTriangle className="w-5 h-5" />
+                </div>
+                <h4 className="text-sm font-bold text-white">Nessun argomento completato nel periodo</h4>
+                <p className="text-xs text-slate-400 max-w-md mx-auto">
+                  Non risultano argomenti contrassegnati come completati nell'intervallo temporale selezionato.
+                  Spunta gli argomenti svolti dal <strong className="text-slate-300">To-Do Settimanale</strong> o passa al filtro <button onClick={() => setDateRange("all_completed")} className="text-cyan-400 underline font-semibold">Tutti i Completati</button>.
+                </p>
+              </div>
+            ) : (
+              <div className="max-h-52 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                {filteredCompletedTopics.map(t => {
+                  const isSelected = selectedTopicIds.has(t.id);
+                  const isAnalisi = t.materia.toLowerCase().includes("analisi");
+                  return (
+                    <div
+                      key={t.id}
+                      onClick={() => handleToggleTopic(t.id)}
+                      className={`p-3 rounded-xl border transition cursor-pointer flex items-start space-x-3 ${
+                        isSelected
+                          ? "bg-slate-900 border-cyan-500/40 text-white"
+                          : "bg-slate-950/60 border-slate-800/70 text-slate-400 hover:border-slate-700"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => {}}
+                        className="mt-1 h-4 w-4 rounded border-slate-700 text-cyan-500 focus:ring-cyan-400 focus:ring-offset-slate-900 bg-slate-800"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                          <span className={`text-[10px] font-bold font-mono px-2 py-0.5 rounded-md ${
+                            isAnalisi
+                              ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                              : "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                          }`}>
+                            {t.id}
+                          </span>
+                          <span className="text-xs font-bold text-slate-200 truncate">
+                            {t.capitolo ? `${t.capitolo}: ` : ""}{t.argomento}
+                          </span>
+                          {t.completedDate && (
+                            <span className="text-[10px] text-slate-500 font-mono">
+                              Completato: {t.completedDate}
+                            </span>
+                          )}
+                        </div>
+                        {t.fonti && (
+                          <p className="text-[11px] text-slate-400 mt-1 truncate">
+                            📚 Fonti: {t.fonti}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Generated Prompt Preview */}
+          <div className="space-y-2 pt-2 border-t border-slate-800/80">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center space-x-1.5">
+                <IconBookOpen className="w-4 h-4 text-cyan-400" />
+                <span>Prompt Pronto per Google NotebookLM</span>
+              </label>
+
+              {generatedPrompt && (
+                <span className="text-xs text-slate-400 font-mono">
+                  {generatedPrompt.length} caratteri • {activeSelectedTopics.length} argomenti
+                </span>
+              )}
+            </div>
+
+            <div className="relative group">
+              <textarea
+                readOnly
+                rows={6}
+                value={
+                  generatedPrompt ||
+                  "Seleziona almeno un argomento completato per generare il prompt strutturato per NotebookLM..."
+                }
+                className="w-full bg-slate-950/90 border border-slate-800 rounded-2xl p-4 font-mono text-xs text-cyan-200/90 leading-relaxed focus:outline-none resize-none selection:bg-cyan-500/30 selection:text-white"
+              />
+
+              {generatedPrompt && (
+                <button
+                  type="button"
+                  onClick={handleCopyPrompt}
+                  className={`absolute top-3 right-3 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center space-x-1.5 shadow-lg transition ${
+                    copied
+                      ? "bg-emerald-500 text-slate-950 shadow-emerald-500/30 font-black"
+                      : "bg-cyan-500 hover:bg-cyan-400 text-slate-950 shadow-cyan-500/20"
+                  }`}
+                >
+                  {copied ? (
+                    <>
+                      <IconCheck className="w-4 h-4" />
+                      <span>Copiato! ✓</span>
+                    </>
+                  ) : (
+                    <>
+                      <IconCopy className="w-4 h-4" />
+                      <span>Copia Prompt</span>
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Quick Guide Card for NeuraDeck & NotebookLM */}
+          <div className="bg-gradient-to-r from-cyan-950/40 to-indigo-950/30 border border-cyan-500/20 rounded-2xl p-4 space-y-2">
+            <h5 className="text-xs font-bold text-cyan-300 flex items-center space-x-1.5">
+              <span>💡 Come importare le Flashcard su NeuraDeck in 3 passaggi:</span>
+            </h5>
+            <ol className="text-xs text-slate-300 list-decimal list-inside space-y-1 leading-normal pl-1">
+              <li>
+                Incolla il prompt nella chat del tuo <strong>NotebookLM</strong> (contenente i PDF del syllabus UNIMORE).
+              </li>
+              <li>
+                NotebookLM genererà un blocco CSV con le colonne <code>Fronte,Retro</code> basato fedelmente sulle fonti ufficiali.
+              </li>
+              <li>
+                Copia il blocco di codice CSV, aprilo o salvalo come file <code>.csv</code> e importalo massivamente in <strong>NeuraDeck</strong> per la ripetizione spaziata.
+              </li>
+            </ol>
+          </div>
+        </div>
+
+        {/* Modal Footer */}
+        <div className="px-6 py-4 bg-slate-900 border-t border-slate-800 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-xs font-semibold transition"
+          >
+            Chiudi
+          </button>
+
+          <button
+            type="button"
+            disabled={!generatedPrompt}
+            onClick={handleCopyPrompt}
+            className={`px-5 py-2.5 rounded-xl text-xs font-bold flex items-center space-x-2 transition ${
+              !generatedPrompt
+                ? "bg-slate-800 text-slate-500 cursor-not-allowed"
+                : copied
+                ? "bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/25"
+                : "bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white shadow-lg shadow-cyan-500/25"
+            }`}
+          >
+            {copied ? (
+              <>
+                <IconCheck className="w-4 h-4" />
+                <span>Prompt Copiato negli Appunti!</span>
+              </>
+            ) : (
+              <>
+                <IconCopy className="w-4 h-4" />
+                <span>Copia Prompt per NotebookLM</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+// --- src/components/ExamSimulator.js ---
+
+
+
+/**
+ * ExamSimulator.js
+ * Simulatore d'Esame Dinamico per UNIMORE Ingegneria Informatica.
+ * Estrae casualmente:
+ * - 6 argomenti con Priorità >= 3 per Analisi Matematica 1 (simulazione prova scritta 5-6 esercizi)
+ * - 11 argomenti con Priorità >= 3 per Geometria e Algebra Lineare (simulazione test scritto 11 quesiti)
+ * Genera il prompt per Claude/ChatGPT formattato in Markdown pronto per la stampa.
+ */
+function ExamSimulator({ isOpen, onClose, topics = [], settings = {} }) {
+  const [selectedSubject, setSelectedSubject] = useState("Analisi 1"); // "Analisi 1" | "Geometria"
+  const [includeUncompletedFallback, setIncludeUncompletedFallback] = useState(false);
+  const [extractedTopics, setExtractedTopics] = useState([]);
+  const [copied, setCopied] = useState(false);
+  const [isSpinning, setIsSpinning] = useState(false);
+
+  const targetCount = selectedSubject === "Analisi 1" ? 6 : 11;
+  const isAnalisi = selectedSubject === "Analisi 1";
+
+  // Filtra il pool degli argomenti candidati
+  const { eligibleCompleted, eligibleAll } = useMemo(() => {
+    const isSubjectMatch = (t) => {
+      const mat = (t.materia || "").toLowerCase();
+      return isAnalisi ? mat.includes("analisi") : mat.includes("geometria");
+    };
+
+    const allSubjectHighPriority = (topics || []).filter(
+      t => isSubjectMatch(t) && Number(t.prioritaEsame || 0) >= 3
+    );
+
+    const completedHighPriority = allSubjectHighPriority.filter(t => t.isCompleted);
+
+    return {
+      eligibleCompleted: completedHighPriority,
+      eligibleAll: allSubjectHighPriority
+    };
+  }, [topics, isAnalisi]);
+
+  // Funzione di estrazione casuale
+  const executeRandomExtraction = useCallback(() => {
+    setIsSpinning(true);
+
+    let pool = [...eligibleCompleted];
+
+    // Se gli argomenti completati non bastano e il fallback è attivo, attingi anche dai non completati
+    if (pool.length < targetCount && (includeUncompletedFallback || eligibleCompleted.length === 0)) {
+      const alreadyIncludedIds = new Set(pool.map(t => t.id));
+      const uncompletedRemaining = eligibleAll.filter(t => !alreadyIncludedIds.has(t.id));
+      const shuffledUncompleted = [...uncompletedRemaining].sort(() => Math.random() - 0.5);
+      const needed = targetCount - pool.length;
+      pool = [...pool, ...shuffledUncompleted.slice(0, Math.max(0, needed))];
+    }
+
+    // Estrazione casuale dal pool
+    const shuffled = [...pool].sort(() => Math.random() - 0.5);
+    const selected = shuffled.slice(0, targetCount);
+
+    // Ordina rigorosamente per ID propedeutico (A-01 -> A-32, G-01 -> G-31) come da vincolo accademico
+    selected.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+
+    setExtractedTopics(selected);
+
+    setTimeout(() => {
+      setIsSpinning(false);
+    }, 250);
+  }, [eligibleCompleted, eligibleAll, targetCount, includeUncompletedFallback]);
+
+  // Esegui estrazione al cambio materia o apertura
+  useEffect(() => {
+    if (isOpen) {
+      executeRandomExtraction();
+    }
+  }, [isOpen, selectedSubject, executeRandomExtraction]);
+
+  // Generazione del prompt formattato per Claude / ChatGPT
+  const generatedPrompt = useMemo(() => {
+    if (extractedTopics.length === 0) return "";
+
+    const listStr = extractedTopics
+      .map((t, idx) => {
+        const itemType = isAnalisi ? `Esercizio ${idx + 1}` : `Quesito ${idx + 1}`;
+        const focusStr = t.note ? ` (Focus didattico: ${t.note})` : "";
+        const capStr = t.capitolo ? `[${t.capitolo}] ` : "";
+        return `${idx + 1}. [${t.id}] ${capStr}${t.argomento}${focusStr}`;
+      })
+      .join("\n");
+
+    return `Genera una simulazione d'esame scritta di livello universitario (UNIMORE) basata ESCLUSIVAMENTE su questi argomenti:\n${listStr}\n\nFormatta il testo in Markdown pronto per la stampa, includendo lo spazio per lo svolgimento.`;
+  }, [extractedTopics, isAnalisi]);
+
+  // Copia negli appunti
+  const handleCopyPrompt = async () => {
+    if (!generatedPrompt) return;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(generatedPrompt);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = generatedPrompt;
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch (err) {
+      console.error("Copia fallita:", err);
+    }
+  };
+
+  // Chiusura con tasto ESC
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape" && isOpen && onClose) {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-fade-in overflow-y-auto">
+      <div className="bg-[#0b1120] border border-indigo-500/30 rounded-3xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl shadow-indigo-950/40 overflow-hidden my-auto">
+        {/* Header Modal */}
+        <div className="px-6 py-4.5 bg-gradient-to-r from-slate-900 via-slate-900 to-indigo-950/60 border-b border-slate-800 flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="p-2.5 bg-gradient-to-tr from-indigo-500 to-purple-600 rounded-2xl text-white shadow-lg shadow-indigo-500/20">
+              <IconDice className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center space-x-2">
+                <h3 className="text-lg font-bold text-white tracking-tight">
+                  Simulatore d'Esame Dinamico
+                </h3>
+                <span className="text-[10px] font-extrabold uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded-full">
+                  UNIMORE Coorte 2021
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Estrae casualmente quesiti d'esame (Priorità ≥ 3) per generare la traccia d'esame per Claude / ChatGPT.
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={onClose}
+            className="p-2 text-slate-400 hover:text-white bg-slate-800/60 hover:bg-slate-800 rounded-xl transition"
+            title="Chiudi"
+          >
+            <IconX className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Modal Body */}
+        <div className="p-6 overflow-y-auto space-y-6 flex-1 text-sm custom-scrollbar">
+          {/* Subject Switcher & Controls */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center bg-slate-900/70 border border-slate-800/80 p-4 rounded-2xl">
+            {/* Subject Selector */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-2">
+                Seleziona Insegnamento d'Esame:
+              </label>
+              <div className="grid grid-cols-2 gap-2 bg-slate-950 p-1.5 rounded-xl border border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setSelectedSubject("Analisi 1")}
+                  className={`py-2 px-3 text-xs font-bold rounded-lg transition flex items-center justify-center space-x-1.5 ${
+                    selectedSubject === "Analisi 1"
+                      ? "bg-gradient-to-r from-emerald-500/30 to-teal-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  <span>Analisi 1</span>
+                  <span className="text-[10px] px-1.5 py-0.2 bg-emerald-500/20 rounded-full font-mono">
+                    6 Esercizi
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedSubject("Geometria")}
+                  className={`py-2 px-3 text-xs font-bold rounded-lg transition flex items-center justify-center space-x-1.5 ${
+                    selectedSubject === "Geometria"
+                      ? "bg-gradient-to-r from-indigo-500/30 to-purple-500/20 text-indigo-300 border border-indigo-500/40 shadow-sm"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  <span>Geometria</span>
+                  <span className="text-[10px] px-1.5 py-0.2 bg-indigo-500/20 rounded-full font-mono">
+                    11 Quiz
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            {/* Reshuffle Button & Status */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3 pt-2 sm:pt-0">
+              <button
+                type="button"
+                onClick={executeRandomExtraction}
+                disabled={isSpinning}
+                className="px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold rounded-xl text-xs flex items-center justify-center space-x-2 shadow-lg shadow-indigo-600/25 transition active:scale-95"
+              >
+                <IconDice className={`w-4 h-4 ${isSpinning ? "animate-spin" : ""}`} />
+                <span>Estrai Nuova Simulazione</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Completion Status / Fallback Notice */}
+          {eligibleCompleted.length < targetCount && (
+            <div className="bg-amber-950/30 border border-amber-500/30 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+              <div className="flex items-center space-x-2.5">
+                <IconAlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0" />
+                <div>
+                  <span className="font-bold text-amber-300">
+                    Argomenti completati (Priorità ≥ 3): {eligibleCompleted.length} su {targetCount} richiesti
+                  </span>
+                  <p className="text-slate-400 mt-0.5">
+                    {eligibleCompleted.length === 0
+                      ? "Non hai ancora contrassegnato argomenti con Priorità ≥ 3 come completati."
+                      : `Per una simulazione ufficiale completa servono ${targetCount} argomenti.`}
+                  </p>
+                </div>
+              </div>
+
+              <label className="flex items-center space-x-2 cursor-pointer bg-slate-900/80 px-3 py-1.5 rounded-xl border border-slate-700/60 flex-shrink-0">
+                <input
+                  type="checkbox"
+                  checked={includeUncompletedFallback}
+                  onChange={(e) => {
+                    setIncludeUncompletedFallback(e.target.checked);
+                    executeRandomExtraction();
+                  }}
+                  className="rounded border-slate-700 text-indigo-500 focus:ring-indigo-400 bg-slate-800"
+                />
+                <span className="text-slate-200 font-semibold text-xs">
+                  Completa a {targetCount} dall'intero programma
+                </span>
+              </label>
+            </div>
+          )}
+
+          {/* Extracted Topics List */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center space-x-2">
+                <span>Traccia Estratta: {extractedTopics.length} Quesiti Selezionati</span>
+                <span className="text-[10px] text-slate-400 font-normal">
+                  (Ordinati sequenzialmente per propedeuticità didattica)
+                </span>
+              </span>
+            </div>
+
+            {extractedTopics.length === 0 ? (
+              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 text-center space-y-2">
+                <p className="text-xs text-slate-400">
+                  Nessun argomento estraibile al momento. Attiva l'opzione per includere argomenti dell'intero programma.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 max-h-60 overflow-y-auto pr-1 custom-scrollbar">
+                {extractedTopics.map((t, idx) => {
+                  return (
+                    <div
+                      key={t.id}
+                      className="bg-slate-900/80 border border-slate-800/90 hover:border-slate-700 p-3 rounded-2xl flex items-start space-x-3 transition group"
+                    >
+                      <div className="w-7 h-7 rounded-xl bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-mono font-bold text-xs flex items-center justify-center flex-shrink-0">
+                        {idx + 1}
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                          <span className={`text-[10px] font-bold font-mono px-2 py-0.5 rounded-md ${
+                            isAnalisi
+                              ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                              : "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                          }`}>
+                            {t.id}
+                          </span>
+                          <span className="text-xs font-bold text-white truncate">
+                            {t.capitolo ? `${t.capitolo}` : t.argomento}
+                          </span>
+                        </div>
+
+                        <p className="text-[11px] text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                          {t.argomento}
+                        </p>
+
+                        <div className="flex items-center space-x-3 mt-2 text-[10px] font-mono">
+                          <span className="text-amber-400 flex items-center gap-0.5">
+                            ★ Priorità: {t.prioritaEsame}/5
+                          </span>
+                          <span className="text-slate-400">
+                            Diff: {t.difficolta}/5
+                          </span>
+                          {t.isCompleted ? (
+                            <span className="text-emerald-400 font-semibold">✓ Completato</span>
+                          ) : (
+                            <span className="text-slate-500">In programma</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Generated Prompt Preview */}
+          <div className="space-y-2 pt-2 border-t border-slate-800/80">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center space-x-1.5">
+                <IconBookOpen className="w-4 h-4 text-indigo-400" />
+                <span>Prompt Copiabile per Claude / ChatGPT</span>
+              </label>
+
+              {generatedPrompt && (
+                <span className="text-xs text-slate-400 font-mono">
+                  {extractedTopics.length} quesiti configurati
+                </span>
+              )}
+            </div>
+
+            <div className="relative group">
+              <textarea
+                readOnly
+                rows={6}
+                value={generatedPrompt}
+                className="w-full bg-slate-950/90 border border-slate-800 rounded-2xl p-4 font-mono text-xs text-indigo-200/90 leading-relaxed focus:outline-none resize-none selection:bg-indigo-500/30 selection:text-white"
+              />
+
+              {generatedPrompt && (
+                <button
+                  type="button"
+                  onClick={handleCopyPrompt}
+                  className={`absolute top-3 right-3 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center space-x-1.5 shadow-lg transition ${
+                    copied
+                      ? "bg-emerald-500 text-slate-950 shadow-emerald-500/30 font-black"
+                      : "bg-indigo-500 hover:bg-indigo-400 text-white shadow-indigo-500/20"
+                  }`}
+                >
+                  {copied ? (
+                    <>
+                      <IconCheck className="w-4 h-4" />
+                      <span>Copiato! ✓</span>
+                    </>
+                  ) : (
+                    <>
+                      <IconCopy className="w-4 h-4" />
+                      <span>Copia Prompt</span>
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* UNIMORE Exam Format Guide */}
+          <div className="bg-gradient-to-r from-indigo-950/40 to-purple-950/30 border border-indigo-500/20 rounded-2xl p-4 space-y-2">
+            <h5 className="text-xs font-bold text-indigo-300 flex items-center space-x-1.5">
+              <span>📋 Specifiche Appello d'Esame UNIMORE (Ingegneria Informatica):</span>
+            </h5>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-300 pt-1">
+              <div className="bg-slate-900/60 p-2.5 rounded-xl border border-slate-800/80">
+                <span className="font-bold text-emerald-400">Analisi Matematica 1:</span>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  5-6 Esercizi a svolgimento completo (Limiti, Taylor, Studio di Funzione, Integrali, Serie numeriche, Equazioni differenziali). Tempo: 2 ore.
+                </p>
+              </div>
+
+              <div className="bg-slate-900/60 p-2.5 rounded-xl border border-slate-800/80">
+                <span className="font-bold text-indigo-400">Geometria e Algebra Lineare:</span>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  11 Quesiti a risposta multipla o breve (Sistemi lineari, Rouché-Capelli, Autovalori/Autovettori, Diagonalizzazione, Coniche/Quadriche). Tempo: 90 minuti.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Modal Footer */}
+        <div className="px-6 py-4 bg-slate-900 border-t border-slate-800 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-xs font-semibold transition"
+          >
+            Chiudi
+          </button>
+
+          <button
+            type="button"
+            disabled={!generatedPrompt}
+            onClick={handleCopyPrompt}
+            className={`px-5 py-2.5 rounded-xl text-xs font-bold flex items-center space-x-2 transition ${
+              !generatedPrompt
+                ? "bg-slate-800 text-slate-500 cursor-not-allowed"
+                : copied
+                ? "bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/25"
+                : "bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white shadow-lg shadow-indigo-500/25"
+            }`}
+          >
+            {copied ? (
+              <>
+                <IconCheck className="w-4 h-4" />
+                <span>Prompt Copiato negli Appunti!</span>
+              </>
+            ) : (
+              <>
+                <IconCopy className="w-4 h-4" />
+                <span>Copia Prompt per Claude / ChatGPT</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 // --- src/components/Dashboard.js ---
 
 
 
-function Dashboard({ progress, metrics, onTabChange }) {
+
+
+function Dashboard({ progress, metrics, onTabChange, topics = [], settings = {} }) {
   const { analisi, geometria, global } = progress;
+  const [isFlashcardsOpen, setIsFlashcardsOpen] = useState(false);
+  const [isExamSimulatorOpen, setIsExamSimulatorOpen] = useState(false);
 
   return (
     <div className="space-y-6">
@@ -2087,6 +3039,81 @@ function Dashboard({ progress, metrics, onTabChange }) {
         </div>
       </div>
 
+      {/* AI Study Tools Row (Phase 2 Refactoring) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {/* Tool 1: NeuraDeck Flashcards (NotebookLM) */}
+        <div className="bg-gradient-to-br from-slate-900/90 via-slate-900/70 to-cyan-950/40 border border-cyan-500/30 p-5 md:p-6 rounded-3xl shadow-xl shadow-cyan-950/20 relative overflow-hidden flex flex-col justify-between group hover:border-cyan-500/50 transition">
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center space-x-2">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                  NotebookLM • CSV Raw
+                </span>
+                <span className="text-[10px] text-slate-400 font-mono">Fase 2 AI</span>
+              </div>
+              <div className="p-2 bg-cyan-500/10 text-cyan-400 rounded-xl group-hover:scale-110 transition">
+                <IconSparkles className="w-5 h-5" />
+              </div>
+            </div>
+
+            <h4 className="text-lg font-bold text-white">Generatore Flashcard NeuraDeck</h4>
+            <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+              Filtra in automatico gli argomenti completati nell'ultima settimana e compone il prompt ottimizzato per NotebookLM per estrarre le flashcard nel formato <code>Fronte,Retro</code> pronto all'import.
+            </p>
+          </div>
+
+          <div className="mt-5 pt-4 border-t border-slate-800/80 flex items-center justify-between">
+            <span className="text-[11px] text-cyan-400/80 font-mono">
+              Analisi 1 & Geometria
+            </span>
+            <button
+              type="button"
+              onClick={() => setIsFlashcardsOpen(true)}
+              className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-slate-950 font-bold rounded-xl text-xs flex items-center space-x-1.5 shadow-lg shadow-cyan-500/20 transition active:scale-95"
+            >
+              <IconSparkles className="w-4 h-4 text-slate-950" />
+              <span>Genera Flashcard</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Tool 2: Exam Simulator (Claude / ChatGPT) */}
+        <div className="bg-gradient-to-br from-slate-900/90 via-slate-900/70 to-indigo-950/40 border border-indigo-500/30 p-5 md:p-6 rounded-3xl shadow-xl shadow-indigo-950/20 relative overflow-hidden flex flex-col justify-between group hover:border-indigo-500/50 transition">
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center space-x-2">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                  UNIMORE Scritto • Claude/GPT
+                </span>
+                <span className="text-[10px] text-slate-400 font-mono">Priorità ≥ 3</span>
+              </div>
+              <div className="p-2 bg-indigo-500/10 text-indigo-400 rounded-xl group-hover:scale-110 transition">
+                <IconDice className="w-5 h-5" />
+              </div>
+            </div>
+
+            <h4 className="text-lg font-bold text-white">Simulatore d'Esame Dinamico</h4>
+            <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+              Estrae casualmente 6 argomenti per Analisi 1 o 11 per Geometria tra quelli completati con Priorità ≥ 3 e compone il prompt d'esame in Markdown per Claude o ChatGPT con spazio di svolgimento.
+            </p>
+          </div>
+
+          <div className="mt-5 pt-4 border-t border-slate-800/80 flex items-center justify-between">
+            <span className="text-[11px] text-indigo-400/80 font-mono">
+              6 Esercizi o 11 Quiz
+            </span>
+            <button
+              type="button"
+              onClick={() => setIsExamSimulatorOpen(true)}
+              className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-bold rounded-xl text-xs flex items-center space-x-1.5 shadow-lg shadow-indigo-500/20 transition active:scale-95"
+            >
+              <IconDice className="w-4 h-4 text-white" />
+              <span>Avvia Simulazione</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Global Progress Strip */}
       <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 md:p-5 flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex items-center space-x-3.5 w-full md:w-auto">
@@ -2114,6 +3141,21 @@ function Dashboard({ progress, metrics, onTabChange }) {
           </div>
         </div>
       </div>
+
+      {/* Interactive Tool Modals */}
+      <NeuraDeckPromptGenerator
+        isOpen={isFlashcardsOpen}
+        onClose={() => setIsFlashcardsOpen(false)}
+        topics={topics}
+        settings={settings}
+      />
+
+      <ExamSimulator
+        isOpen={isExamSimulatorOpen}
+        onClose={() => setIsExamSimulatorOpen(false)}
+        topics={topics}
+        settings={settings}
+      />
     </div>
   );
 }
@@ -4679,6 +5721,8 @@ function App() {
             progress={progress}
             metrics={metrics}
             onTabChange={setActiveTab}
+            topics={topics}
+            settings={settings}
           />
         )}
 

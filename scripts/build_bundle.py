@@ -7,6 +7,8 @@ files_order = [
     'src/services/rebalancerEngine.js',
     'src/services/parserService.js',
     'src/components/AlertBanner.js',
+    'src/components/NeuraDeckPromptGenerator.js',
+    'src/components/ExamSimulator.js',
     'src/components/Dashboard.js',
     'src/components/ActivityHeatmap.js',
     'src/components/WeeklyTodo.js',

@@ -21,6 +21,9 @@ L'applicazione carica in memoria lato client i file di syllabus e i tracker di s
 - 💼 **Modello Lavoratore Full-Time:** Esclusione automatica delle ore lavorative diurne: studio concentrato nelle sere feriali (**2.5h/sera**, 19:30 - 22:00) e blocchi intensivi nel weekend (**4.5h/giorno**).
 - ⚠️ **Allerta Sovraccarico Cognitivo:** Scatto di un warning visivo animato qualora il monte ore settimanale richiesto superi la soglia critica di sicurezza (**25 ore/settimana**).
 - 📜 **Storico & Diario di Studio:** Tracciamento giorno per giorno delle date passate dall'avvio del piano (16 Novembre 2026), con indicazione chiara di sessioni svolte vs giorni saltati.
+- 🤖 **AI Study Hub (Fase 2):**
+  - **Generatore Flashcard NeuraDeck (NotebookLM):** Estrazione automatica degli argomenti completati nell'ultima settimana e generazione del prompt per blocchi CSV raw `Fronte,Retro` compatibili con NeuraDeck.
+  - **Simulatore d'Esame Dinamico:** Estrazione casuale di 6 argomenti per Analisi 1 o 11 per Geometria (Priorità $\ge 3$) e generazione di tracce d'esame scritte in Markdown per Claude o ChatGPT.
 - 💾 **Persistenza Locale al 100%:** Nessun database esterno o cloud richiesto. I dati sono salvati in tempo reale in **LocalStorage** con supporto all'esportazione/importazione di backup completi in formato JSON e fogli Excel (`.xlsx`).
 - 📱 **Design Dark Mode Responsive:** UI curata in dark mode (`#070b14`), ottimizzata per schermi desktop, tablet e smartphone con bottom navigation bar.
 

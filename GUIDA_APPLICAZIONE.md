@@ -162,6 +162,21 @@ La Dashboard offre una panoramica d'impatto sullo stato di avanzamento:
 - **Progress Bar Geometria e Algebra:**
   - Barra graduata color Indaco/Viola basata su `Ore_Completate / Ore_Stimate`.
   - Contatore argomenti svolti (`X / 31`), ore residue e promemoria della struttura d'esame scritto (test a 11 quesiti a risposta multipla).
+- **Strumenti AI & Metodo di Studio (Fase 2):**
+  - **Generatore Flashcard NeuraDeck (NotebookLM):**
+    - Filtra in automatico gli argomenti completati nell'ultima settimana (ultimi 7 giorni rispetto alla data odierna).
+    - Selettore di materia (*Tutte*, *Analisi 1*, *Geometria*) e selezione granulare degli argomenti con anteprima fonti e note.
+    - Genera dinamicamente il prompt strutturato per Google NotebookLM:
+      > *"Agisci da professore universitario di Ingegneria. Basandoti esclusivamente sulle fonti di questo notebook, generami delle flashcard di ripasso sui seguenti argomenti: [LISTA_ARGOMENTI_COMPLETATI]. Restituisci l'output ESCLUSIVAMENTE in un blocco di codice CSV raw nel formato 'Fronte,Retro', ottimizzato per l'importazione massiva su NeuraDeck."*
+    - Pulsante *"Copia Prompt"* con feedback visivo istantaneo e guida in 3 passaggi per l'importazione CSV su NeuraDeck.
+  - **Simulatore d'Esame Dinamico (Claude / ChatGPT):**
+    - Selezionando *Analisi 1*, estrae casualmente **6 argomenti** con Priorità $\ge 3$ tra quelli completati (rispecchia i 5-6 esercizi della prova scritta UNIMORE).
+    - Selezionando *Geometria*, estrae casualmente **11 argomenti** con Priorità $\ge 3$ tra quelli completati (rispecchia gli 11 quesiti del test d'esame UNIMORE).
+    - Gli argomenti estratti vengono ordinati per ID (`A-01` $\rightarrow$ `A-32`, `G-01` $\rightarrow$ `G-31`) garantendo la rigorosa propedeuticità didattica.
+    - Banner intelligente con opzione di fallback sul programma completo se gli argomenti completati sono inferiori al target.
+    - Genera dinamicamente il prompt per Claude o ChatGPT:
+      > *"Genera una simulazione d'esame scritta di livello universitario (UNIMORE) basata ESCLUSIVAMENTE su questi argomenti: [LISTA_ESTRATTA]. Formatta il testo in Markdown pronto per la stampa, includendo lo spazio per lo svolgimento."*
+    - Pulsante *"Estrai Nuova Simulazione 🎲"* per generare infiniti appelli d'esame di prova.
 - **Riepilogo Globale:** Barra cumulativa dell'intero percorso formativo.
 
 ---

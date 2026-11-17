@@ -1,8 +1,21 @@
-import React from "react";
-import { IconClock, IconCalendar, IconBookOpen, IconBarChart, IconCheckCircle, IconFlame } from "./Icons.js";
+import React, { useState } from "react";
+import {
+  IconClock,
+  IconCalendar,
+  IconBookOpen,
+  IconBarChart,
+  IconCheckCircle,
+  IconFlame,
+  IconSparkles,
+  IconDice
+} from "./Icons.js";
+import { NeuraDeckPromptGenerator } from "./NeuraDeckPromptGenerator.js";
+import { ExamSimulator } from "./ExamSimulator.js";
 
-export function Dashboard({ progress, metrics, onTabChange }) {
+export function Dashboard({ progress, metrics, onTabChange, topics = [], settings = {} }) {
   const { analisi, geometria, global } = progress;
+  const [isFlashcardsOpen, setIsFlashcardsOpen] = useState(false);
+  const [isExamSimulatorOpen, setIsExamSimulatorOpen] = useState(false);
 
   return (
     <div className="space-y-6">
@@ -239,6 +252,81 @@ export function Dashboard({ progress, metrics, onTabChange }) {
         </div>
       </div>
 
+      {/* AI Study Tools Row (Phase 2 Refactoring) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {/* Tool 1: NeuraDeck Flashcards (NotebookLM) */}
+        <div className="bg-gradient-to-br from-slate-900/90 via-slate-900/70 to-cyan-950/40 border border-cyan-500/30 p-5 md:p-6 rounded-3xl shadow-xl shadow-cyan-950/20 relative overflow-hidden flex flex-col justify-between group hover:border-cyan-500/50 transition">
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center space-x-2">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                  NotebookLM • CSV Raw
+                </span>
+                <span className="text-[10px] text-slate-400 font-mono">Fase 2 AI</span>
+              </div>
+              <div className="p-2 bg-cyan-500/10 text-cyan-400 rounded-xl group-hover:scale-110 transition">
+                <IconSparkles className="w-5 h-5" />
+              </div>
+            </div>
+
+            <h4 className="text-lg font-bold text-white">Generatore Flashcard NeuraDeck</h4>
+            <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+              Filtra in automatico gli argomenti completati nell'ultima settimana e compone il prompt ottimizzato per NotebookLM per estrarre le flashcard nel formato <code>Fronte,Retro</code> pronto all'import.
+            </p>
+          </div>
+
+          <div className="mt-5 pt-4 border-t border-slate-800/80 flex items-center justify-between">
+            <span className="text-[11px] text-cyan-400/80 font-mono">
+              Analisi 1 & Geometria
+            </span>
+            <button
+              type="button"
+              onClick={() => setIsFlashcardsOpen(true)}
+              className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-slate-950 font-bold rounded-xl text-xs flex items-center space-x-1.5 shadow-lg shadow-cyan-500/20 transition active:scale-95"
+            >
+              <IconSparkles className="w-4 h-4 text-slate-950" />
+              <span>Genera Flashcard</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Tool 2: Exam Simulator (Claude / ChatGPT) */}
+        <div className="bg-gradient-to-br from-slate-900/90 via-slate-900/70 to-indigo-950/40 border border-indigo-500/30 p-5 md:p-6 rounded-3xl shadow-xl shadow-indigo-950/20 relative overflow-hidden flex flex-col justify-between group hover:border-indigo-500/50 transition">
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center space-x-2">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                  UNIMORE Scritto • Claude/GPT
+                </span>
+                <span className="text-[10px] text-slate-400 font-mono">Priorità ≥ 3</span>
+              </div>
+              <div className="p-2 bg-indigo-500/10 text-indigo-400 rounded-xl group-hover:scale-110 transition">
+                <IconDice className="w-5 h-5" />
+              </div>
+            </div>
+
+            <h4 className="text-lg font-bold text-white">Simulatore d'Esame Dinamico</h4>
+            <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+              Estrae casualmente 6 argomenti per Analisi 1 o 11 per Geometria tra quelli completati con Priorità ≥ 3 e compone il prompt d'esame in Markdown per Claude o ChatGPT con spazio di svolgimento.
+            </p>
+          </div>
+
+          <div className="mt-5 pt-4 border-t border-slate-800/80 flex items-center justify-between">
+            <span className="text-[11px] text-indigo-400/80 font-mono">
+              6 Esercizi o 11 Quiz
+            </span>
+            <button
+              type="button"
+              onClick={() => setIsExamSimulatorOpen(true)}
+              className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-bold rounded-xl text-xs flex items-center space-x-1.5 shadow-lg shadow-indigo-500/20 transition active:scale-95"
+            >
+              <IconDice className="w-4 h-4 text-white" />
+              <span>Avvia Simulazione</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Global Progress Strip */}
       <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 md:p-5 flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex items-center space-x-3.5 w-full md:w-auto">
@@ -266,6 +354,21 @@ export function Dashboard({ progress, metrics, onTabChange }) {
           </div>
         </div>
       </div>
+
+      {/* Interactive Tool Modals */}
+      <NeuraDeckPromptGenerator
+        isOpen={isFlashcardsOpen}
+        onClose={() => setIsFlashcardsOpen(false)}
+        topics={topics}
+        settings={settings}
+      />
+
+      <ExamSimulator
+        isOpen={isExamSimulatorOpen}
+        onClose={() => setIsExamSimulatorOpen(false)}
+        topics={topics}
+        settings={settings}
+      />
     </div>
   );
 }

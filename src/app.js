@@ -453,6 +453,8 @@ export function App() {
             progress={progress}
             metrics={metrics}
             onTabChange={setActiveTab}
+            topics={topics}
+            settings={settings}
           />
         )}
 
