@@ -60,7 +60,7 @@ export function ActivityHeatmap({ calendarDays = [], historyDays = [], metrics =
     return {
       weeksGrid: weeks,
       streakDays: currentStreak,
-      totalCompletedHours: Number(compHours.toFixed(1)),
+      totalCompletedHours: metrics.totalEffectiveHours !== undefined ? Number(metrics.totalEffectiveHours) : Number(compHours.toFixed(1)),
       completedDaysCount: compCount
     };
   }, [calendarDays, historyDays]);

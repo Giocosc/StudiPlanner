@@ -83,12 +83,22 @@ Puoi fare doppio clic direttamente su `index.html` per aprirlo in Google Chrome,
 
 L'algoritmo di allocazione implementato in `src/services/rebalancerEngine.js` rispetta una serie di vincoli matematici e didattici ben definiti.
 
-### Esclusione dell'Orario Lavorativo
-L'utente lavora a tempo pieno (es. 9:00 - 18:00). Di conseguenza, l'algoritmo azzera la capacità di studio diurna nei giorni feriali e alloca il tempo secondo questo schema di default:
-- **Dal Lunedì al Venerdì:** Slot serali da **2.5 ore/giorno** (fascia 19:30 - 22:00).
-- **Sabato:** Blocco intensivo da **4.5 ore/giorno** (Mattina + Pomeriggio).
-- **Domenica:** Blocco intensivo da **4.5 ore/giorno** (Pomeriggio + Ripasso).
-- *Capacità massima teorica settimanale:* $5 \times 2.5\text{h} + 2 \times 4.5\text{h} = 21.5\text{ ore/settimana}$.
+### Gestione Flessibile Slot Extra e Time Shifter (Override Dinamico del Budget Giornaliero)
+L'utente è uno studente lavoratore a tempo pieno con una routine oraria che combina studio serale e slot flessibili. Per far fronte agli imprevisti lavorativi quotidiani (straordinari, pause pranzo variabili, permessi studio improvvisi), StudiPlanner integra la tecnologia **Time Shifter**:
+
+1. **Valori Standard di Base:**
+   - **Dal Lunedì al Venerdì:** Studio serale standard da **2.5 ore/sera** (fascia 19:30 - 22:00).
+   - **Sabato e Domenica:** Blocchi intensivi diurni da **4.5 ore/giorno**.
+   - *Capacità di riferimento:* $5 \times 2.5\text{h} + 2 \times 4.5\text{h} = 21.5\text{ ore/settimana}$.
+   - *Soglia Critica di Sicurezza:* configurabile a partire da 25 ore/settimana.
+
+2. **Override Dinamico Giorno per Giorno (Time Shifter nel To-Do Settimanale):**
+   - Nell'header di ogni singolo giorno nel To-Do Settimanale è presente un gruppo di controlli stepper dedicati:
+     - **Pulsante `[- 30m]`:** Riduci il budget di 30 minuti se hai straordinari o imprevisti serali.
+     - **Badge `Budget: X.Xh`:** Mostra la disponibilità effettiva allocata per quella specifica data (con tasto `↺` di reset rapido).
+     - **Pulsante `[+ 30m]` (Slot Extra):** Aggiungi uno slot extra da 30 minuti (o multipli) per pausa pranzo estesa, permessi o anticipo mattutino.
+   - **Ricalcolo e Spostamento Istantaneo:** Al click, l'algoritmo rialloca immediatamente la coda degli argomenti propedeutici: se allarghi il budget, gli argomenti futuri vengono anticipati oggi; se lo riduci, scivolano automaticamente sui giorni successivi in modo fluido e trasparente.
+   - **Persistenza Dedicata:** Tutte le modifiche vengono memorizzate nell'oggetto `customDayCapacities` in `localStorage` e incluse nei file di backup JSON e nell'auto-sync trasparente del File System.
 
 ### Buffer Dinamico del +20% sui Temi Complessi
 Gli argomenti non hanno tutti la stessa complessità. Per gli argomenti ad **alta priorità d'esame** ($\ge 4$) o ad **alta difficoltà intrinseca** ($\ge 4$):
@@ -193,8 +203,13 @@ La vista operativa quotidiana che dice esattamente cosa studiare oggi:
     - **OGGI:** Bordo ciano brillante con badge animato.
     - **SESSIONE SVOLTA:** Bordo verde smeraldo con indicazione delle ore fatte.
     - **GIORNO SALTATO:** Visuale opacizzata con promemoria del recupero automatico.
-- **Card dell'Argomento:**
-  - **Checkbox Interattiva:** Cliccandola, l'argomento viene contrassegnato con una spunta verde e riceve la data di completamento odierna. L'intero calendario ricalcola all'istante!
+- **Card dell'Argomento e Console di Tracciamento Granulare:**
+  - **Console Progresso Parziale Integrata:** Permette di separare il tempo speso dallo stato di completamento effettivo:
+    - **Display delle Ore:** Indicatore `Ore spese: X.X / Y.Y stimate` con indicatore visivo delle `Residue da allocare`.
+    - **Pulsanti Rapidi di Tempo:** Tasti `[- 30m]`, `[+ 30m]` e `[+ 1h]` per registrare sessioni parziali di studio senza dover per forza chiudere l'argomento.
+    - **Micro Progress Bar:** Barra orizzontale dinamica che illustra graficamente la percentuale di ore spese rispetto alla stima.
+    - **Toggle Distinto "Segna come Completato":** Pulsante dedicato e ben visibile per sancire la conclusione definitiva del tema (con badge `Completato ✓`).
+  - **Timer Pomodoro 50/10 Sincronizzato:** Permette di avviare sessioni di focus interval; al completamento del ciclo o tramite i controlli rapidi (`+30m` / `Target Raggiunto`), il tempo viene automaticamente sommato alle `oreEffettive`.
   - Badge di materia, ID univoco (es. `A-09`, `G-14`) e capitolo.
   - Badge **+20% Buffer Priorità** (se l'argomento è complesso).
   - Titolo completo dell'argomento e deliverable didattico (es. *"Scrivere su foglio bianco la dimostrazione del Teorema di Torricelli"*).

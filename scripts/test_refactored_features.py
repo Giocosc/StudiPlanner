@@ -53,7 +53,7 @@ with sync_playwright() as p:
     print("Connect JSON File button present:", connect_btn > 0)
 
     # ==========================================
-    # 2. VERIFY AGENT ENGINE: AFTERNOON SLOT
+    # 2. VERIFY AGENT ENGINE: FLEXIBLE EXTRA SLOTS
     # ==========================================
     print("\n--- Verifying Agent Engine ---")
     
@@ -61,21 +61,17 @@ with sync_playwright() as p:
     page.locator("header button[title*='Parametri']").click()
     page.wait_for_timeout(400)
 
-    # Check afternoon slot checkbox and label
-    afternoon_slot = page.locator("text=Slot Pomeridiano (16:30 - 19:00)").count()
-    print("Slot Pomeridiano (16:30 - 19:00) exists in Settings:", afternoon_slot > 0)
-    assert afternoon_slot > 0, "Slot Pomeridiano missing from SettingsModal!"
+    # Check flexible slot title
+    flexible_slot = page.locator("text=Gestione Flessibile Slot Extra").count()
+    print("Gestione Flessibile Slot Extra exists in Settings:", flexible_slot > 0)
+    assert flexible_slot > 0, "Gestione Flessibile Slot Extra missing from SettingsModal!"
 
-    # Check combined feriale capacity badge
-    feriale_badge = page.locator("text=Feriale: 5.0h/gg").count() or page.locator("text=Feriale: 5h/gg").count()
-    print("Combined feriale capacity (5.0h/gg) displayed:", feriale_badge > 0)
-
-    # Check dynamic burnout threshold
-    threshold_input = page.locator("input[value='35']").count() or page.locator("input[value='35.0']").count()
-    print("Dynamic Burnout threshold elevated to 35h:", threshold_input > 0)
+    # Check baseline feriale capacity badge
+    feriale_badge = page.locator("text=Feriale base: 2.5h/gg").count() or page.locator("text=Feriale base: 2.5").count()
+    print("Baseline feriale capacity displayed:", feriale_badge > 0)
 
     # Screenshot settings modal
-    screenshot_settings = os.path.join(DIRECTORY, "screenshot_settings_afternoon.png")
+    screenshot_settings = os.path.join(DIRECTORY, "screenshot_settings_slot_extra.png")
     page.screenshot(path=screenshot_settings)
     print("Screenshot settings saved to:", screenshot_settings)
 
@@ -83,11 +79,9 @@ with sync_playwright() as p:
     page.locator("button:has-text('Annulla')").click()
     page.wait_for_timeout(300)
 
-    # Check AlertBanner reflects sustainable pace with afternoon slot
+    # Check AlertBanner reflects sustainable pace
     banner_sustainable = page.locator("text=Carico Settimanale Sostenibile").count()
-    afternoon_badge_alert = page.locator("text=+Slot Pomeridiano Attivo").count()
     print("AlertBanner sustainable pace confirmed:", banner_sustainable > 0)
-    print("AlertBanner shows +Slot Pomeridiano Attivo:", afternoon_badge_alert > 0)
 
     # ==========================================
     # 3. VERIFY AGENT UI: HEATMAP & POMODORO
@@ -135,9 +129,9 @@ with sync_playwright() as p:
     completed_badge = page.locator("text=✓ Target Raggiunto").count()
     print("Topic auto-completed by Pomodoro timer (Target Raggiunto badge):", completed_badge > 0)
 
-    completed_check = page.locator("button[title='Segna come da fare']").count()
-    print("Checkbox automatically ticked by Pomodoro:", completed_check > 0)
-    assert completed_check > 0, "Checkbox was not automatically ticked upon reaching Pomodoro target hours!"
+    completed_check = page.locator("button:has-text('Completato ✓')").count() or page.locator("button[title*='completato']").count()
+    print("Topic completion button updated upon reaching Pomodoro target hours:", completed_check > 0)
+    assert completed_check > 0, "Topic was not automatically marked completed upon reaching Pomodoro target hours!"
 
     # Screenshot pomodoro
     screenshot_pomodoro = os.path.join(DIRECTORY, "screenshot_pomodoro_active.png")

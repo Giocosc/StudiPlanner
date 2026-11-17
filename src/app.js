@@ -25,17 +25,38 @@ import {
 
 const LOCAL_STORAGE_KEY_TOPICS = "unimore_rebalancer_topics_v2";
 const LOCAL_STORAGE_KEY_SETTINGS = "unimore_rebalancer_settings_v2";
+const LOCAL_STORAGE_KEY_CUSTOM_CAPACITIES = "unimore_rebalancer_custom_capacities_v2";
 
 export function App() {
   // Load saved state from localStorage if available, or use official UNIMORE defaults
+  // Ensures granular partial progress: oreEffettive (float) and completato (boolean)
   const [topics, setTopics] = useState(() => {
     try {
       const saved = localStorage.getItem(LOCAL_STORAGE_KEY_TOPICS);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.map(t => {
+          const isDone = Boolean(t.completato !== undefined ? t.completato : t.isCompleted);
+          const oreEff = t.oreEffettive !== undefined && t.oreEffettive !== null
+            ? Number(t.oreEffettive)
+            : (isDone ? Number(t.oreStimate || 2.0) : 0);
+          return {
+            ...t,
+            completato: isDone,
+            isCompleted: isDone,
+            oreEffettive: oreEff
+          };
+        });
+      }
     } catch (e) {
       console.warn("Could not load topics from localStorage", e);
     }
-    return INITIAL_TOPICS;
+    return INITIAL_TOPICS.map(t => ({
+      ...t,
+      completato: false,
+      isCompleted: false,
+      oreEffettive: 0
+    }));
   });
 
   const [settings, setSettings] = useState(() => {
@@ -46,6 +67,17 @@ export function App() {
       console.warn("Could not load settings from localStorage", e);
     }
     return DEFAULT_SETTINGS;
+  });
+
+  // Dynamic daily capacities override (Time Shifter)
+  const [customDayCapacities, setCustomDayCapacities] = useState(() => {
+    try {
+      const saved = localStorage.getItem(LOCAL_STORAGE_KEY_CUSTOM_CAPACITIES);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.warn("Could not load customDayCapacities from localStorage", e);
+    }
+    return {};
   });
 
   const [activeTab, setActiveTab] = useState("dashboard"); // "dashboard" | "weekly" | "history" | "topics" | "import"
@@ -124,6 +156,14 @@ export function App() {
     }
   }, [settings]);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(LOCAL_STORAGE_KEY_CUSTOM_CAPACITIES, JSON.stringify(customDayCapacities));
+    } catch (e) {
+      console.warn("Failed to persist customDayCapacities", e);
+    }
+  }, [customDayCapacities]);
+
   // Transparent Auto-Sync: Automatically overwrite connected JSON file on any global state change
   useEffect(() => {
     if (!fileHandle) return;
@@ -136,7 +176,8 @@ export function App() {
         const backupData = {
           exportDate: new Date().toISOString(),
           settings,
-          topics
+          topics,
+          customDayCapacities
         };
         await writable.write(JSON.stringify(backupData, null, 2));
         await writable.close();
@@ -162,7 +203,7 @@ export function App() {
     return () => {
       isMounted = false;
     };
-  }, [topics, settings, fileHandle]);
+  }, [topics, settings, customDayCapacities, fileHandle]);
 
   // Connect file handle using File System Access API
   const handleConnectFileSystem = async () => {
@@ -191,6 +232,9 @@ export function App() {
           if (backup.settings) {
             setSettings(backup.settings);
           }
+          if (backup.customDayCapacities && typeof backup.customDayCapacities === "object") {
+            setCustomDayCapacities(backup.customDayCapacities);
+          }
           imported = true;
         }
       } catch (e) {
@@ -213,7 +257,8 @@ export function App() {
         await writable.write(JSON.stringify({
           exportDate: new Date().toISOString(),
           settings,
-          topics
+          topics,
+          customDayCapacities
         }, null, 2));
         await writable.close();
       } catch (err) {
@@ -243,7 +288,8 @@ export function App() {
       await writable.write(JSON.stringify({
         exportDate: new Date().toISOString(),
         settings,
-        topics
+        topics,
+        customDayCapacities
       }, null, 2));
       await writable.close();
       setFsSyncStatus({
@@ -258,10 +304,27 @@ export function App() {
     }
   };
 
+  // Dynamic Daily Capacity Override (Time Shifter) Handlers
+  const handleUpdateDayCapacity = (dateStr, newHours) => {
+    setCustomDayCapacities(prev => {
+      const updated = { ...prev };
+      if (newHours === null || newHours === undefined) {
+        delete updated[dateStr];
+      } else {
+        updated[dateStr] = Math.max(0, Number(Number(newHours).toFixed(1)));
+      }
+      return updated;
+    });
+  };
+
+  const handleResetDayCapacities = () => {
+    setCustomDayCapacities({});
+  };
+
   // Reactive Rebalancing calculation
   const rebalancedPlan = useMemo(() => {
-    return rebalanceStudyPlan(topics, settings);
-  }, [topics, settings]);
+    return rebalanceStudyPlan(topics, settings, customDayCapacities);
+  }, [topics, settings, customDayCapacities]);
 
   const { metrics, weeklyPlans, progress, historyDays } = rebalancedPlan;
 
@@ -270,11 +333,35 @@ export function App() {
     setTopics(prev =>
       prev.map(t => {
         if (t.id === topicId) {
-          const willComplete = !t.isCompleted;
+          const isDone = Boolean(t.completato !== undefined ? t.completato : t.isCompleted);
+          const willComplete = !isDone;
+          const currentEff = Number(t.oreEffettive || 0);
           return {
             ...t,
+            completato: willComplete,
             isCompleted: willComplete,
-            completedDate: willComplete ? (t.completedDate || settings.currentSimulatedDate) : null
+            completedDate: willComplete ? (t.completedDate || settings.currentSimulatedDate) : null,
+            // If marking completed and had 0 hours logged, defaults to oreStimate; else preserves accumulated hours
+            oreEffettive: willComplete && currentEff === 0 ? Number(t.oreStimate || 2.0) : currentEff
+          };
+        }
+        return t;
+      })
+    );
+  };
+
+  // Granular Partial Progress: Add or set hours spent on a topic without completing it
+  const handleUpdateTopicHours = (topicId, deltaOrNewHours, isDelta = true) => {
+    setTopics(prev =>
+      prev.map(t => {
+        if (t.id === topicId) {
+          const cur = Number(t.oreEffettive || 0);
+          const nextVal = isDelta
+            ? Math.max(0, Number((cur + deltaOrNewHours).toFixed(2)))
+            : Math.max(0, Number(Number(deltaOrNewHours).toFixed(2)));
+          return {
+            ...t,
+            oreEffettive: nextVal
           };
         }
         return t;
@@ -522,7 +609,10 @@ export function App() {
           <WeeklyTodo
             weeklyPlans={weeklyPlans}
             onToggleComplete={handleToggleComplete}
+            onUpdateTopicHours={handleUpdateTopicHours}
             settings={settings}
+            customDayCapacities={customDayCapacities}
+            onUpdateDayCapacity={handleUpdateDayCapacity}
           />
         )}
 
@@ -541,6 +631,7 @@ export function App() {
           <TopicsTable
             topics={topics}
             onToggleComplete={handleToggleComplete}
+            onUpdateTopicHours={handleUpdateTopicHours}
             onBatchUpdate={handleTopicsUpdated}
           />
         )}
@@ -549,6 +640,8 @@ export function App() {
           <FileImporter
             topics={topics}
             settings={settings}
+            customDayCapacities={customDayCapacities}
+            onCustomCapacitiesUpdated={(newCapacities) => setCustomDayCapacities(newCapacities)}
             onTopicsUpdated={handleTopicsUpdated}
             onSettingsUpdated={(newSettings) => setSettings(newSettings)}
             fsSyncStatus={fsSyncStatus}
@@ -618,6 +711,8 @@ export function App() {
         onClose={() => setIsSettingsOpen(false)}
         settings={settings}
         onSaveSettings={(newSettings) => setSettings(newSettings)}
+        customDayCapacities={customDayCapacities}
+        onResetDayCapacities={handleResetDayCapacities}
       />
 
       {/* CLARKE-9000 Isolated Side Companion */}

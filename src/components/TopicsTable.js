@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { IconSearch, IconFilter, IconCheck, IconClock, IconFlame, IconCheckCircle } from "./Icons.js";
 
-export function TopicsTable({ topics, onToggleComplete, onBatchUpdate }) {
+export function TopicsTable({ topics, onToggleComplete, onUpdateTopicHours, onBatchUpdate }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [subjectFilter, setSubjectFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -9,6 +9,9 @@ export function TopicsTable({ topics, onToggleComplete, onBatchUpdate }) {
 
   const filteredTopics = useMemo(() => {
     return topics.filter(t => {
+      const isDone = Boolean(t.completato !== undefined ? t.completato : t.isCompleted);
+      const isPartial = !isDone && (Number(t.oreEffettive) || 0) > 0;
+
       // Search
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
@@ -24,8 +27,9 @@ export function TopicsTable({ topics, onToggleComplete, onBatchUpdate }) {
       }
 
       // Status
-      if (statusFilter === "completed" && !t.isCompleted) return false;
-      if (statusFilter === "todo" && t.isCompleted) return false;
+      if (statusFilter === "completed" && !isDone) return false;
+      if (statusFilter === "in_progress" && !isPartial) return false;
+      if (statusFilter === "todo" && (isDone || isPartial)) return false;
 
       // Priority
       if (priorityFilter === "high" && (t.prioritaEsame < 4 && t.difficolta < 4)) return false;
@@ -72,7 +76,8 @@ export function TopicsTable({ topics, onToggleComplete, onBatchUpdate }) {
             className="bg-slate-950/80 border border-slate-800 text-xs text-slate-300 rounded-xl px-3 py-2 focus:outline-none focus:border-cyan-500"
           >
             <option value="all">Tutti gli Stati</option>
-            <option value="todo">Solo Da Fare</option>
+            <option value="todo">Da Fare (0h)</option>
+            <option value="in_progress">In Corso (Parziale)</option>
             <option value="completed">Solo Completati</option>
           </select>
 
@@ -132,7 +137,7 @@ export function TopicsTable({ topics, onToggleComplete, onBatchUpdate }) {
                 <th className="py-3 px-3 w-20">ID</th>
                 <th className="py-3 px-3 w-28">Materia</th>
                 <th className="py-3 px-4">Capitolo & Argomento</th>
-                <th className="py-3 px-3 w-24 text-center">Ore Stimate</th>
+                <th className="py-3 px-3 w-36 text-center">Ore Spese / Stimate</th>
                 <th className="py-3 px-3 w-20 text-center">Difficoltà</th>
                 <th className="py-3 px-3 w-20 text-center">Priorità</th>
               </tr>
@@ -140,13 +145,15 @@ export function TopicsTable({ topics, onToggleComplete, onBatchUpdate }) {
             <tbody className="divide-y divide-slate-800/60">
               {filteredTopics.map((topic) => {
                 const isAnalisi = topic.materia.toLowerCase().includes("analisi");
+                const isDone = Boolean(topic.completato !== undefined ? topic.completato : topic.isCompleted);
                 const hasBuffer = (topic.prioritaEsame >= 4 || topic.difficolta >= 4);
+                const effHours = Number(topic.oreEffettive || 0);
 
                 return (
                   <tr
                     key={topic.id}
                     className={`hover:bg-slate-850/60 transition ${
-                      topic.isCompleted ? "bg-slate-950/40 opacity-60" : ""
+                      isDone ? "bg-slate-950/40 opacity-60" : ""
                     }`}
                   >
                     {/* Checkbox */}
@@ -154,13 +161,16 @@ export function TopicsTable({ topics, onToggleComplete, onBatchUpdate }) {
                       <button
                         onClick={() => onToggleComplete(topic.id)}
                         className={`w-5 h-5 mx-auto rounded-lg border flex items-center justify-center transition-colors ${
-                          topic.isCompleted
+                          isDone
                             ? "bg-emerald-500 border-emerald-400 text-white"
+                            : effHours > 0
+                            ? "border-cyan-500/60 bg-cyan-950/40 text-cyan-300"
                             : "border-slate-600 hover:border-slate-400 bg-slate-900"
                         }`}
-                        title={topic.isCompleted ? "Segna come incompleto" : "Segna come completato"}
+                        title={isDone ? "Segna come incompleto" : "Segna come completato"}
                       >
-                        {topic.isCompleted && <IconCheck className="w-3.5 h-3.5" />}
+                        {isDone && <IconCheck className="w-3.5 h-3.5" />}
+                        {!isDone && effHours > 0 && <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />}
                       </button>
                     </td>
 
@@ -182,8 +192,13 @@ export function TopicsTable({ topics, onToggleComplete, onBatchUpdate }) {
 
                     {/* Chapter & Topic */}
                     <td className="py-3 px-4">
-                      <div className="font-semibold text-slate-200 text-xs">
-                        {topic.argomento}
+                      <div className="font-semibold text-slate-200 text-xs flex items-center gap-2">
+                        <span>{topic.argomento}</span>
+                        {!isDone && effHours > 0 && (
+                          <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
+                            In Corso
+                          </span>
+                        )}
                       </div>
                       <div className="text-[11px] text-slate-400 mt-0.5">
                         Capitolo: <span className="text-slate-300">{topic.capitolo}</span>
@@ -191,15 +206,41 @@ export function TopicsTable({ topics, onToggleComplete, onBatchUpdate }) {
                       </div>
                     </td>
 
-                    {/* Hours */}
+                    {/* Hours (Spese / Stimate) */}
                     <td className="py-3 px-3 text-center">
-                      <div className="font-mono font-bold text-slate-200">
-                        {topic.oreStimate}h
+                      <div className="font-mono font-bold text-xs">
+                        <span className="text-cyan-400">{effHours.toFixed(1)}h</span>
+                        <span className="text-slate-400"> / {topic.oreStimate}h</span>
                       </div>
+                      {!isDone && (
+                        <div className="text-[10px] text-amber-400/90 font-mono">
+                          Residue: {Number(topic.oreResidue !== undefined ? topic.oreResidue : Math.max(0, (topic.oreStimate || 2.0) - effHours)).toFixed(1)}h
+                        </div>
+                      )}
                       {hasBuffer && (
-                        <span className="text-[10px] text-amber-400/90 font-mono">
-                          +20% buff.
+                        <span className="text-[9px] text-amber-500/80 font-mono block">
+                          +20% buffer
                         </span>
+                      )}
+                      {onUpdateTopicHours && (
+                        <div className="mt-1 flex items-center justify-center space-x-1">
+                          <button
+                            type="button"
+                            onClick={() => onUpdateTopicHours(topic.id, 0.5, true)}
+                            className="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-cyan-300 text-[10px] font-mono border border-slate-700"
+                            title="Aggiungi 30m"
+                          >
+                            +30m
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onUpdateTopicHours(topic.id, 1.0, true)}
+                            className="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-indigo-300 text-[10px] font-mono border border-slate-700"
+                            title="Aggiungi 1h"
+                          >
+                            +1h
+                          </button>
+                        </div>
                       )}
                     </td>
 

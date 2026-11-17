@@ -13,21 +13,19 @@ export const DEFAULT_SETTINGS = {
   roadmapStartDate: "2026-11-16", // Start of winter session roadmap
   targetExamDate: "2027-01-10",
   currentSimulatedDate: "2026-11-17", // Active date (today)
-  criticalWeeklyHoursThreshold: 35.0, // Dynamic threshold elevated with afternoon slot
-  enableAfternoonSlot: true, // Slot Pomeridiano attivo
-  afternoonStudyHours: 2.5, // 16:30 - 19:00 (2.5h)
+  criticalWeeklyHoursThreshold: 25.0, // Base lavoratore full-time
   eveningStudyHours: 2.5, // 19:30 - 22:00 (2.5h)
-  weekdayStudyHours: 5.0, // Somma: Pomeriggio (2.5h) + Sera (2.5h)
+  weekdayStudyHours: 2.5, // Standard feriale base
   weekendStudyHours: 4.5, // Dedicated blocks (Sat, Sun)
   highPriorityThreshold: 4, // 4 or 5 triggers high priority buffer
   bufferMultiplier: 1.2, // +20% time buffer
   interleaveSubjects: true, // Alternate Analisi and Geometria across days
   studyDays: {
-    1: { name: "Lunedì", enabled: true, isWeekend: false, defaultSubject: "Analisi 1", timeSlot: "Pomeriggio (16:30 - 19:00) + Sera (19:30 - 22:00)" },
-    2: { name: "Martedì", enabled: true, isWeekend: false, defaultSubject: "Geometria", timeSlot: "Pomeriggio (16:30 - 19:00) + Sera (19:30 - 22:00)" },
-    3: { name: "Mercoledì", enabled: true, isWeekend: false, defaultSubject: "Analisi 1", timeSlot: "Pomeriggio (16:30 - 19:00) + Sera (19:30 - 22:00)" },
-    4: { name: "Giovedì", enabled: true, isWeekend: false, defaultSubject: "Geometria", timeSlot: "Pomeriggio (16:30 - 19:00) + Sera (19:30 - 22:00)" },
-    5: { name: "Venerdì", enabled: true, isWeekend: false, defaultSubject: "Analisi 1", timeSlot: "Pomeriggio (16:30 - 19:00) + Sera (19:00 - 21:00)" },
+    1: { name: "Lunedì", enabled: true, isWeekend: false, defaultSubject: "Analisi 1", timeSlot: "Sera (19:30 - 22:00)" },
+    2: { name: "Martedì", enabled: true, isWeekend: false, defaultSubject: "Geometria", timeSlot: "Sera (19:30 - 22:00)" },
+    3: { name: "Mercoledì", enabled: true, isWeekend: false, defaultSubject: "Analisi 1", timeSlot: "Sera (19:30 - 22:00)" },
+    4: { name: "Giovedì", enabled: true, isWeekend: false, defaultSubject: "Geometria", timeSlot: "Sera (19:30 - 22:00)" },
+    5: { name: "Venerdì", enabled: true, isWeekend: false, defaultSubject: "Analisi 1", timeSlot: "Sera (19:00 - 21:30)" },
     6: { name: "Sabato", enabled: true, isWeekend: true, defaultSubject: "Misto", timeSlot: "Mattina + Pomeriggio" },
     0: { name: "Domenica", enabled: true, isWeekend: true, defaultSubject: "Misto", timeSlot: "Pomeriggio + Ripasso" }
   }
@@ -68,33 +66,42 @@ export function calculateSubjectProgress(topics) {
   topics.forEach(t => {
     const isAnalisi = t.materia.toLowerCase().includes("analisi");
     const sub = isAnalisi ? result.analisi : result.geometria;
-    const hours = Number(t.oreStimate) || 0;
+    const stimate = Number(t.oreStimate) || 2.0;
+    const isDone = Boolean(t.completato !== undefined ? t.completato : t.isCompleted);
+    const effettive = Number(t.oreEffettive || 0);
+
+    // Ore residue: se completato sono 0, altrimenti max(0, oreStimate - oreEffettive)
+    const residue = isDone ? 0 : Math.max(0, Number((stimate - effettive).toFixed(2)));
 
     sub.totalCount += 1;
-    sub.totalHours += hours;
+    sub.totalHours += stimate;
     result.global.totalCount += 1;
-    result.global.totalHours += hours;
+    result.global.totalHours += stimate;
 
-    if (t.isCompleted) {
+    // Calcolo ore svolte basato sulla somma totale di oreEffettive registrate
+    // (fallback a oreStimate per compatibilità se completato ma oreEffettive non impostato)
+    const actualSpent = isDone && effettive === 0 ? stimate : effettive;
+    sub.completedHours += actualSpent;
+    result.global.completedHours += actualSpent;
+
+    if (isDone) {
       sub.completedCount += 1;
-      sub.completedHours += hours;
       result.global.completedCount += 1;
-      result.global.completedHours += hours;
-    } else {
-      sub.remainingHours += hours;
-      result.global.remainingHours += hours;
     }
+
+    sub.remainingHours += residue;
+    result.global.remainingHours += residue;
   });
 
-  // Calculate percentages
+  // Calculate percentages based on effective hours logged
   result.analisi.percent = result.analisi.totalHours > 0
-    ? Math.round((result.analisi.completedHours / result.analisi.totalHours) * 100)
+    ? Math.min(100, Math.round((result.analisi.completedHours / result.analisi.totalHours) * 100))
     : 0;
   result.geometria.percent = result.geometria.totalHours > 0
-    ? Math.round((result.geometria.completedHours / result.geometria.totalHours) * 100)
+    ? Math.min(100, Math.round((result.geometria.completedHours / result.geometria.totalHours) * 100))
     : 0;
   result.global.percent = result.global.totalHours > 0
-    ? Math.round((result.global.completedHours / result.global.totalHours) * 100)
+    ? Math.min(100, Math.round((result.global.completedHours / result.global.totalHours) * 100))
     : 0;
 
   // Round numbers
@@ -132,55 +139,67 @@ function sortBySequentialId(a, b) {
  * 3. Shifts topics forward automatically if days were missed.
  * 4. Pulls topics forward automatically if ahead of schedule.
  */
-export function rebalanceStudyPlan(topics, customSettings = {}) {
+export function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacities = {}) {
   const settings = { ...DEFAULT_SETTINGS, ...customSettings };
+  const dayCapacities = (customDayCapacities && typeof customDayCapacities === "object" && Object.keys(customDayCapacities).length > 0)
+    ? customDayCapacities
+    : (customSettings && customSettings.customDayCapacities ? customSettings.customDayCapacities : {});
+
   const { remainingDays, remainingWeeks } = getCalendarMetrics(settings.currentSimulatedDate, settings.targetExamDate);
 
-  // 1. Process and weigh uncompleted topics
-  const processedUncompleted = topics
-    .filter(t => !t.isCompleted)
-    .map(t => {
-      const isHighPriority = (t.prioritaEsame || 3) >= settings.highPriorityThreshold;
-      const isHighDifficulty = (t.difficolta || 3) >= settings.highPriorityThreshold;
-      const hasBuffer = isHighPriority || isHighDifficulty;
+  // 1. Process and weigh topics with Granular Partial Progress (oreResidue)
+  const processedTopics = topics.map(t => {
+    const isDone = Boolean(t.completato !== undefined ? t.completato : t.isCompleted);
+    const oreStimate = Number(t.oreStimate) || 2.0;
+    const oreEffettive = Number(t.oreEffettive || 0);
+    // Formula: const oreResidue = completato ? 0 : Math.max(0, oreStimate - oreEffettive);
+    const oreResidue = isDone ? 0 : Math.max(0, Number((oreStimate - oreEffettive).toFixed(2)));
 
-      const baseHours = Number(t.oreStimate) || 2.0;
-      const effectiveHours = hasBuffer
-        ? Number((baseHours * settings.bufferMultiplier).toFixed(2))
-        : baseHours;
+    const isHighPriority = (t.prioritaEsame || 3) >= settings.highPriorityThreshold;
+    const isHighDifficulty = (t.difficolta || 3) >= settings.highPriorityThreshold;
+    const hasBuffer = isHighPriority || isHighDifficulty;
 
-      return {
-        ...t,
-        baseHours,
-        effectiveHours,
-        hasBuffer,
-        bufferDelta: Number((effectiveHours - baseHours).toFixed(2))
-      };
-    });
+    // Quando l'algoritmo spalma sui giorni futuri, usa oreResidue invece di oreStimate
+    const baseHours = oreResidue;
+    const effectiveHours = hasBuffer
+      ? Number((baseHours * settings.bufferMultiplier).toFixed(2))
+      : baseHours;
+
+    return {
+      ...t,
+      completato: isDone,
+      isCompleted: isDone,
+      oreStimate,
+      oreEffettive,
+      oreResidue,
+      baseHours,
+      effectiveHours,
+      hasBuffer,
+      bufferDelta: Number((effectiveHours - baseHours).toFixed(2))
+    };
+  });
+
+  // Filter topics with remaining workload to schedule forward
+  const uncompletedToSchedule = processedTopics.filter(t => !t.completato && t.oreResidue > 0);
 
   // Total remaining workload from Today forward
   const totalRemainingBaseHours = Number(
-    processedUncompleted.reduce((acc, t) => acc + t.baseHours, 0).toFixed(1)
+    uncompletedToSchedule.reduce((acc, t) => acc + t.baseHours, 0).toFixed(1)
   );
   const totalRemainingEffectiveHours = Number(
-    processedUncompleted.reduce((acc, t) => acc + t.effectiveHours, 0).toFixed(1)
+    uncompletedToSchedule.reduce((acc, t) => acc + t.effectiveHours, 0).toFixed(1)
   );
   const totalBufferHours = Number((totalRemainingEffectiveHours - totalRemainingBaseHours).toFixed(1));
 
-  // Effective study capacities and dynamic critical threshold
-  const enableAfternoon = settings.enableAfternoonSlot !== false;
-  const afternoonHours = enableAfternoon ? Number(settings.afternoonStudyHours !== undefined ? settings.afternoonStudyHours : 2.5) : 0;
-  const eveningHours = Number(settings.eveningStudyHours !== undefined ? settings.eveningStudyHours : (settings.weekdayStudyHours || 2.5));
-  const effectiveWeekdayHours = Number((afternoonHours + eveningHours).toFixed(1));
-  const effectiveWeekendHours = Number(settings.weekendStudyHours || 4.5);
+  // Baseline standard capacities (weekday evening & weekend blocks)
+  const standardWeekdayHours = Number(settings.weekdayStudyHours !== undefined ? settings.weekdayStudyHours : (settings.eveningStudyHours || 2.5));
+  const standardWeekendHours = Number(settings.weekendStudyHours || 4.5);
 
-  // Dynamic Critical Burnout Threshold calculation:
-  // With afternoon slot, nominal weekly capacity is (5 * 5h) + (2 * 4.5h) = 34h.
-  // The burnout threshold dynamically raises to 35.0h (or custom settings).
-  const nominalWeeklyCapacity = Number(((effectiveWeekdayHours * 5) + (effectiveWeekendHours * 2)).toFixed(1));
+  // Nominal baseline weekly capacity: (5 * feriali) + (2 * weekend)
+  const nominalWeeklyCapacity = Number(((standardWeekdayHours * 5) + (standardWeekendHours * 2)).toFixed(1));
   const dynamicCriticalThreshold = (customSettings && customSettings.criticalWeeklyHoursThreshold)
     ? Number(customSettings.criticalWeeklyHoursThreshold)
-    : (enableAfternoon ? 35.0 : 25.0);
+    : (settings.criticalWeeklyHoursThreshold || 25.0);
 
   // Required weekly pace to finish by targetExamDate
   const requiredWeeklyHours = Number((totalRemainingEffectiveHours / Math.max(1, remainingWeeks)).toFixed(1));
@@ -209,13 +228,32 @@ export function rebalanceStudyPlan(topics, customSettings = {}) {
     const isToday = dateStr === settings.currentSimulatedDate;
     const isFuture = dateStr > settings.currentSimulatedDate;
 
-    const timeSlotDescription = dayConfig.isWeekend
-      ? (dayConfig.timeSlot || "Mattina + Pomeriggio")
-      : (enableAfternoon
-          ? `Pomeriggio (16:30 - 19:00, ${afternoonHours}h) + Sera (19:30 - 22:00, ${eveningHours}h)`
-          : `Sera (19:30 - 22:00, ${eveningHours}h)`);
+    // Standard fallback capacity from settings
+    const fallbackHours = dayConfig.isWeekend ? standardWeekendHours : standardWeekdayHours;
 
-    const maxDayHours = dayConfig.isWeekend ? effectiveWeekendHours : effectiveWeekdayHours;
+    // Dynamic Daily Capacity Override (Time Shifter)
+    const hasCustomOverride = Boolean(
+      dayCapacities &&
+      Object.prototype.hasOwnProperty.call(dayCapacities, dateStr) &&
+      dayCapacities[dateStr] !== null &&
+      dayCapacities[dateStr] !== undefined
+    );
+    const maxDayHours = hasCustomOverride ? Math.max(0, Number(dayCapacities[dateStr])) : fallbackHours;
+
+    let timeSlotDescription = "";
+    if (hasCustomOverride) {
+      if (maxDayHours > fallbackHours) {
+        timeSlotDescription = `Slot Extra Attivo (${maxDayHours}h)`;
+      } else if (maxDayHours < fallbackHours) {
+        timeSlotDescription = `Budget Ridotto (${maxDayHours}h)`;
+      } else {
+        timeSlotDescription = `Budget Personalizzato (${maxDayHours}h)`;
+      }
+    } else if (dayConfig.isWeekend) {
+      timeSlotDescription = dayConfig.timeSlot || `Blocco Weekend (${maxDayHours}h)`;
+    } else {
+      timeSlotDescription = dayConfig.timeSlot || `Sera (${maxDayHours}h)`;
+    }
 
     allCalendarDays.push({
       date: dateStr,
@@ -226,6 +264,8 @@ export function rebalanceStudyPlan(topics, customSettings = {}) {
       timeSlot: timeSlotDescription,
       preferredSubject: dayConfig.defaultSubject || "Misto",
       maxHours: maxDayHours,
+      standardHours: fallbackHours,
+      hasCustomOverride,
       allocatedHours: 0,
       weekIndex,
       isPast,
@@ -246,7 +286,7 @@ export function rebalanceStudyPlan(topics, customSettings = {}) {
 
   allCalendarDays.forEach(day => {
     // Find topics completed on this exact date
-    const completedOnThisDay = topics.filter(t => t.isCompleted && t.completedDate === day.date);
+    const completedOnThisDay = processedTopics.filter(t => t.completato && t.completedDate === day.date);
 
     if (completedOnThisDay.length > 0) {
       if (day.isPast || day.isToday) {
@@ -254,12 +294,12 @@ export function rebalanceStudyPlan(topics, customSettings = {}) {
       }
       day.topics = completedOnThisDay.map(t => ({
         ...t,
-        effectiveHours: t.oreStimate,
+        effectiveHours: Number(t.oreEffettive || t.oreStimate || 0),
         assignedDate: day.date,
         assignedWeek: day.weekIndex,
         assignedDayName: day.dayName
       }));
-      day.allocatedHours = Number(completedOnThisDay.reduce((acc, t) => acc + (Number(t.oreStimate) || 0), 0).toFixed(1));
+      day.allocatedHours = Number(completedOnThisDay.reduce((acc, t) => acc + (Number(t.oreEffettive || t.oreStimate || 0)), 0).toFixed(1));
       if (day.isPast || day.isToday) {
         pastDaysStudied++;
         totalPastHours += day.allocatedHours;
@@ -276,11 +316,11 @@ export function rebalanceStudyPlan(topics, customSettings = {}) {
 
   // 4. Sequential queues for ACTIVE & FUTURE study (Starting from Today)
   // Strictly respects the pedagogical sequence: A-01, A-02, ... and G-01, G-02, ...
-  const analisiQueue = processedUncompleted
+  const analisiQueue = uncompletedToSchedule
     .filter(t => t.materia.toLowerCase().includes("analisi"))
     .sort(sortBySequentialId);
 
-  const geometriaQueue = processedUncompleted
+  const geometriaQueue = uncompletedToSchedule
     .filter(t => t.materia.toLowerCase().includes("geometria"))
     .sort(sortBySequentialId);
 
@@ -417,14 +457,18 @@ export function rebalanceStudyPlan(topics, customSettings = {}) {
       requiredWeeklyHours,
       criticalWeeklyHoursThreshold: dynamicCriticalThreshold,
       nominalWeeklyCapacity,
-      effectiveWeekdayHours,
-      effectiveWeekendHours,
-      enableAfternoonSlot: enableAfternoon,
-      afternoonStudyHours: afternoonHours,
-      eveningStudyHours: eveningHours,
+      standardWeekdayHours,
+      standardWeekendHours,
+      effectiveWeekdayHours: standardWeekdayHours,
+      effectiveWeekendHours: standardWeekendHours,
+      hasCustomOverrides: Object.keys(dayCapacities).length > 0,
+      customOverridesCount: Object.keys(dayCapacities).length,
+      customDayCapacities: dayCapacities,
+      eveningStudyHours: standardWeekdayHours,
       isCriticalOverload,
       excessHours: Number(Math.max(0, requiredWeeklyHours - dynamicCriticalThreshold).toFixed(1)),
-      uncompletedCount: processedUncompleted.length,
+      uncompletedCount: uncompletedToSchedule.length,
+      totalEffectiveHours: Number(topics.reduce((acc, t) => acc + (Number(t.oreEffettive || (t.isCompleted || t.completato ? t.oreStimate : 0))), 0).toFixed(1)),
       targetExamDate: settings.targetExamDate,
       currentSimulatedDate: settings.currentSimulatedDate,
       roadmapStartDate: settings.roadmapStartDate,

@@ -15,7 +15,14 @@ import {
 
 const LOCAL_STORAGE_KEY_POMODORO = "unimore_rebalancer_pomodoro_v2";
 
-export function WeeklyTodo({ weeklyPlans, onToggleComplete, settings }) {
+export function WeeklyTodo({
+  weeklyPlans,
+  onToggleComplete,
+  onUpdateTopicHours,
+  settings,
+  customDayCapacities = {},
+  onUpdateDayCapacity
+}) {
   // Default to the week containing Today
   const [selectedWeekIndex, setSelectedWeekIndex] = useState(() => {
     const currentWeek = weeklyPlans.find(w => w.hasToday);
@@ -67,6 +74,10 @@ export function WeeklyTodo({ weeklyPlans, onToggleComplete, settings }) {
             // Switch between 50 min study and 10 min break
             newIsBreak = !isBreak;
             cycleRemaining = newIsBreak ? 10 * 60 : 50 * 60;
+            // When completing a 50m focus phase, add focus hours to topic oreEffettive
+            if (newIsBreak && onUpdateTopicHours) {
+              onUpdateTopicHours(topicId, 50 / 60, true);
+            }
           }
 
           // Accumulate focus time only during focus study phase
@@ -132,6 +143,11 @@ export function WeeklyTodo({ weeklyPlans, onToggleComplete, settings }) {
   };
 
   const addPomodoroMinutes = (topicId, targetHours, minutes) => {
+    // Sync added pomodoro time directly with oreEffettive
+    if (onUpdateTopicHours) {
+      onUpdateTopicHours(topicId, minutes / 60, true);
+    }
+
     setPomodoroMap(prev => {
       const current = prev[topicId] || {
         accumulatedSeconds: 0,
@@ -164,6 +180,10 @@ export function WeeklyTodo({ weeklyPlans, onToggleComplete, settings }) {
 
   const completePomodoroTarget = (topicId, targetHours) => {
     const targetSec = Math.round((Number(targetHours) || 2.0) * 3600);
+    // Bring topic oreEffettive to targetHours
+    if (onUpdateTopicHours) {
+      onUpdateTopicHours(topicId, Number(targetHours) || 2.0, false);
+    }
     setPomodoroMap(prev => {
       const current = prev[topicId] || {};
       return {
@@ -407,11 +427,61 @@ export function WeeklyTodo({ weeklyPlans, onToggleComplete, settings }) {
                   )}
                 </div>
 
-                <div className="flex items-center space-x-2 text-xs">
-                  <span className="text-slate-500 font-mono">Carico:</span>
-                  <span className="font-mono font-bold text-slate-200">
-                    {day.allocatedHours}h / {day.maxHours}h max
-                  </span>
+                <div className="flex flex-wrap items-center gap-2.5">
+                  {/* Time Shifter: Stepper Controls */}
+                  <div className="flex items-center space-x-1 bg-slate-950/80 border border-slate-800 p-1 rounded-xl shadow-inner">
+                    <button
+                      type="button"
+                      onClick={() => onUpdateDayCapacity && onUpdateDayCapacity(day.date, Math.max(0, Number((day.maxHours - 0.5).toFixed(1))))}
+                      disabled={day.maxHours <= 0}
+                      className="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-mono font-bold border border-slate-700 transition disabled:opacity-30 disabled:cursor-not-allowed active:scale-95"
+                      title="Riduci budget di 30 minuti (-0.5h)"
+                    >
+                      - 30m
+                    </button>
+
+                    <div
+                      className={`px-2.5 py-0.5 rounded-lg text-xs font-mono font-bold flex items-center gap-1 transition ${
+                        day.hasCustomOverride
+                          ? day.maxHours > (day.standardHours || 2.5)
+                            ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40"
+                            : "bg-amber-500/20 text-amber-300 border border-amber-500/40"
+                          : "bg-slate-900 text-slate-300 border border-slate-800"
+                      }`}
+                      title={day.hasCustomOverride ? `Capacità modificata rispetto al default (${day.standardHours || 2.5}h)` : "Capacità standard"}
+                    >
+                      <span>Budget: {day.maxHours}h</span>
+                      {day.hasCustomOverride && (
+                        <button
+                          type="button"
+                          onClick={() => onUpdateDayCapacity && onUpdateDayCapacity(day.date, null)}
+                          className="ml-1 text-[10px] text-slate-400 hover:text-white hover:bg-slate-800 rounded px-1"
+                          title="Ripristina budget predefinito"
+                        >
+                          ↺
+                        </button>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => onUpdateDayCapacity && onUpdateDayCapacity(day.date, Number((day.maxHours + 0.5).toFixed(1)))}
+                      className="px-2 py-0.5 rounded-lg bg-cyan-600/30 hover:bg-cyan-500/40 text-cyan-300 hover:text-cyan-200 text-xs font-mono font-bold border border-cyan-500/40 transition active:scale-95 shadow-sm"
+                      title="Slot Extra: Aumenta budget di 30 minuti (+0.5h)"
+                    >
+                      + 30m
+                    </button>
+                  </div>
+
+                  {/* Workload Indicator */}
+                  <div className="flex items-center space-x-1.5 px-2.5 py-1 bg-slate-950/60 border border-slate-800/80 rounded-xl text-xs font-mono">
+                    <span className="text-slate-500">Carico:</span>
+                    <span className={`font-bold ${
+                      day.allocatedHours > day.maxHours ? "text-amber-400" : "text-slate-200"
+                    }`}>
+                      {day.allocatedHours}h / {day.maxHours}h max
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -429,6 +499,7 @@ export function WeeklyTodo({ weeklyPlans, onToggleComplete, settings }) {
                 <div className="space-y-2.5">
                   {visibleTopics.map(topic => {
                     const isAnalisi = topic.materia.toLowerCase().includes("analisi");
+                    const isDone = Boolean(topic.completato !== undefined ? topic.completato : topic.isCompleted);
                     const pState = pomodoroMap[topic.id] || {
                       accumulatedSeconds: 0,
                       cycleRemaining: 50 * 60,
@@ -444,102 +515,178 @@ export function WeeklyTodo({ weeklyPlans, onToggleComplete, settings }) {
                       <div
                         key={topic.id}
                         className={`flex flex-col p-3.5 rounded-2xl border transition-all ${
-                          topic.isCompleted
+                          isDone
                             ? "bg-slate-950/60 border-slate-800/50 opacity-60"
                             : isAnalisi
                             ? "bg-slate-950/80 hover:bg-slate-900 border-emerald-500/20 hover:border-emerald-500/40"
                             : "bg-slate-950/80 hover:bg-slate-900 border-indigo-500/20 hover:border-indigo-500/40"
                         }`}
                       >
-                        {/* Upper row: Checkbox, Title and Meta Pills */}
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                          {/* Checkbox and Title */}
-                          <div className="flex items-start space-x-3.5 flex-1 min-w-0 pr-2">
-                            <button
-                              type="button"
-                              onClick={() => onToggleComplete(topic.id)}
-                              className={`w-5 h-5 rounded-lg border mt-0.5 flex items-center justify-center transition-colors flex-shrink-0 ${
-                                topic.isCompleted
-                                  ? "bg-emerald-500 border-emerald-400 text-white"
-                                  : "border-slate-600 hover:border-slate-400 bg-slate-900"
-                              }`}
-                              title={topic.isCompleted ? "Segna come da fare" : "Segna come completato"}
-                            >
-                              {topic.isCompleted && <IconCheck className="w-3.5 h-3.5" />}
-                            </button>
+                        {/* Upper row: Topic Header, Meta and Subject */}
+                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1 pr-2">
+                            <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
+                              {/* Subject Badge */}
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                                isAnalisi
+                                  ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                                  : "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                              }`}>
+                                {topic.materia}
+                              </span>
 
-                            <div className="min-w-0">
-                              <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                                {/* Subject Badge */}
-                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
-                                  isAnalisi
-                                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                                    : "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
-                                }`}>
-                                  {topic.materia}
+                              {/* Topic ID */}
+                              <span className="text-[11px] font-mono font-bold text-slate-300">
+                                {topic.id}
+                              </span>
+
+                              {/* Chapter */}
+                              <span className="text-[11px] text-slate-400 truncate max-w-[200px]">
+                                • {topic.capitolo}
+                              </span>
+
+                              {/* Buffer +20% badge */}
+                              {topic.hasBuffer && (
+                                <span className="text-[10px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.2 rounded">
+                                  +20% Buffer Priorità
                                 </span>
+                              )}
 
-                                {/* Topic ID */}
-                                <span className="text-[11px] font-mono font-bold text-slate-300">
-                                  {topic.id}
+                              {isDone && (
+                                <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                                  ✓ Completato {topic.completedDate ? `il ${formatDateDisplay(topic.completedDate)}` : ""}
                                 </span>
+                              )}
 
-                                {/* Chapter */}
-                                <span className="text-[11px] text-slate-400 truncate max-w-[200px]">
-                                  • {topic.capitolo}
+                              {!isDone && (topic.oreEffettive || 0) > 0 && (
+                                <span className="text-[10px] font-mono text-cyan-300 bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 rounded-full">
+                                  ⏳ In Corso ({Number(topic.oreEffettive).toFixed(1)}h svolte)
                                 </span>
+                              )}
+                            </div>
 
-                                {/* Buffer +20% badge */}
-                                {topic.hasBuffer && (
-                                  <span className="text-[10px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.2 rounded">
-                                    +20% Buffer Priorità
-                                  </span>
-                                )}
+                            <p className={`text-xs md:text-sm font-medium ${
+                              isDone ? "line-through text-slate-500" : "text-slate-200"
+                            }`}>
+                              {topic.argomento}
+                            </p>
 
-                                {topic.isCompleted && topic.completedDate && (
-                                  <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded">
-                                    ✓ Svolto il {formatDateDisplay(topic.completedDate)}
-                                  </span>
-                                )}
+                            {topic.note && (
+                              <p className="text-[11px] text-slate-500 mt-0.5 truncate">
+                                Obiettivo: {topic.note}
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Allocation info on this day */}
+                          <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-1 flex-shrink-0 pt-1">
+                            <div className="text-right">
+                              <span className="text-[11px] text-slate-400 font-mono">In programma: </span>
+                              <span className="text-xs font-mono font-bold text-white">
+                                {topic.effectiveHours}h
+                              </span>
+                            </div>
+                            <div className="flex items-center space-x-2 text-[10px] text-slate-400">
+                              <span>P: <strong className="text-amber-400">{topic.prioritaEsame}/5</strong></span>
+                              <span>D: <strong className="text-cyan-400">{topic.difficolta}/5</strong></span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Partial Progress & Hours Tracking Console */}
+                        <div className="mt-3 p-3 bg-slate-950/70 border border-slate-800/90 rounded-2xl space-y-2.5">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                            {/* Display Hours */}
+                            <div className="flex flex-wrap items-center gap-2">
+                              <div className="text-xs font-mono text-slate-200 flex items-center gap-1.5">
+                                <IconClock className="w-3.5 h-3.5 text-cyan-400" />
+                                <span>Ore spese:</span>
+                                <strong className="text-cyan-300 font-bold text-sm">
+                                  {Number(topic.oreEffettive || 0).toFixed(1)}
+                                </strong>
+                                <span className="text-slate-400">/ {Number(topic.oreStimate || 2.0).toFixed(1)} stimate</span>
                               </div>
 
-                              <p className={`text-xs md:text-sm font-medium ${
-                                topic.isCompleted ? "line-through text-slate-500" : "text-slate-200"
-                              }`}>
-                                {topic.argomento}
-                              </p>
-
-                              {topic.note && (
-                                <p className="text-[11px] text-slate-500 mt-0.5 truncate">
-                                  Obiettivo: {topic.note}
-                                </p>
+                              {!isDone && (
+                                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20">
+                                  Residue: <strong>{Number(topic.oreResidue !== undefined ? topic.oreResidue : Math.max(0, (topic.oreStimate || 2.0) - (topic.oreEffettive || 0))).toFixed(1)}h</strong>
+                                </span>
                               )}
+                            </div>
+
+                            {/* Quick Add Time Stepper Buttons */}
+                            <div className="flex items-center space-x-1.5 self-start sm:self-center">
+                              <button
+                                type="button"
+                                onClick={() => onUpdateTopicHours && onUpdateTopicHours(topic.id, -0.5, true)}
+                                disabled={(topic.oreEffettive || 0) <= 0}
+                                className="px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 text-[11px] font-mono font-bold transition disabled:opacity-30 disabled:cursor-not-allowed"
+                                title="Riduci ore spese (-30 minuti)"
+                              >
+                                - 30m
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => onUpdateTopicHours && onUpdateTopicHours(topic.id, 0.5, true)}
+                                className="px-2.5 py-1 rounded-lg bg-cyan-600/20 hover:bg-cyan-500/30 text-cyan-300 hover:text-cyan-200 border border-cyan-500/40 text-[11px] font-mono font-bold transition active:scale-95 shadow-sm"
+                                title="Aggiungi 30 minuti al tempo speso (+0.5h)"
+                              >
+                                + 30m
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => onUpdateTopicHours && onUpdateTopicHours(topic.id, 1.0, true)}
+                                className="px-2.5 py-1 rounded-lg bg-indigo-600/20 hover:bg-indigo-500/30 text-indigo-300 hover:text-indigo-200 border border-indigo-500/40 text-[11px] font-mono font-bold transition active:scale-95 shadow-sm"
+                                title="Aggiungi 1 ora al tempo speso (+1.0h)"
+                              >
+                                + 1h
+                              </button>
                             </div>
                           </div>
 
-                          {/* Meta Pills (Hours, Difficulty, Priority) */}
-                          <div className="flex items-center space-x-2 mt-2 sm:mt-0 flex-shrink-0 self-end sm:self-center">
-                            {/* Hours */}
-                            <div className="text-right">
-                              <div className="text-xs font-mono font-bold text-white">
-                                {topic.effectiveHours}h
+                          {/* Progress Bar & Distinct Completed Toggle Button */}
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1.5 border-t border-slate-900">
+                            {/* Micro Progress Bar */}
+                            <div className="flex-1 flex items-center space-x-2.5">
+                              <div className="w-full bg-slate-900 h-2 rounded-full overflow-hidden border border-slate-800/80">
+                                <div
+                                  className={`h-full transition-all duration-500 ${
+                                    isDone
+                                      ? "bg-emerald-400"
+                                      : (topic.oreEffettive || 0) > 0
+                                      ? "bg-gradient-to-r from-cyan-400 to-indigo-400"
+                                      : "bg-transparent"
+                                  }`}
+                                  style={{
+                                    width: `${Math.min(100, Math.round(((topic.oreEffettive || 0) / (topic.oreStimate || 2.0)) * 100))}%`
+                                  }}
+                                />
                               </div>
-                              {topic.hasBuffer && (
-                                <div className="text-[10px] text-slate-500 font-mono">
-                                  (base {topic.oreStimate}h)
-                                </div>
-                              )}
+                              <span className="text-[10px] font-mono text-slate-400 flex-shrink-0">
+                                {Math.min(100, Math.round(((topic.oreEffettive || 0) / (topic.oreStimate || 2.0)) * 100))}%
+                              </span>
                             </div>
 
-                            {/* Difficulty and Priority indicators */}
-                            <div className="flex flex-col items-end gap-0.5">
-                              <span className="text-[10px] text-slate-400">
-                                Priorità: <strong className="text-amber-400">{topic.prioritaEsame}/5</strong>
-                              </span>
-                              <span className="text-[10px] text-slate-400">
-                                Difficoltà: <strong className="text-cyan-400">{topic.difficolta}/5</strong>
-                              </span>
-                            </div>
+                            {/* Distinct Completion Toggle Button */}
+                            <button
+                              type="button"
+                              onClick={() => onToggleComplete(topic.id)}
+                              className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-2 flex-shrink-0 active:scale-95 ${
+                                isDone
+                                  ? "bg-emerald-600/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-600/30 shadow-sm shadow-emerald-950/40"
+                                  : "bg-slate-900 hover:bg-slate-850 text-slate-300 border-slate-700 hover:border-slate-500"
+                              }`}
+                              title={isDone ? "Argomento completato (clicca per riaprire)" : "Segna questo argomento come completato"}
+                            >
+                              <div className={`w-4 h-4 rounded border flex items-center justify-center transition ${
+                                isDone ? "bg-emerald-500 border-emerald-400 text-white" : "border-slate-500 bg-slate-950"
+                              }`}>
+                                {isDone && <IconCheck className="w-3 h-3" />}
+                              </div>
+                              <span>{isDone ? "Completato ✓" : "Segna come Completato"}</span>
+                            </button>
                           </div>
                         </div>
 

@@ -6,6 +6,8 @@ import { INITIAL_TOPICS } from "../data/defaultData.js";
 export function FileImporter({
   topics,
   settings,
+  customDayCapacities = {},
+  onCustomCapacitiesUpdated,
   onTopicsUpdated,
   onSettingsUpdated,
   fsSyncStatus,
@@ -68,6 +70,9 @@ export function FileImporter({
           onTopicsUpdated(backup.topics);
           if (backup.settings && onSettingsUpdated) {
             onSettingsUpdated(backup.settings);
+          }
+          if (backup.customDayCapacities && onCustomCapacitiesUpdated) {
+            onCustomCapacitiesUpdated(backup.customDayCapacities);
           }
           setNotification({
             type: "success",
@@ -196,7 +201,8 @@ export function FileImporter({
     const backupData = {
       exportDate: new Date().toISOString(),
       settings,
-      topics
+      topics,
+      customDayCapacities
     };
 
     const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: "application/json" });

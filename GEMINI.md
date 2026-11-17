@@ -29,10 +29,12 @@ Questo documento definisce il contesto operativo, gli standard architetturali, i
   1. **Buffer Temporale (+20%):** Se Priorità $\ge 4$ o Difficoltà $\ge 4$, alloca $T_{\text{effettivo}} = T_{\text{stimato}} \times 1.20$.
   2. **Badge Visivi della UI:** Colori, indicatori numerici e tag di allerta.
 
-#### C. Modello di Capacità Oraria (Lavoratore)
-- **Feriali (Lun-Ven):** Studio serale post-lavoro (default **2.5h/sera**, fascia 19:30 - 22:00).
-- **Weekend (Sab-Dom):** Blocchi intensivi diurni (default **4.5h/giorno**).
-- **Soglia Critica di Sicurezza:** **25 ore/settimana**. Se superata, attivare sempre il banner di allerta sovraccarico.
+#### C. Modello di Capacità Oraria (Lavoratore) & Time Shifter
+- **Feriali (Lun-Ven):**
+  - **Regime Base (Serale):** default **2.5h/sera** (fascia 19:30 - 22:00).
+  - **Time Shifter (Slot Extra Dinamici):** override puntuale per singola data (`customDayCapacities`) tramite stepper UI `[- 30m]` e `[+ 30m]` per pausa pranzo, permessi o anticipi pre-lavoro.
+- **Weekend (Sab-Dom):** Blocchi intensivi diurni (default **4.5h/giorno**), anch'essi modulabili tramite Time Shifter.
+- **Soglia Critica di Sicurezza:** **Dinamica** (default 25 ore/settimana, estendibile fino a 35h con slot extra attivi). Se superata, attivare sempre il banner di allerta sovraccarico.
 
 #### D. Meccanica del Rolling Rebalancer (Adattivo Continuo)
 - **Giorni saltati:** Se uno o più giorni non vengono dedicati allo studio, gli argomenti non svolti **non vengono mai cancellati**, ma slittano automaticamente a partire dalla data odierna ("Oggi").

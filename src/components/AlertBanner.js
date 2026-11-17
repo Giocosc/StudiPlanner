@@ -17,14 +17,14 @@ export function AlertBanner({ metrics, onOpenSettings }) {
               <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono">
                 {metrics.requiredWeeklyHours}h / sett. (Soglia Max {metrics.criticalWeeklyHoursThreshold}h)
               </span>
-              {metrics.enableAfternoonSlot && (
+              {metrics.hasCustomOverrides && (
                 <span className="hidden sm:inline text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-                  +Slot Pomeridiano Attivo
+                  +Slot Extra Flessibili Attivi ({metrics.customOverridesCount} gg)
                 </span>
               )}
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
-              Il ritmo di studio è ben calibrato: {metrics.enableAfternoonSlot ? "l'unione dello slot pomeridiano (16:30 - 19:00) con le serate e i weekend garantisce sostenibilità elevata senza sovraccarico" : "le serate e i weekend coprono interamente il programma"} entro il 10 Gennaio 2027.
+              Il ritmo di studio è ben calibrato: {metrics.hasCustomOverrides ? "la flessibilità degli slot extra nei singoli giorni garantisce sostenibilità elevata senza sovraccarico" : "le serate e i weekend coprono interamente il programma"} entro il 10 Gennaio 2027.
             </p>
           </div>
         </div>
@@ -90,10 +90,10 @@ export function AlertBanner({ metrics, onOpenSettings }) {
           <div className="bg-black/30 p-3 rounded-xl border border-rose-500/20">
             <div className="font-semibold text-rose-300 flex items-center gap-1.5 mb-1">
               <IconBriefcase className="w-4 h-4 text-rose-400" />
-              1. Slot Pomeridiano (16:30 - 19:00)
+              1. Gestione Flessibile Slot Extra
             </div>
             <p className="text-rose-200/80">
-              Attiva lo slot pomeridiano nei Parametri: aggiungere 2.5h/pomeriggio aumenta la capacità feriale a 5h/giorno distribuendo lo sforzo.
+              Usa i pulsanti [+ 30m] nel To-Do Settimanale per aggiungere ore nei giorni con permessi, pause o anticipi feriali, distribuendo il carico.
             </p>
           </div>
 

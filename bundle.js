@@ -1109,21 +1109,19 @@ const DEFAULT_SETTINGS = {
   roadmapStartDate: "2026-11-16", // Start of winter session roadmap
   targetExamDate: "2027-01-10",
   currentSimulatedDate: "2026-11-17", // Active date (today)
-  criticalWeeklyHoursThreshold: 35.0, // Dynamic threshold elevated with afternoon slot
-  enableAfternoonSlot: true, // Slot Pomeridiano attivo
-  afternoonStudyHours: 2.5, // 16:30 - 19:00 (2.5h)
+  criticalWeeklyHoursThreshold: 25.0, // Base lavoratore full-time
   eveningStudyHours: 2.5, // 19:30 - 22:00 (2.5h)
-  weekdayStudyHours: 5.0, // Somma: Pomeriggio (2.5h) + Sera (2.5h)
+  weekdayStudyHours: 2.5, // Standard feriale base
   weekendStudyHours: 4.5, // Dedicated blocks (Sat, Sun)
   highPriorityThreshold: 4, // 4 or 5 triggers high priority buffer
   bufferMultiplier: 1.2, // +20% time buffer
   interleaveSubjects: true, // Alternate Analisi and Geometria across days
   studyDays: {
-    1: { name: "Lunedì", enabled: true, isWeekend: false, defaultSubject: "Analisi 1", timeSlot: "Pomeriggio (16:30 - 19:00) + Sera (19:30 - 22:00)" },
-    2: { name: "Martedì", enabled: true, isWeekend: false, defaultSubject: "Geometria", timeSlot: "Pomeriggio (16:30 - 19:00) + Sera (19:30 - 22:00)" },
-    3: { name: "Mercoledì", enabled: true, isWeekend: false, defaultSubject: "Analisi 1", timeSlot: "Pomeriggio (16:30 - 19:00) + Sera (19:30 - 22:00)" },
-    4: { name: "Giovedì", enabled: true, isWeekend: false, defaultSubject: "Geometria", timeSlot: "Pomeriggio (16:30 - 19:00) + Sera (19:30 - 22:00)" },
-    5: { name: "Venerdì", enabled: true, isWeekend: false, defaultSubject: "Analisi 1", timeSlot: "Pomeriggio (16:30 - 19:00) + Sera (19:00 - 21:00)" },
+    1: { name: "Lunedì", enabled: true, isWeekend: false, defaultSubject: "Analisi 1", timeSlot: "Sera (19:30 - 22:00)" },
+    2: { name: "Martedì", enabled: true, isWeekend: false, defaultSubject: "Geometria", timeSlot: "Sera (19:30 - 22:00)" },
+    3: { name: "Mercoledì", enabled: true, isWeekend: false, defaultSubject: "Analisi 1", timeSlot: "Sera (19:30 - 22:00)" },
+    4: { name: "Giovedì", enabled: true, isWeekend: false, defaultSubject: "Geometria", timeSlot: "Sera (19:30 - 22:00)" },
+    5: { name: "Venerdì", enabled: true, isWeekend: false, defaultSubject: "Analisi 1", timeSlot: "Sera (19:00 - 21:30)" },
     6: { name: "Sabato", enabled: true, isWeekend: true, defaultSubject: "Misto", timeSlot: "Mattina + Pomeriggio" },
     0: { name: "Domenica", enabled: true, isWeekend: true, defaultSubject: "Misto", timeSlot: "Pomeriggio + Ripasso" }
   }
@@ -1164,33 +1162,42 @@ function calculateSubjectProgress(topics) {
   topics.forEach(t => {
     const isAnalisi = t.materia.toLowerCase().includes("analisi");
     const sub = isAnalisi ? result.analisi : result.geometria;
-    const hours = Number(t.oreStimate) || 0;
+    const stimate = Number(t.oreStimate) || 2.0;
+    const isDone = Boolean(t.completato !== undefined ? t.completato : t.isCompleted);
+    const effettive = Number(t.oreEffettive || 0);
+
+    // Ore residue: se completato sono 0, altrimenti max(0, oreStimate - oreEffettive)
+    const residue = isDone ? 0 : Math.max(0, Number((stimate - effettive).toFixed(2)));
 
     sub.totalCount += 1;
-    sub.totalHours += hours;
+    sub.totalHours += stimate;
     result.global.totalCount += 1;
-    result.global.totalHours += hours;
+    result.global.totalHours += stimate;
 
-    if (t.isCompleted) {
+    // Calcolo ore svolte basato sulla somma totale di oreEffettive registrate
+    // (fallback a oreStimate per compatibilità se completato ma oreEffettive non impostato)
+    const actualSpent = isDone && effettive === 0 ? stimate : effettive;
+    sub.completedHours += actualSpent;
+    result.global.completedHours += actualSpent;
+
+    if (isDone) {
       sub.completedCount += 1;
-      sub.completedHours += hours;
       result.global.completedCount += 1;
-      result.global.completedHours += hours;
-    } else {
-      sub.remainingHours += hours;
-      result.global.remainingHours += hours;
     }
+
+    sub.remainingHours += residue;
+    result.global.remainingHours += residue;
   });
 
-  // Calculate percentages
+  // Calculate percentages based on effective hours logged
   result.analisi.percent = result.analisi.totalHours > 0
-    ? Math.round((result.analisi.completedHours / result.analisi.totalHours) * 100)
+    ? Math.min(100, Math.round((result.analisi.completedHours / result.analisi.totalHours) * 100))
     : 0;
   result.geometria.percent = result.geometria.totalHours > 0
-    ? Math.round((result.geometria.completedHours / result.geometria.totalHours) * 100)
+    ? Math.min(100, Math.round((result.geometria.completedHours / result.geometria.totalHours) * 100))
     : 0;
   result.global.percent = result.global.totalHours > 0
-    ? Math.round((result.global.completedHours / result.global.totalHours) * 100)
+    ? Math.min(100, Math.round((result.global.completedHours / result.global.totalHours) * 100))
     : 0;
 
   // Round numbers
@@ -1228,55 +1235,67 @@ function sortBySequentialId(a, b) {
  * 3. Shifts topics forward automatically if days were missed.
  * 4. Pulls topics forward automatically if ahead of schedule.
  */
-function rebalanceStudyPlan(topics, customSettings = {}) {
+function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacities = {}) {
   const settings = { ...DEFAULT_SETTINGS, ...customSettings };
+  const dayCapacities = (customDayCapacities && typeof customDayCapacities === "object" && Object.keys(customDayCapacities).length > 0)
+    ? customDayCapacities
+    : (customSettings && customSettings.customDayCapacities ? customSettings.customDayCapacities : {});
+
   const { remainingDays, remainingWeeks } = getCalendarMetrics(settings.currentSimulatedDate, settings.targetExamDate);
 
-  // 1. Process and weigh uncompleted topics
-  const processedUncompleted = topics
-    .filter(t => !t.isCompleted)
-    .map(t => {
-      const isHighPriority = (t.prioritaEsame || 3) >= settings.highPriorityThreshold;
-      const isHighDifficulty = (t.difficolta || 3) >= settings.highPriorityThreshold;
-      const hasBuffer = isHighPriority || isHighDifficulty;
+  // 1. Process and weigh topics with Granular Partial Progress (oreResidue)
+  const processedTopics = topics.map(t => {
+    const isDone = Boolean(t.completato !== undefined ? t.completato : t.isCompleted);
+    const oreStimate = Number(t.oreStimate) || 2.0;
+    const oreEffettive = Number(t.oreEffettive || 0);
+    // Formula: const oreResidue = completato ? 0 : Math.max(0, oreStimate - oreEffettive);
+    const oreResidue = isDone ? 0 : Math.max(0, Number((oreStimate - oreEffettive).toFixed(2)));
 
-      const baseHours = Number(t.oreStimate) || 2.0;
-      const effectiveHours = hasBuffer
-        ? Number((baseHours * settings.bufferMultiplier).toFixed(2))
-        : baseHours;
+    const isHighPriority = (t.prioritaEsame || 3) >= settings.highPriorityThreshold;
+    const isHighDifficulty = (t.difficolta || 3) >= settings.highPriorityThreshold;
+    const hasBuffer = isHighPriority || isHighDifficulty;
 
-      return {
-        ...t,
-        baseHours,
-        effectiveHours,
-        hasBuffer,
-        bufferDelta: Number((effectiveHours - baseHours).toFixed(2))
-      };
-    });
+    // Quando l'algoritmo spalma sui giorni futuri, usa oreResidue invece di oreStimate
+    const baseHours = oreResidue;
+    const effectiveHours = hasBuffer
+      ? Number((baseHours * settings.bufferMultiplier).toFixed(2))
+      : baseHours;
+
+    return {
+      ...t,
+      completato: isDone,
+      isCompleted: isDone,
+      oreStimate,
+      oreEffettive,
+      oreResidue,
+      baseHours,
+      effectiveHours,
+      hasBuffer,
+      bufferDelta: Number((effectiveHours - baseHours).toFixed(2))
+    };
+  });
+
+  // Filter topics with remaining workload to schedule forward
+  const uncompletedToSchedule = processedTopics.filter(t => !t.completato && t.oreResidue > 0);
 
   // Total remaining workload from Today forward
   const totalRemainingBaseHours = Number(
-    processedUncompleted.reduce((acc, t) => acc + t.baseHours, 0).toFixed(1)
+    uncompletedToSchedule.reduce((acc, t) => acc + t.baseHours, 0).toFixed(1)
   );
   const totalRemainingEffectiveHours = Number(
-    processedUncompleted.reduce((acc, t) => acc + t.effectiveHours, 0).toFixed(1)
+    uncompletedToSchedule.reduce((acc, t) => acc + t.effectiveHours, 0).toFixed(1)
   );
   const totalBufferHours = Number((totalRemainingEffectiveHours - totalRemainingBaseHours).toFixed(1));
 
-  // Effective study capacities and dynamic critical threshold
-  const enableAfternoon = settings.enableAfternoonSlot !== false;
-  const afternoonHours = enableAfternoon ? Number(settings.afternoonStudyHours !== undefined ? settings.afternoonStudyHours : 2.5) : 0;
-  const eveningHours = Number(settings.eveningStudyHours !== undefined ? settings.eveningStudyHours : (settings.weekdayStudyHours || 2.5));
-  const effectiveWeekdayHours = Number((afternoonHours + eveningHours).toFixed(1));
-  const effectiveWeekendHours = Number(settings.weekendStudyHours || 4.5);
+  // Baseline standard capacities (weekday evening & weekend blocks)
+  const standardWeekdayHours = Number(settings.weekdayStudyHours !== undefined ? settings.weekdayStudyHours : (settings.eveningStudyHours || 2.5));
+  const standardWeekendHours = Number(settings.weekendStudyHours || 4.5);
 
-  // Dynamic Critical Burnout Threshold calculation:
-  // With afternoon slot, nominal weekly capacity is (5 * 5h) + (2 * 4.5h) = 34h.
-  // The burnout threshold dynamically raises to 35.0h (or custom settings).
-  const nominalWeeklyCapacity = Number(((effectiveWeekdayHours * 5) + (effectiveWeekendHours * 2)).toFixed(1));
+  // Nominal baseline weekly capacity: (5 * feriali) + (2 * weekend)
+  const nominalWeeklyCapacity = Number(((standardWeekdayHours * 5) + (standardWeekendHours * 2)).toFixed(1));
   const dynamicCriticalThreshold = (customSettings && customSettings.criticalWeeklyHoursThreshold)
     ? Number(customSettings.criticalWeeklyHoursThreshold)
-    : (enableAfternoon ? 35.0 : 25.0);
+    : (settings.criticalWeeklyHoursThreshold || 25.0);
 
   // Required weekly pace to finish by targetExamDate
   const requiredWeeklyHours = Number((totalRemainingEffectiveHours / Math.max(1, remainingWeeks)).toFixed(1));
@@ -1305,13 +1324,32 @@ function rebalanceStudyPlan(topics, customSettings = {}) {
     const isToday = dateStr === settings.currentSimulatedDate;
     const isFuture = dateStr > settings.currentSimulatedDate;
 
-    const timeSlotDescription = dayConfig.isWeekend
-      ? (dayConfig.timeSlot || "Mattina + Pomeriggio")
-      : (enableAfternoon
-          ? `Pomeriggio (16:30 - 19:00, ${afternoonHours}h) + Sera (19:30 - 22:00, ${eveningHours}h)`
-          : `Sera (19:30 - 22:00, ${eveningHours}h)`);
+    // Standard fallback capacity from settings
+    const fallbackHours = dayConfig.isWeekend ? standardWeekendHours : standardWeekdayHours;
 
-    const maxDayHours = dayConfig.isWeekend ? effectiveWeekendHours : effectiveWeekdayHours;
+    // Dynamic Daily Capacity Override (Time Shifter)
+    const hasCustomOverride = Boolean(
+      dayCapacities &&
+      Object.prototype.hasOwnProperty.call(dayCapacities, dateStr) &&
+      dayCapacities[dateStr] !== null &&
+      dayCapacities[dateStr] !== undefined
+    );
+    const maxDayHours = hasCustomOverride ? Math.max(0, Number(dayCapacities[dateStr])) : fallbackHours;
+
+    let timeSlotDescription = "";
+    if (hasCustomOverride) {
+      if (maxDayHours > fallbackHours) {
+        timeSlotDescription = `Slot Extra Attivo (${maxDayHours}h)`;
+      } else if (maxDayHours < fallbackHours) {
+        timeSlotDescription = `Budget Ridotto (${maxDayHours}h)`;
+      } else {
+        timeSlotDescription = `Budget Personalizzato (${maxDayHours}h)`;
+      }
+    } else if (dayConfig.isWeekend) {
+      timeSlotDescription = dayConfig.timeSlot || `Blocco Weekend (${maxDayHours}h)`;
+    } else {
+      timeSlotDescription = dayConfig.timeSlot || `Sera (${maxDayHours}h)`;
+    }
 
     allCalendarDays.push({
       date: dateStr,
@@ -1322,6 +1360,8 @@ function rebalanceStudyPlan(topics, customSettings = {}) {
       timeSlot: timeSlotDescription,
       preferredSubject: dayConfig.defaultSubject || "Misto",
       maxHours: maxDayHours,
+      standardHours: fallbackHours,
+      hasCustomOverride,
       allocatedHours: 0,
       weekIndex,
       isPast,
@@ -1342,7 +1382,7 @@ function rebalanceStudyPlan(topics, customSettings = {}) {
 
   allCalendarDays.forEach(day => {
     // Find topics completed on this exact date
-    const completedOnThisDay = topics.filter(t => t.isCompleted && t.completedDate === day.date);
+    const completedOnThisDay = processedTopics.filter(t => t.completato && t.completedDate === day.date);
 
     if (completedOnThisDay.length > 0) {
       if (day.isPast || day.isToday) {
@@ -1350,12 +1390,12 @@ function rebalanceStudyPlan(topics, customSettings = {}) {
       }
       day.topics = completedOnThisDay.map(t => ({
         ...t,
-        effectiveHours: t.oreStimate,
+        effectiveHours: Number(t.oreEffettive || t.oreStimate || 0),
         assignedDate: day.date,
         assignedWeek: day.weekIndex,
         assignedDayName: day.dayName
       }));
-      day.allocatedHours = Number(completedOnThisDay.reduce((acc, t) => acc + (Number(t.oreStimate) || 0), 0).toFixed(1));
+      day.allocatedHours = Number(completedOnThisDay.reduce((acc, t) => acc + (Number(t.oreEffettive || t.oreStimate || 0)), 0).toFixed(1));
       if (day.isPast || day.isToday) {
         pastDaysStudied++;
         totalPastHours += day.allocatedHours;
@@ -1372,11 +1412,11 @@ function rebalanceStudyPlan(topics, customSettings = {}) {
 
   // 4. Sequential queues for ACTIVE & FUTURE study (Starting from Today)
   // Strictly respects the pedagogical sequence: A-01, A-02, ... and G-01, G-02, ...
-  const analisiQueue = processedUncompleted
+  const analisiQueue = uncompletedToSchedule
     .filter(t => t.materia.toLowerCase().includes("analisi"))
     .sort(sortBySequentialId);
 
-  const geometriaQueue = processedUncompleted
+  const geometriaQueue = uncompletedToSchedule
     .filter(t => t.materia.toLowerCase().includes("geometria"))
     .sort(sortBySequentialId);
 
@@ -1513,14 +1553,18 @@ function rebalanceStudyPlan(topics, customSettings = {}) {
       requiredWeeklyHours,
       criticalWeeklyHoursThreshold: dynamicCriticalThreshold,
       nominalWeeklyCapacity,
-      effectiveWeekdayHours,
-      effectiveWeekendHours,
-      enableAfternoonSlot: enableAfternoon,
-      afternoonStudyHours: afternoonHours,
-      eveningStudyHours: eveningHours,
+      standardWeekdayHours,
+      standardWeekendHours,
+      effectiveWeekdayHours: standardWeekdayHours,
+      effectiveWeekendHours: standardWeekendHours,
+      hasCustomOverrides: Object.keys(dayCapacities).length > 0,
+      customOverridesCount: Object.keys(dayCapacities).length,
+      customDayCapacities: dayCapacities,
+      eveningStudyHours: standardWeekdayHours,
       isCriticalOverload,
       excessHours: Number(Math.max(0, requiredWeeklyHours - dynamicCriticalThreshold).toFixed(1)),
-      uncompletedCount: processedUncompleted.length,
+      uncompletedCount: uncompletedToSchedule.length,
+      totalEffectiveHours: Number(topics.reduce((acc, t) => acc + (Number(t.oreEffettive || (t.isCompleted || t.completato ? t.oreStimate : 0))), 0).toFixed(1)),
       targetExamDate: settings.targetExamDate,
       currentSimulatedDate: settings.currentSimulatedDate,
       roadmapStartDate: settings.roadmapStartDate,
@@ -1834,14 +1878,14 @@ function AlertBanner({ metrics, onOpenSettings }) {
               <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono">
                 {metrics.requiredWeeklyHours}h / sett. (Soglia Max {metrics.criticalWeeklyHoursThreshold}h)
               </span>
-              {metrics.enableAfternoonSlot && (
+              {metrics.hasCustomOverrides && (
                 <span className="hidden sm:inline text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-                  +Slot Pomeridiano Attivo
+                  +Slot Extra Flessibili Attivi ({metrics.customOverridesCount} gg)
                 </span>
               )}
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
-              Il ritmo di studio è ben calibrato: {metrics.enableAfternoonSlot ? "l'unione dello slot pomeridiano (16:30 - 19:00) con le serate e i weekend garantisce sostenibilità elevata senza sovraccarico" : "le serate e i weekend coprono interamente il programma"} entro il 10 Gennaio 2027.
+              Il ritmo di studio è ben calibrato: {metrics.hasCustomOverrides ? "la flessibilità degli slot extra nei singoli giorni garantisce sostenibilità elevata senza sovraccarico" : "le serate e i weekend coprono interamente il programma"} entro il 10 Gennaio 2027.
             </p>
           </div>
         </div>
@@ -1907,10 +1951,10 @@ function AlertBanner({ metrics, onOpenSettings }) {
           <div className="bg-black/30 p-3 rounded-xl border border-rose-500/20">
             <div className="font-semibold text-rose-300 flex items-center gap-1.5 mb-1">
               <IconBriefcase className="w-4 h-4 text-rose-400" />
-              1. Slot Pomeridiano (16:30 - 19:00)
+              1. Gestione Flessibile Slot Extra
             </div>
             <p className="text-rose-200/80">
-              Attiva lo slot pomeridiano nei Parametri: aggiungere 2.5h/pomeriggio aumenta la capacità feriale a 5h/giorno distribuendo lo sforzo.
+              Usa i pulsanti [+ 30m] nel To-Do Settimanale per aggiungere ore nei giorni con permessi, pause o anticipi feriali, distribuendo il carico.
             </p>
           </div>
 
@@ -3740,7 +3784,7 @@ function ActivityHeatmap({ calendarDays = [], historyDays = [], metrics = {}, on
     return {
       weeksGrid: weeks,
       streakDays: currentStreak,
-      totalCompletedHours: Number(compHours.toFixed(1)),
+      totalCompletedHours: metrics.totalEffectiveHours !== undefined ? Number(metrics.totalEffectiveHours) : Number(compHours.toFixed(1)),
       completedDaysCount: compCount
     };
   }, [calendarDays, historyDays]);
@@ -3983,7 +4027,14 @@ function ActivityHeatmap({ calendarDays = [], historyDays = [], metrics = {}, on
 
 const LOCAL_STORAGE_KEY_POMODORO = "unimore_rebalancer_pomodoro_v2";
 
-function WeeklyTodo({ weeklyPlans, onToggleComplete, settings }) {
+function WeeklyTodo({
+  weeklyPlans,
+  onToggleComplete,
+  onUpdateTopicHours,
+  settings,
+  customDayCapacities = {},
+  onUpdateDayCapacity
+}) {
   // Default to the week containing Today
   const [selectedWeekIndex, setSelectedWeekIndex] = useState(() => {
     const currentWeek = weeklyPlans.find(w => w.hasToday);
@@ -4035,6 +4086,10 @@ function WeeklyTodo({ weeklyPlans, onToggleComplete, settings }) {
             // Switch between 50 min study and 10 min break
             newIsBreak = !isBreak;
             cycleRemaining = newIsBreak ? 10 * 60 : 50 * 60;
+            // When completing a 50m focus phase, add focus hours to topic oreEffettive
+            if (newIsBreak && onUpdateTopicHours) {
+              onUpdateTopicHours(topicId, 50 / 60, true);
+            }
           }
 
           // Accumulate focus time only during focus study phase
@@ -4100,6 +4155,11 @@ function WeeklyTodo({ weeklyPlans, onToggleComplete, settings }) {
   };
 
   const addPomodoroMinutes = (topicId, targetHours, minutes) => {
+    // Sync added pomodoro time directly with oreEffettive
+    if (onUpdateTopicHours) {
+      onUpdateTopicHours(topicId, minutes / 60, true);
+    }
+
     setPomodoroMap(prev => {
       const current = prev[topicId] || {
         accumulatedSeconds: 0,
@@ -4132,6 +4192,10 @@ function WeeklyTodo({ weeklyPlans, onToggleComplete, settings }) {
 
   const completePomodoroTarget = (topicId, targetHours) => {
     const targetSec = Math.round((Number(targetHours) || 2.0) * 3600);
+    // Bring topic oreEffettive to targetHours
+    if (onUpdateTopicHours) {
+      onUpdateTopicHours(topicId, Number(targetHours) || 2.0, false);
+    }
     setPomodoroMap(prev => {
       const current = prev[topicId] || {};
       return {
@@ -4375,11 +4439,61 @@ function WeeklyTodo({ weeklyPlans, onToggleComplete, settings }) {
                   )}
                 </div>
 
-                <div className="flex items-center space-x-2 text-xs">
-                  <span className="text-slate-500 font-mono">Carico:</span>
-                  <span className="font-mono font-bold text-slate-200">
-                    {day.allocatedHours}h / {day.maxHours}h max
-                  </span>
+                <div className="flex flex-wrap items-center gap-2.5">
+                  {/* Time Shifter: Stepper Controls */}
+                  <div className="flex items-center space-x-1 bg-slate-950/80 border border-slate-800 p-1 rounded-xl shadow-inner">
+                    <button
+                      type="button"
+                      onClick={() => onUpdateDayCapacity && onUpdateDayCapacity(day.date, Math.max(0, Number((day.maxHours - 0.5).toFixed(1))))}
+                      disabled={day.maxHours <= 0}
+                      className="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-mono font-bold border border-slate-700 transition disabled:opacity-30 disabled:cursor-not-allowed active:scale-95"
+                      title="Riduci budget di 30 minuti (-0.5h)"
+                    >
+                      - 30m
+                    </button>
+
+                    <div
+                      className={`px-2.5 py-0.5 rounded-lg text-xs font-mono font-bold flex items-center gap-1 transition ${
+                        day.hasCustomOverride
+                          ? day.maxHours > (day.standardHours || 2.5)
+                            ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40"
+                            : "bg-amber-500/20 text-amber-300 border border-amber-500/40"
+                          : "bg-slate-900 text-slate-300 border border-slate-800"
+                      }`}
+                      title={day.hasCustomOverride ? `Capacità modificata rispetto al default (${day.standardHours || 2.5}h)` : "Capacità standard"}
+                    >
+                      <span>Budget: {day.maxHours}h</span>
+                      {day.hasCustomOverride && (
+                        <button
+                          type="button"
+                          onClick={() => onUpdateDayCapacity && onUpdateDayCapacity(day.date, null)}
+                          className="ml-1 text-[10px] text-slate-400 hover:text-white hover:bg-slate-800 rounded px-1"
+                          title="Ripristina budget predefinito"
+                        >
+                          ↺
+                        </button>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => onUpdateDayCapacity && onUpdateDayCapacity(day.date, Number((day.maxHours + 0.5).toFixed(1)))}
+                      className="px-2 py-0.5 rounded-lg bg-cyan-600/30 hover:bg-cyan-500/40 text-cyan-300 hover:text-cyan-200 text-xs font-mono font-bold border border-cyan-500/40 transition active:scale-95 shadow-sm"
+                      title="Slot Extra: Aumenta budget di 30 minuti (+0.5h)"
+                    >
+                      + 30m
+                    </button>
+                  </div>
+
+                  {/* Workload Indicator */}
+                  <div className="flex items-center space-x-1.5 px-2.5 py-1 bg-slate-950/60 border border-slate-800/80 rounded-xl text-xs font-mono">
+                    <span className="text-slate-500">Carico:</span>
+                    <span className={`font-bold ${
+                      day.allocatedHours > day.maxHours ? "text-amber-400" : "text-slate-200"
+                    }`}>
+                      {day.allocatedHours}h / {day.maxHours}h max
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -4397,6 +4511,7 @@ function WeeklyTodo({ weeklyPlans, onToggleComplete, settings }) {
                 <div className="space-y-2.5">
                   {visibleTopics.map(topic => {
                     const isAnalisi = topic.materia.toLowerCase().includes("analisi");
+                    const isDone = Boolean(topic.completato !== undefined ? topic.completato : topic.isCompleted);
                     const pState = pomodoroMap[topic.id] || {
                       accumulatedSeconds: 0,
                       cycleRemaining: 50 * 60,
@@ -4412,102 +4527,178 @@ function WeeklyTodo({ weeklyPlans, onToggleComplete, settings }) {
                       <div
                         key={topic.id}
                         className={`flex flex-col p-3.5 rounded-2xl border transition-all ${
-                          topic.isCompleted
+                          isDone
                             ? "bg-slate-950/60 border-slate-800/50 opacity-60"
                             : isAnalisi
                             ? "bg-slate-950/80 hover:bg-slate-900 border-emerald-500/20 hover:border-emerald-500/40"
                             : "bg-slate-950/80 hover:bg-slate-900 border-indigo-500/20 hover:border-indigo-500/40"
                         }`}
                       >
-                        {/* Upper row: Checkbox, Title and Meta Pills */}
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                          {/* Checkbox and Title */}
-                          <div className="flex items-start space-x-3.5 flex-1 min-w-0 pr-2">
-                            <button
-                              type="button"
-                              onClick={() => onToggleComplete(topic.id)}
-                              className={`w-5 h-5 rounded-lg border mt-0.5 flex items-center justify-center transition-colors flex-shrink-0 ${
-                                topic.isCompleted
-                                  ? "bg-emerald-500 border-emerald-400 text-white"
-                                  : "border-slate-600 hover:border-slate-400 bg-slate-900"
-                              }`}
-                              title={topic.isCompleted ? "Segna come da fare" : "Segna come completato"}
-                            >
-                              {topic.isCompleted && <IconCheck className="w-3.5 h-3.5" />}
-                            </button>
+                        {/* Upper row: Topic Header, Meta and Subject */}
+                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1 pr-2">
+                            <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
+                              {/* Subject Badge */}
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                                isAnalisi
+                                  ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                                  : "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                              }`}>
+                                {topic.materia}
+                              </span>
 
-                            <div className="min-w-0">
-                              <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                                {/* Subject Badge */}
-                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
-                                  isAnalisi
-                                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                                    : "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
-                                }`}>
-                                  {topic.materia}
+                              {/* Topic ID */}
+                              <span className="text-[11px] font-mono font-bold text-slate-300">
+                                {topic.id}
+                              </span>
+
+                              {/* Chapter */}
+                              <span className="text-[11px] text-slate-400 truncate max-w-[200px]">
+                                • {topic.capitolo}
+                              </span>
+
+                              {/* Buffer +20% badge */}
+                              {topic.hasBuffer && (
+                                <span className="text-[10px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.2 rounded">
+                                  +20% Buffer Priorità
                                 </span>
+                              )}
 
-                                {/* Topic ID */}
-                                <span className="text-[11px] font-mono font-bold text-slate-300">
-                                  {topic.id}
+                              {isDone && (
+                                <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                                  ✓ Completato {topic.completedDate ? `il ${formatDateDisplay(topic.completedDate)}` : ""}
                                 </span>
+                              )}
 
-                                {/* Chapter */}
-                                <span className="text-[11px] text-slate-400 truncate max-w-[200px]">
-                                  • {topic.capitolo}
+                              {!isDone && (topic.oreEffettive || 0) > 0 && (
+                                <span className="text-[10px] font-mono text-cyan-300 bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 rounded-full">
+                                  ⏳ In Corso ({Number(topic.oreEffettive).toFixed(1)}h svolte)
                                 </span>
+                              )}
+                            </div>
 
-                                {/* Buffer +20% badge */}
-                                {topic.hasBuffer && (
-                                  <span className="text-[10px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.2 rounded">
-                                    +20% Buffer Priorità
-                                  </span>
-                                )}
+                            <p className={`text-xs md:text-sm font-medium ${
+                              isDone ? "line-through text-slate-500" : "text-slate-200"
+                            }`}>
+                              {topic.argomento}
+                            </p>
 
-                                {topic.isCompleted && topic.completedDate && (
-                                  <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded">
-                                    ✓ Svolto il {formatDateDisplay(topic.completedDate)}
-                                  </span>
-                                )}
+                            {topic.note && (
+                              <p className="text-[11px] text-slate-500 mt-0.5 truncate">
+                                Obiettivo: {topic.note}
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Allocation info on this day */}
+                          <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-1 flex-shrink-0 pt-1">
+                            <div className="text-right">
+                              <span className="text-[11px] text-slate-400 font-mono">In programma: </span>
+                              <span className="text-xs font-mono font-bold text-white">
+                                {topic.effectiveHours}h
+                              </span>
+                            </div>
+                            <div className="flex items-center space-x-2 text-[10px] text-slate-400">
+                              <span>P: <strong className="text-amber-400">{topic.prioritaEsame}/5</strong></span>
+                              <span>D: <strong className="text-cyan-400">{topic.difficolta}/5</strong></span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Partial Progress & Hours Tracking Console */}
+                        <div className="mt-3 p-3 bg-slate-950/70 border border-slate-800/90 rounded-2xl space-y-2.5">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                            {/* Display Hours */}
+                            <div className="flex flex-wrap items-center gap-2">
+                              <div className="text-xs font-mono text-slate-200 flex items-center gap-1.5">
+                                <IconClock className="w-3.5 h-3.5 text-cyan-400" />
+                                <span>Ore spese:</span>
+                                <strong className="text-cyan-300 font-bold text-sm">
+                                  {Number(topic.oreEffettive || 0).toFixed(1)}
+                                </strong>
+                                <span className="text-slate-400">/ {Number(topic.oreStimate || 2.0).toFixed(1)} stimate</span>
                               </div>
 
-                              <p className={`text-xs md:text-sm font-medium ${
-                                topic.isCompleted ? "line-through text-slate-500" : "text-slate-200"
-                              }`}>
-                                {topic.argomento}
-                              </p>
-
-                              {topic.note && (
-                                <p className="text-[11px] text-slate-500 mt-0.5 truncate">
-                                  Obiettivo: {topic.note}
-                                </p>
+                              {!isDone && (
+                                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20">
+                                  Residue: <strong>{Number(topic.oreResidue !== undefined ? topic.oreResidue : Math.max(0, (topic.oreStimate || 2.0) - (topic.oreEffettive || 0))).toFixed(1)}h</strong>
+                                </span>
                               )}
+                            </div>
+
+                            {/* Quick Add Time Stepper Buttons */}
+                            <div className="flex items-center space-x-1.5 self-start sm:self-center">
+                              <button
+                                type="button"
+                                onClick={() => onUpdateTopicHours && onUpdateTopicHours(topic.id, -0.5, true)}
+                                disabled={(topic.oreEffettive || 0) <= 0}
+                                className="px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 text-[11px] font-mono font-bold transition disabled:opacity-30 disabled:cursor-not-allowed"
+                                title="Riduci ore spese (-30 minuti)"
+                              >
+                                - 30m
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => onUpdateTopicHours && onUpdateTopicHours(topic.id, 0.5, true)}
+                                className="px-2.5 py-1 rounded-lg bg-cyan-600/20 hover:bg-cyan-500/30 text-cyan-300 hover:text-cyan-200 border border-cyan-500/40 text-[11px] font-mono font-bold transition active:scale-95 shadow-sm"
+                                title="Aggiungi 30 minuti al tempo speso (+0.5h)"
+                              >
+                                + 30m
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => onUpdateTopicHours && onUpdateTopicHours(topic.id, 1.0, true)}
+                                className="px-2.5 py-1 rounded-lg bg-indigo-600/20 hover:bg-indigo-500/30 text-indigo-300 hover:text-indigo-200 border border-indigo-500/40 text-[11px] font-mono font-bold transition active:scale-95 shadow-sm"
+                                title="Aggiungi 1 ora al tempo speso (+1.0h)"
+                              >
+                                + 1h
+                              </button>
                             </div>
                           </div>
 
-                          {/* Meta Pills (Hours, Difficulty, Priority) */}
-                          <div className="flex items-center space-x-2 mt-2 sm:mt-0 flex-shrink-0 self-end sm:self-center">
-                            {/* Hours */}
-                            <div className="text-right">
-                              <div className="text-xs font-mono font-bold text-white">
-                                {topic.effectiveHours}h
+                          {/* Progress Bar & Distinct Completed Toggle Button */}
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1.5 border-t border-slate-900">
+                            {/* Micro Progress Bar */}
+                            <div className="flex-1 flex items-center space-x-2.5">
+                              <div className="w-full bg-slate-900 h-2 rounded-full overflow-hidden border border-slate-800/80">
+                                <div
+                                  className={`h-full transition-all duration-500 ${
+                                    isDone
+                                      ? "bg-emerald-400"
+                                      : (topic.oreEffettive || 0) > 0
+                                      ? "bg-gradient-to-r from-cyan-400 to-indigo-400"
+                                      : "bg-transparent"
+                                  }`}
+                                  style={{
+                                    width: `${Math.min(100, Math.round(((topic.oreEffettive || 0) / (topic.oreStimate || 2.0)) * 100))}%`
+                                  }}
+                                />
                               </div>
-                              {topic.hasBuffer && (
-                                <div className="text-[10px] text-slate-500 font-mono">
-                                  (base {topic.oreStimate}h)
-                                </div>
-                              )}
+                              <span className="text-[10px] font-mono text-slate-400 flex-shrink-0">
+                                {Math.min(100, Math.round(((topic.oreEffettive || 0) / (topic.oreStimate || 2.0)) * 100))}%
+                              </span>
                             </div>
 
-                            {/* Difficulty and Priority indicators */}
-                            <div className="flex flex-col items-end gap-0.5">
-                              <span className="text-[10px] text-slate-400">
-                                Priorità: <strong className="text-amber-400">{topic.prioritaEsame}/5</strong>
-                              </span>
-                              <span className="text-[10px] text-slate-400">
-                                Difficoltà: <strong className="text-cyan-400">{topic.difficolta}/5</strong>
-                              </span>
-                            </div>
+                            {/* Distinct Completion Toggle Button */}
+                            <button
+                              type="button"
+                              onClick={() => onToggleComplete(topic.id)}
+                              className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-2 flex-shrink-0 active:scale-95 ${
+                                isDone
+                                  ? "bg-emerald-600/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-600/30 shadow-sm shadow-emerald-950/40"
+                                  : "bg-slate-900 hover:bg-slate-850 text-slate-300 border-slate-700 hover:border-slate-500"
+                              }`}
+                              title={isDone ? "Argomento completato (clicca per riaprire)" : "Segna questo argomento come completato"}
+                            >
+                              <div className={`w-4 h-4 rounded border flex items-center justify-center transition ${
+                                isDone ? "bg-emerald-500 border-emerald-400 text-white" : "border-slate-500 bg-slate-950"
+                              }`}>
+                                {isDone && <IconCheck className="w-3 h-3" />}
+                              </div>
+                              <span>{isDone ? "Completato ✓" : "Segna come Completato"}</span>
+                            </button>
                           </div>
                         </div>
 
@@ -4843,7 +5034,7 @@ function HistoryLog({ historyDays, calendarDays = [], metrics, onAdvanceDate, on
 
 
 
-function TopicsTable({ topics, onToggleComplete, onBatchUpdate }) {
+function TopicsTable({ topics, onToggleComplete, onUpdateTopicHours, onBatchUpdate }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [subjectFilter, setSubjectFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -4851,6 +5042,9 @@ function TopicsTable({ topics, onToggleComplete, onBatchUpdate }) {
 
   const filteredTopics = useMemo(() => {
     return topics.filter(t => {
+      const isDone = Boolean(t.completato !== undefined ? t.completato : t.isCompleted);
+      const isPartial = !isDone && (Number(t.oreEffettive) || 0) > 0;
+
       // Search
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
@@ -4866,8 +5060,9 @@ function TopicsTable({ topics, onToggleComplete, onBatchUpdate }) {
       }
 
       // Status
-      if (statusFilter === "completed" && !t.isCompleted) return false;
-      if (statusFilter === "todo" && t.isCompleted) return false;
+      if (statusFilter === "completed" && !isDone) return false;
+      if (statusFilter === "in_progress" && !isPartial) return false;
+      if (statusFilter === "todo" && (isDone || isPartial)) return false;
 
       // Priority
       if (priorityFilter === "high" && (t.prioritaEsame < 4 && t.difficolta < 4)) return false;
@@ -4914,7 +5109,8 @@ function TopicsTable({ topics, onToggleComplete, onBatchUpdate }) {
             className="bg-slate-950/80 border border-slate-800 text-xs text-slate-300 rounded-xl px-3 py-2 focus:outline-none focus:border-cyan-500"
           >
             <option value="all">Tutti gli Stati</option>
-            <option value="todo">Solo Da Fare</option>
+            <option value="todo">Da Fare (0h)</option>
+            <option value="in_progress">In Corso (Parziale)</option>
             <option value="completed">Solo Completati</option>
           </select>
 
@@ -4974,7 +5170,7 @@ function TopicsTable({ topics, onToggleComplete, onBatchUpdate }) {
                 <th className="py-3 px-3 w-20">ID</th>
                 <th className="py-3 px-3 w-28">Materia</th>
                 <th className="py-3 px-4">Capitolo & Argomento</th>
-                <th className="py-3 px-3 w-24 text-center">Ore Stimate</th>
+                <th className="py-3 px-3 w-36 text-center">Ore Spese / Stimate</th>
                 <th className="py-3 px-3 w-20 text-center">Difficoltà</th>
                 <th className="py-3 px-3 w-20 text-center">Priorità</th>
               </tr>
@@ -4982,13 +5178,15 @@ function TopicsTable({ topics, onToggleComplete, onBatchUpdate }) {
             <tbody className="divide-y divide-slate-800/60">
               {filteredTopics.map((topic) => {
                 const isAnalisi = topic.materia.toLowerCase().includes("analisi");
+                const isDone = Boolean(topic.completato !== undefined ? topic.completato : topic.isCompleted);
                 const hasBuffer = (topic.prioritaEsame >= 4 || topic.difficolta >= 4);
+                const effHours = Number(topic.oreEffettive || 0);
 
                 return (
                   <tr
                     key={topic.id}
                     className={`hover:bg-slate-850/60 transition ${
-                      topic.isCompleted ? "bg-slate-950/40 opacity-60" : ""
+                      isDone ? "bg-slate-950/40 opacity-60" : ""
                     }`}
                   >
                     {/* Checkbox */}
@@ -4996,13 +5194,16 @@ function TopicsTable({ topics, onToggleComplete, onBatchUpdate }) {
                       <button
                         onClick={() => onToggleComplete(topic.id)}
                         className={`w-5 h-5 mx-auto rounded-lg border flex items-center justify-center transition-colors ${
-                          topic.isCompleted
+                          isDone
                             ? "bg-emerald-500 border-emerald-400 text-white"
+                            : effHours > 0
+                            ? "border-cyan-500/60 bg-cyan-950/40 text-cyan-300"
                             : "border-slate-600 hover:border-slate-400 bg-slate-900"
                         }`}
-                        title={topic.isCompleted ? "Segna come incompleto" : "Segna come completato"}
+                        title={isDone ? "Segna come incompleto" : "Segna come completato"}
                       >
-                        {topic.isCompleted && <IconCheck className="w-3.5 h-3.5" />}
+                        {isDone && <IconCheck className="w-3.5 h-3.5" />}
+                        {!isDone && effHours > 0 && <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />}
                       </button>
                     </td>
 
@@ -5024,8 +5225,13 @@ function TopicsTable({ topics, onToggleComplete, onBatchUpdate }) {
 
                     {/* Chapter & Topic */}
                     <td className="py-3 px-4">
-                      <div className="font-semibold text-slate-200 text-xs">
-                        {topic.argomento}
+                      <div className="font-semibold text-slate-200 text-xs flex items-center gap-2">
+                        <span>{topic.argomento}</span>
+                        {!isDone && effHours > 0 && (
+                          <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
+                            In Corso
+                          </span>
+                        )}
                       </div>
                       <div className="text-[11px] text-slate-400 mt-0.5">
                         Capitolo: <span className="text-slate-300">{topic.capitolo}</span>
@@ -5033,15 +5239,41 @@ function TopicsTable({ topics, onToggleComplete, onBatchUpdate }) {
                       </div>
                     </td>
 
-                    {/* Hours */}
+                    {/* Hours (Spese / Stimate) */}
                     <td className="py-3 px-3 text-center">
-                      <div className="font-mono font-bold text-slate-200">
-                        {topic.oreStimate}h
+                      <div className="font-mono font-bold text-xs">
+                        <span className="text-cyan-400">{effHours.toFixed(1)}h</span>
+                        <span className="text-slate-400"> / {topic.oreStimate}h</span>
                       </div>
+                      {!isDone && (
+                        <div className="text-[10px] text-amber-400/90 font-mono">
+                          Residue: {Number(topic.oreResidue !== undefined ? topic.oreResidue : Math.max(0, (topic.oreStimate || 2.0) - effHours)).toFixed(1)}h
+                        </div>
+                      )}
                       {hasBuffer && (
-                        <span className="text-[10px] text-amber-400/90 font-mono">
-                          +20% buff.
+                        <span className="text-[9px] text-amber-500/80 font-mono block">
+                          +20% buffer
                         </span>
+                      )}
+                      {onUpdateTopicHours && (
+                        <div className="mt-1 flex items-center justify-center space-x-1">
+                          <button
+                            type="button"
+                            onClick={() => onUpdateTopicHours(topic.id, 0.5, true)}
+                            className="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-cyan-300 text-[10px] font-mono border border-slate-700"
+                            title="Aggiungi 30m"
+                          >
+                            +30m
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onUpdateTopicHours(topic.id, 1.0, true)}
+                            className="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-indigo-300 text-[10px] font-mono border border-slate-700"
+                            title="Aggiungi 1h"
+                          >
+                            +1h
+                          </button>
+                        </div>
                       )}
                     </td>
 
@@ -5083,6 +5315,8 @@ function TopicsTable({ topics, onToggleComplete, onBatchUpdate }) {
 function FileImporter({
   topics,
   settings,
+  customDayCapacities = {},
+  onCustomCapacitiesUpdated,
   onTopicsUpdated,
   onSettingsUpdated,
   fsSyncStatus,
@@ -5145,6 +5379,9 @@ function FileImporter({
           onTopicsUpdated(backup.topics);
           if (backup.settings && onSettingsUpdated) {
             onSettingsUpdated(backup.settings);
+          }
+          if (backup.customDayCapacities && onCustomCapacitiesUpdated) {
+            onCustomCapacitiesUpdated(backup.customDayCapacities);
           }
           setNotification({
             type: "success",
@@ -5273,7 +5510,8 @@ function FileImporter({
     const backupData = {
       exportDate: new Date().toISOString(),
       settings,
-      topics
+      topics,
+      customDayCapacities
     };
 
     const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: "application/json" });
@@ -5527,12 +5765,20 @@ function FileImporter({
 
 
 
-function SettingsModal({ isOpen, onClose, settings, onSaveSettings }) {
+function SettingsModal({
+  isOpen,
+  onClose,
+  settings,
+  onSaveSettings,
+  customDayCapacities = {},
+  onResetDayCapacities
+}) {
   const [formData, setFormData] = useState({
     ...settings,
-    enableAfternoonSlot: settings.enableAfternoonSlot !== false,
-    afternoonStudyHours: settings.afternoonStudyHours !== undefined ? settings.afternoonStudyHours : 2.5,
-    eveningStudyHours: settings.eveningStudyHours !== undefined ? settings.eveningStudyHours : 2.5,
+    eveningStudyHours: settings.eveningStudyHours !== undefined ? settings.eveningStudyHours : (settings.weekdayStudyHours || 2.5),
+    weekdayStudyHours: settings.weekdayStudyHours !== undefined ? settings.weekdayStudyHours : (settings.eveningStudyHours || 2.5),
+    weekendStudyHours: settings.weekendStudyHours !== undefined ? settings.weekendStudyHours : 4.5,
+    criticalWeeklyHoursThreshold: settings.criticalWeeklyHoursThreshold || 25.0
   });
 
   if (!isOpen) return null;
@@ -5544,14 +5790,8 @@ function SettingsModal({ isOpen, onClose, settings, onSaveSettings }) {
         [field]: val
       };
 
-      // Keep weekdayStudyHours synced with afternoon + evening sum
-      const afternoon = updated.enableAfternoonSlot ? Number(updated.afternoonStudyHours || 2.5) : 0;
-      const evening = Number(updated.eveningStudyHours || 2.5);
-      updated.weekdayStudyHours = Number((afternoon + evening).toFixed(1));
-
-      // If user toggles afternoon slot, suggest updated burnout threshold
-      if (field === "enableAfternoonSlot") {
-        updated.criticalWeeklyHoursThreshold = val ? 35.0 : 25.0;
+      if (field === "eveningStudyHours") {
+        updated.weekdayStudyHours = Number(val);
       }
 
       return updated;
@@ -5560,22 +5800,20 @@ function SettingsModal({ isOpen, onClose, settings, onSaveSettings }) {
 
   const handleSave = (e) => {
     e.preventDefault();
-    const afternoon = formData.enableAfternoonSlot ? Number(formData.afternoonStudyHours || 2.5) : 0;
     const evening = Number(formData.eveningStudyHours || 2.5);
-    const combinedWeekday = Number((afternoon + evening).toFixed(1));
-
     const toSave = {
       ...formData,
-      weekdayStudyHours: combinedWeekday
+      weekdayStudyHours: evening,
+      eveningStudyHours: evening
     };
     onSaveSettings(toSave);
     onClose();
   };
 
-  const currentAfternoon = formData.enableAfternoonSlot ? Number(formData.afternoonStudyHours || 2.5) : 0;
-  const currentEvening = Number(formData.eveningStudyHours || 2.5);
-  const totalWeekdayCapacity = Number((currentAfternoon + currentEvening).toFixed(1));
-  const nominalWeeklyCapacity = Number(((totalWeekdayCapacity * 5) + (Number(formData.weekendStudyHours || 4.5) * 2)).toFixed(1));
+  const currentWeekday = Number(formData.eveningStudyHours || 2.5);
+  const currentWeekend = Number(formData.weekendStudyHours || 4.5);
+  const nominalWeeklyCapacity = Number(((currentWeekday * 5) + (currentWeekend * 2)).toFixed(1));
+  const customOverridesCount = Object.keys(customDayCapacities || {}).length;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
@@ -5587,7 +5825,7 @@ function SettingsModal({ isOpen, onClose, settings, onSaveSettings }) {
             </div>
             <div>
               <h3 className="text-base font-bold text-white">Parametri di Ribilanciamento</h3>
-              <p className="text-xs text-slate-400">Personalizza orari di studio e date d'esame</p>
+              <p className="text-xs text-slate-400">Personalizza orari di studio, slot e date d'esame</p>
             </div>
           </div>
           <button
@@ -5630,63 +5868,61 @@ function SettingsModal({ isOpen, onClose, settings, onSaveSettings }) {
             <div className="flex items-center justify-between text-cyan-400 font-bold">
               <div className="flex items-center space-x-2">
                 <IconBriefcase className="w-4 h-4" />
-                <span>Orari & Fasce di Studio Feriali e Weekend</span>
+                <span>Orari Base & Gestione Flessibile Slot Extra</span>
               </div>
               <span className="text-[11px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-lg">
-                Feriale: {totalWeekdayCapacity}h/gg
+                Feriale base: {currentWeekday}h/gg
               </span>
             </div>
 
-            {/* Afternoon Slot (16:30 - 19:00) */}
-            <div className="p-3 bg-slate-900/80 rounded-xl border border-slate-800 space-y-2">
+            {/* Flexible Extra Slots Info Card */}
+            <div className="p-3 bg-gradient-to-r from-slate-900/90 to-cyan-950/30 rounded-xl border border-cyan-500/20 space-y-2">
               <div className="flex items-center justify-between">
-                <label className="flex items-center space-x-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formData.enableAfternoonSlot}
-                    onChange={(e) => handleChange("enableAfternoonSlot", e.target.checked)}
-                    className="w-4 h-4 rounded border-slate-700 bg-slate-950 text-cyan-500 focus:ring-0 focus:ring-offset-0 cursor-pointer"
-                  />
-                  <span className="text-slate-200 font-semibold flex items-center gap-1.5">
-                    <IconSun className="w-4 h-4 text-amber-400" />
-                    Slot Pomeridiano (16:30 - 19:00)
+                <span className="text-cyan-300 font-semibold flex items-center gap-1.5">
+                  <IconSun className="w-4 h-4 text-amber-400" />
+                  Gestione Flessibile Slot Extra (Time Shifter)
+                </span>
+                {customOverridesCount > 0 ? (
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+                    {customOverridesCount} date personalizzate
                   </span>
-                </label>
-                <span className="text-[10px] uppercase font-bold text-slate-400">Lun - Ven</span>
+                ) : (
+                  <span className="text-[10px] uppercase font-bold text-slate-400">Dinamico nel To-Do</span>
+                )}
               </div>
-
-              {formData.enableAfternoonSlot && (
-                <div className="flex items-center justify-between pt-1">
-                  <span className="text-[11px] text-slate-400">Ore dedicate allo slot pomeridiano:</span>
-                  <div className="flex items-center space-x-1.5 w-28">
-                    <input
-                      type="number"
-                      step="0.5"
-                      min="0.5"
-                      max="4.0"
-                      value={formData.afternoonStudyHours}
-                      onChange={(e) => handleChange("afternoonStudyHours", parseFloat(e.target.value) || 2.5)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-white font-mono text-right focus:outline-none focus:border-cyan-500"
-                    />
-                    <span className="text-slate-500 font-mono text-xs">h</span>
-                  </div>
+              <p className="text-[11px] text-slate-300 leading-relaxed">
+                Gli slot extra non sono più rigidi o vincolati al solo pomeriggio. Nella scheda <strong>To-Do Settimanale</strong> puoi usare i controlli <strong>[- 30m]</strong> e <strong>[+ 30m]</strong> nell'header di ogni giorno per modellare al volo il budget in base ai tuoi imprevisti lavorativi!
+              </p>
+              {customOverridesCount > 0 && onResetDayCapacities && (
+                <div className="pt-1 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (confirm(`Ripristinare le capacità standard per tutti i ${customOverridesCount} giorni personalizzati?`)) {
+                        onResetDayCapacities();
+                      }
+                    }}
+                    className="text-[11px] text-rose-300 hover:text-rose-200 underline"
+                  >
+                    Ripristina tutti i giorni ai default standard
+                  </button>
                 </div>
               )}
             </div>
 
-            {/* Evening & Weekend Slots */}
+            {/* Baseline Evening & Weekend Slots */}
             <div className="grid grid-cols-2 gap-3">
               <div className="p-3 bg-slate-900/80 rounded-xl border border-slate-800 space-y-1.5">
                 <div className="flex items-center space-x-1.5 text-slate-300 font-semibold text-[11px]">
                   <IconMoon className="w-3.5 h-3.5 text-indigo-400" />
-                  <span>Slot Serale (19:30 - 22:00)</span>
+                  <span>Sera Feriale (19:30 - 22:00)</span>
                 </div>
                 <div className="flex items-center space-x-1.5">
                   <input
                     type="number"
                     step="0.5"
                     min="1"
-                    max="5"
+                    max="6"
                     value={formData.eveningStudyHours}
                     onChange={(e) => handleChange("eveningStudyHours", parseFloat(e.target.value) || 2.5)}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-white font-mono focus:outline-none focus:border-cyan-500"
@@ -5716,7 +5952,7 @@ function SettingsModal({ isOpen, onClose, settings, onSaveSettings }) {
             </div>
 
             <div className="text-[11px] text-slate-400 bg-slate-900/50 p-2 rounded-xl flex items-center justify-between">
-              <span>Capacità nominale totale settimanale:</span>
+              <span>Capacità nominale standard settimanale:</span>
               <strong className="text-cyan-300 font-mono">{nominalWeeklyCapacity}h / settimana</strong>
             </div>
           </div>
@@ -5735,15 +5971,13 @@ function SettingsModal({ isOpen, onClose, settings, onSaveSettings }) {
                   min="10"
                   max="45"
                   value={formData.criticalWeeklyHoursThreshold}
-                  onChange={(e) => handleChange("criticalWeeklyHoursThreshold", parseFloat(e.target.value) || (formData.enableAfternoonSlot ? 35 : 25))}
+                  onChange={(e) => handleChange("criticalWeeklyHoursThreshold", parseFloat(e.target.value) || 25)}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-rose-500"
                 />
                 <span className="text-slate-500 font-mono">h/sett.</span>
               </div>
               <p className="text-[10px] text-slate-500 mt-1">
-                {formData.enableAfternoonSlot
-                  ? "Consigliata a 35h con slot pomeridiano attivo"
-                  : "Consigliata a 25h per solo studio serale"}
+                Consigliata a 25h/sett. per serale puro, o 35h se impieghi regolarmente slot extra
               </p>
             </div>
 
@@ -5809,17 +6043,38 @@ function SettingsModal({ isOpen, onClose, settings, onSaveSettings }) {
 
 const LOCAL_STORAGE_KEY_TOPICS = "unimore_rebalancer_topics_v2";
 const LOCAL_STORAGE_KEY_SETTINGS = "unimore_rebalancer_settings_v2";
+const LOCAL_STORAGE_KEY_CUSTOM_CAPACITIES = "unimore_rebalancer_custom_capacities_v2";
 
 function App() {
   // Load saved state from localStorage if available, or use official UNIMORE defaults
+  // Ensures granular partial progress: oreEffettive (float) and completato (boolean)
   const [topics, setTopics] = useState(() => {
     try {
       const saved = localStorage.getItem(LOCAL_STORAGE_KEY_TOPICS);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.map(t => {
+          const isDone = Boolean(t.completato !== undefined ? t.completato : t.isCompleted);
+          const oreEff = t.oreEffettive !== undefined && t.oreEffettive !== null
+            ? Number(t.oreEffettive)
+            : (isDone ? Number(t.oreStimate || 2.0) : 0);
+          return {
+            ...t,
+            completato: isDone,
+            isCompleted: isDone,
+            oreEffettive: oreEff
+          };
+        });
+      }
     } catch (e) {
       console.warn("Could not load topics from localStorage", e);
     }
-    return INITIAL_TOPICS;
+    return INITIAL_TOPICS.map(t => ({
+      ...t,
+      completato: false,
+      isCompleted: false,
+      oreEffettive: 0
+    }));
   });
 
   const [settings, setSettings] = useState(() => {
@@ -5830,6 +6085,17 @@ function App() {
       console.warn("Could not load settings from localStorage", e);
     }
     return DEFAULT_SETTINGS;
+  });
+
+  // Dynamic daily capacities override (Time Shifter)
+  const [customDayCapacities, setCustomDayCapacities] = useState(() => {
+    try {
+      const saved = localStorage.getItem(LOCAL_STORAGE_KEY_CUSTOM_CAPACITIES);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.warn("Could not load customDayCapacities from localStorage", e);
+    }
+    return {};
   });
 
   const [activeTab, setActiveTab] = useState("dashboard"); // "dashboard" | "weekly" | "history" | "topics" | "import"
@@ -5908,6 +6174,14 @@ function App() {
     }
   }, [settings]);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(LOCAL_STORAGE_KEY_CUSTOM_CAPACITIES, JSON.stringify(customDayCapacities));
+    } catch (e) {
+      console.warn("Failed to persist customDayCapacities", e);
+    }
+  }, [customDayCapacities]);
+
   // Transparent Auto-Sync: Automatically overwrite connected JSON file on any global state change
   useEffect(() => {
     if (!fileHandle) return;
@@ -5920,7 +6194,8 @@ function App() {
         const backupData = {
           exportDate: new Date().toISOString(),
           settings,
-          topics
+          topics,
+          customDayCapacities
         };
         await writable.write(JSON.stringify(backupData, null, 2));
         await writable.close();
@@ -5946,7 +6221,7 @@ function App() {
     return () => {
       isMounted = false;
     };
-  }, [topics, settings, fileHandle]);
+  }, [topics, settings, customDayCapacities, fileHandle]);
 
   // Connect file handle using File System Access API
   const handleConnectFileSystem = async () => {
@@ -5975,6 +6250,9 @@ function App() {
           if (backup.settings) {
             setSettings(backup.settings);
           }
+          if (backup.customDayCapacities && typeof backup.customDayCapacities === "object") {
+            setCustomDayCapacities(backup.customDayCapacities);
+          }
           imported = true;
         }
       } catch (e) {
@@ -5997,7 +6275,8 @@ function App() {
         await writable.write(JSON.stringify({
           exportDate: new Date().toISOString(),
           settings,
-          topics
+          topics,
+          customDayCapacities
         }, null, 2));
         await writable.close();
       } catch (err) {
@@ -6027,7 +6306,8 @@ function App() {
       await writable.write(JSON.stringify({
         exportDate: new Date().toISOString(),
         settings,
-        topics
+        topics,
+        customDayCapacities
       }, null, 2));
       await writable.close();
       setFsSyncStatus({
@@ -6042,10 +6322,27 @@ function App() {
     }
   };
 
+  // Dynamic Daily Capacity Override (Time Shifter) Handlers
+  const handleUpdateDayCapacity = (dateStr, newHours) => {
+    setCustomDayCapacities(prev => {
+      const updated = { ...prev };
+      if (newHours === null || newHours === undefined) {
+        delete updated[dateStr];
+      } else {
+        updated[dateStr] = Math.max(0, Number(Number(newHours).toFixed(1)));
+      }
+      return updated;
+    });
+  };
+
+  const handleResetDayCapacities = () => {
+    setCustomDayCapacities({});
+  };
+
   // Reactive Rebalancing calculation
   const rebalancedPlan = useMemo(() => {
-    return rebalanceStudyPlan(topics, settings);
-  }, [topics, settings]);
+    return rebalanceStudyPlan(topics, settings, customDayCapacities);
+  }, [topics, settings, customDayCapacities]);
 
   const { metrics, weeklyPlans, progress, historyDays } = rebalancedPlan;
 
@@ -6054,11 +6351,35 @@ function App() {
     setTopics(prev =>
       prev.map(t => {
         if (t.id === topicId) {
-          const willComplete = !t.isCompleted;
+          const isDone = Boolean(t.completato !== undefined ? t.completato : t.isCompleted);
+          const willComplete = !isDone;
+          const currentEff = Number(t.oreEffettive || 0);
           return {
             ...t,
+            completato: willComplete,
             isCompleted: willComplete,
-            completedDate: willComplete ? (t.completedDate || settings.currentSimulatedDate) : null
+            completedDate: willComplete ? (t.completedDate || settings.currentSimulatedDate) : null,
+            // If marking completed and had 0 hours logged, defaults to oreStimate; else preserves accumulated hours
+            oreEffettive: willComplete && currentEff === 0 ? Number(t.oreStimate || 2.0) : currentEff
+          };
+        }
+        return t;
+      })
+    );
+  };
+
+  // Granular Partial Progress: Add or set hours spent on a topic without completing it
+  const handleUpdateTopicHours = (topicId, deltaOrNewHours, isDelta = true) => {
+    setTopics(prev =>
+      prev.map(t => {
+        if (t.id === topicId) {
+          const cur = Number(t.oreEffettive || 0);
+          const nextVal = isDelta
+            ? Math.max(0, Number((cur + deltaOrNewHours).toFixed(2)))
+            : Math.max(0, Number(Number(deltaOrNewHours).toFixed(2)));
+          return {
+            ...t,
+            oreEffettive: nextVal
           };
         }
         return t;
@@ -6306,7 +6627,10 @@ function App() {
           <WeeklyTodo
             weeklyPlans={weeklyPlans}
             onToggleComplete={handleToggleComplete}
+            onUpdateTopicHours={handleUpdateTopicHours}
             settings={settings}
+            customDayCapacities={customDayCapacities}
+            onUpdateDayCapacity={handleUpdateDayCapacity}
           />
         )}
 
@@ -6325,6 +6649,7 @@ function App() {
           <TopicsTable
             topics={topics}
             onToggleComplete={handleToggleComplete}
+            onUpdateTopicHours={handleUpdateTopicHours}
             onBatchUpdate={handleTopicsUpdated}
           />
         )}
@@ -6333,6 +6658,8 @@ function App() {
           <FileImporter
             topics={topics}
             settings={settings}
+            customDayCapacities={customDayCapacities}
+            onCustomCapacitiesUpdated={(newCapacities) => setCustomDayCapacities(newCapacities)}
             onTopicsUpdated={handleTopicsUpdated}
             onSettingsUpdated={(newSettings) => setSettings(newSettings)}
             fsSyncStatus={fsSyncStatus}
@@ -6402,6 +6729,8 @@ function App() {
         onClose={() => setIsSettingsOpen(false)}
         settings={settings}
         onSaveSettings={(newSettings) => setSettings(newSettings)}
+        customDayCapacities={customDayCapacities}
+        onResetDayCapacities={handleResetDayCapacities}
       />
 
       {/* CLARKE-9000 Isolated Side Companion */}

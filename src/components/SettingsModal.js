@@ -1,12 +1,20 @@
 import React, { useState } from "react";
 import { IconSettings, IconClock, IconCalendar, IconBriefcase, IconFlame, IconSun, IconMoon } from "./Icons.js";
 
-export function SettingsModal({ isOpen, onClose, settings, onSaveSettings }) {
+export function SettingsModal({
+  isOpen,
+  onClose,
+  settings,
+  onSaveSettings,
+  customDayCapacities = {},
+  onResetDayCapacities
+}) {
   const [formData, setFormData] = useState({
     ...settings,
-    enableAfternoonSlot: settings.enableAfternoonSlot !== false,
-    afternoonStudyHours: settings.afternoonStudyHours !== undefined ? settings.afternoonStudyHours : 2.5,
-    eveningStudyHours: settings.eveningStudyHours !== undefined ? settings.eveningStudyHours : 2.5,
+    eveningStudyHours: settings.eveningStudyHours !== undefined ? settings.eveningStudyHours : (settings.weekdayStudyHours || 2.5),
+    weekdayStudyHours: settings.weekdayStudyHours !== undefined ? settings.weekdayStudyHours : (settings.eveningStudyHours || 2.5),
+    weekendStudyHours: settings.weekendStudyHours !== undefined ? settings.weekendStudyHours : 4.5,
+    criticalWeeklyHoursThreshold: settings.criticalWeeklyHoursThreshold || 25.0
   });
 
   if (!isOpen) return null;
@@ -18,14 +26,8 @@ export function SettingsModal({ isOpen, onClose, settings, onSaveSettings }) {
         [field]: val
       };
 
-      // Keep weekdayStudyHours synced with afternoon + evening sum
-      const afternoon = updated.enableAfternoonSlot ? Number(updated.afternoonStudyHours || 2.5) : 0;
-      const evening = Number(updated.eveningStudyHours || 2.5);
-      updated.weekdayStudyHours = Number((afternoon + evening).toFixed(1));
-
-      // If user toggles afternoon slot, suggest updated burnout threshold
-      if (field === "enableAfternoonSlot") {
-        updated.criticalWeeklyHoursThreshold = val ? 35.0 : 25.0;
+      if (field === "eveningStudyHours") {
+        updated.weekdayStudyHours = Number(val);
       }
 
       return updated;
@@ -34,22 +36,20 @@ export function SettingsModal({ isOpen, onClose, settings, onSaveSettings }) {
 
   const handleSave = (e) => {
     e.preventDefault();
-    const afternoon = formData.enableAfternoonSlot ? Number(formData.afternoonStudyHours || 2.5) : 0;
     const evening = Number(formData.eveningStudyHours || 2.5);
-    const combinedWeekday = Number((afternoon + evening).toFixed(1));
-
     const toSave = {
       ...formData,
-      weekdayStudyHours: combinedWeekday
+      weekdayStudyHours: evening,
+      eveningStudyHours: evening
     };
     onSaveSettings(toSave);
     onClose();
   };
 
-  const currentAfternoon = formData.enableAfternoonSlot ? Number(formData.afternoonStudyHours || 2.5) : 0;
-  const currentEvening = Number(formData.eveningStudyHours || 2.5);
-  const totalWeekdayCapacity = Number((currentAfternoon + currentEvening).toFixed(1));
-  const nominalWeeklyCapacity = Number(((totalWeekdayCapacity * 5) + (Number(formData.weekendStudyHours || 4.5) * 2)).toFixed(1));
+  const currentWeekday = Number(formData.eveningStudyHours || 2.5);
+  const currentWeekend = Number(formData.weekendStudyHours || 4.5);
+  const nominalWeeklyCapacity = Number(((currentWeekday * 5) + (currentWeekend * 2)).toFixed(1));
+  const customOverridesCount = Object.keys(customDayCapacities || {}).length;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
@@ -61,7 +61,7 @@ export function SettingsModal({ isOpen, onClose, settings, onSaveSettings }) {
             </div>
             <div>
               <h3 className="text-base font-bold text-white">Parametri di Ribilanciamento</h3>
-              <p className="text-xs text-slate-400">Personalizza orari di studio e date d'esame</p>
+              <p className="text-xs text-slate-400">Personalizza orari di studio, slot e date d'esame</p>
             </div>
           </div>
           <button
@@ -104,63 +104,61 @@ export function SettingsModal({ isOpen, onClose, settings, onSaveSettings }) {
             <div className="flex items-center justify-between text-cyan-400 font-bold">
               <div className="flex items-center space-x-2">
                 <IconBriefcase className="w-4 h-4" />
-                <span>Orari & Fasce di Studio Feriali e Weekend</span>
+                <span>Orari Base & Gestione Flessibile Slot Extra</span>
               </div>
               <span className="text-[11px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-lg">
-                Feriale: {totalWeekdayCapacity}h/gg
+                Feriale base: {currentWeekday}h/gg
               </span>
             </div>
 
-            {/* Afternoon Slot (16:30 - 19:00) */}
-            <div className="p-3 bg-slate-900/80 rounded-xl border border-slate-800 space-y-2">
+            {/* Flexible Extra Slots Info Card */}
+            <div className="p-3 bg-gradient-to-r from-slate-900/90 to-cyan-950/30 rounded-xl border border-cyan-500/20 space-y-2">
               <div className="flex items-center justify-between">
-                <label className="flex items-center space-x-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formData.enableAfternoonSlot}
-                    onChange={(e) => handleChange("enableAfternoonSlot", e.target.checked)}
-                    className="w-4 h-4 rounded border-slate-700 bg-slate-950 text-cyan-500 focus:ring-0 focus:ring-offset-0 cursor-pointer"
-                  />
-                  <span className="text-slate-200 font-semibold flex items-center gap-1.5">
-                    <IconSun className="w-4 h-4 text-amber-400" />
-                    Slot Pomeridiano (16:30 - 19:00)
+                <span className="text-cyan-300 font-semibold flex items-center gap-1.5">
+                  <IconSun className="w-4 h-4 text-amber-400" />
+                  Gestione Flessibile Slot Extra (Time Shifter)
+                </span>
+                {customOverridesCount > 0 ? (
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+                    {customOverridesCount} date personalizzate
                   </span>
-                </label>
-                <span className="text-[10px] uppercase font-bold text-slate-400">Lun - Ven</span>
+                ) : (
+                  <span className="text-[10px] uppercase font-bold text-slate-400">Dinamico nel To-Do</span>
+                )}
               </div>
-
-              {formData.enableAfternoonSlot && (
-                <div className="flex items-center justify-between pt-1">
-                  <span className="text-[11px] text-slate-400">Ore dedicate allo slot pomeridiano:</span>
-                  <div className="flex items-center space-x-1.5 w-28">
-                    <input
-                      type="number"
-                      step="0.5"
-                      min="0.5"
-                      max="4.0"
-                      value={formData.afternoonStudyHours}
-                      onChange={(e) => handleChange("afternoonStudyHours", parseFloat(e.target.value) || 2.5)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-white font-mono text-right focus:outline-none focus:border-cyan-500"
-                    />
-                    <span className="text-slate-500 font-mono text-xs">h</span>
-                  </div>
+              <p className="text-[11px] text-slate-300 leading-relaxed">
+                Gli slot extra non sono più rigidi o vincolati al solo pomeriggio. Nella scheda <strong>To-Do Settimanale</strong> puoi usare i controlli <strong>[- 30m]</strong> e <strong>[+ 30m]</strong> nell'header di ogni giorno per modellare al volo il budget in base ai tuoi imprevisti lavorativi!
+              </p>
+              {customOverridesCount > 0 && onResetDayCapacities && (
+                <div className="pt-1 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (confirm(`Ripristinare le capacità standard per tutti i ${customOverridesCount} giorni personalizzati?`)) {
+                        onResetDayCapacities();
+                      }
+                    }}
+                    className="text-[11px] text-rose-300 hover:text-rose-200 underline"
+                  >
+                    Ripristina tutti i giorni ai default standard
+                  </button>
                 </div>
               )}
             </div>
 
-            {/* Evening & Weekend Slots */}
+            {/* Baseline Evening & Weekend Slots */}
             <div className="grid grid-cols-2 gap-3">
               <div className="p-3 bg-slate-900/80 rounded-xl border border-slate-800 space-y-1.5">
                 <div className="flex items-center space-x-1.5 text-slate-300 font-semibold text-[11px]">
                   <IconMoon className="w-3.5 h-3.5 text-indigo-400" />
-                  <span>Slot Serale (19:30 - 22:00)</span>
+                  <span>Sera Feriale (19:30 - 22:00)</span>
                 </div>
                 <div className="flex items-center space-x-1.5">
                   <input
                     type="number"
                     step="0.5"
                     min="1"
-                    max="5"
+                    max="6"
                     value={formData.eveningStudyHours}
                     onChange={(e) => handleChange("eveningStudyHours", parseFloat(e.target.value) || 2.5)}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-white font-mono focus:outline-none focus:border-cyan-500"
@@ -190,7 +188,7 @@ export function SettingsModal({ isOpen, onClose, settings, onSaveSettings }) {
             </div>
 
             <div className="text-[11px] text-slate-400 bg-slate-900/50 p-2 rounded-xl flex items-center justify-between">
-              <span>Capacità nominale totale settimanale:</span>
+              <span>Capacità nominale standard settimanale:</span>
               <strong className="text-cyan-300 font-mono">{nominalWeeklyCapacity}h / settimana</strong>
             </div>
           </div>
@@ -209,15 +207,13 @@ export function SettingsModal({ isOpen, onClose, settings, onSaveSettings }) {
                   min="10"
                   max="45"
                   value={formData.criticalWeeklyHoursThreshold}
-                  onChange={(e) => handleChange("criticalWeeklyHoursThreshold", parseFloat(e.target.value) || (formData.enableAfternoonSlot ? 35 : 25))}
+                  onChange={(e) => handleChange("criticalWeeklyHoursThreshold", parseFloat(e.target.value) || 25)}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-rose-500"
                 />
                 <span className="text-slate-500 font-mono">h/sett.</span>
               </div>
               <p className="text-[10px] text-slate-500 mt-1">
-                {formData.enableAfternoonSlot
-                  ? "Consigliata a 35h con slot pomeridiano attivo"
-                  : "Consigliata a 25h per solo studio serale"}
+                Consigliata a 25h/sett. per serale puro, o 35h se impieghi regolarmente slot extra
               </p>
             </div>
 
