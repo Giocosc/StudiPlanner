@@ -188,12 +188,29 @@ $contextMenu.Items.Add((New-Object System.Windows.Forms.ToolStripSeparator)) | O
 # 3. ACCESSO WEB (Locale & LAN)
 # ------------------------------------------------------------------------------
 $itemOpenLocal = New-Object System.Windows.Forms.ToolStripMenuItem
-$itemOpenLocal.Text = "🌐 Apri nel Browser (Locale)"
+$itemOpenLocal.Text = "🌐 Apri nel Browser (Scheda)"
 $itemOpenLocal.Font = New-Object System.Drawing.Font($itemOpenLocal.Font, [System.Drawing.FontStyle]::Bold)
 $itemOpenLocal.Add_Click({
     [System.Diagnostics.Process]::Start("http://localhost:$port")
 })
 $contextMenu.Items.Add($itemOpenLocal) | Out-Null
+
+# Apri come App Desktop standalone
+$itemOpenAppMode = New-Object System.Windows.Forms.ToolStripMenuItem
+$itemOpenAppMode.Text = "💻 Apri come App Desktop (Finestra Nativa)"
+$itemOpenAppMode.Add_Click({
+    $chromePath = "C:\Program Files\Google\Chrome\Application\chrome.exe"
+    $edgePath = "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
+    if (Test-Path $chromePath) {
+        [System.Diagnostics.Process]::Start($chromePath, "--app=http://localhost:$port")
+    } elseif (Test-Path $edgePath) {
+        [System.Diagnostics.Process]::Start($edgePath, "--app=http://localhost:$port")
+    } else {
+        [System.Diagnostics.Process]::Start("http://localhost:$port")
+    }
+})
+$contextMenu.Items.Add($itemOpenAppMode) | Out-Null
+
 
 # Sottomenu Accesso LAN per dispositivi esterni
 $itemLanMenu = New-Object System.Windows.Forms.ToolStripMenuItem
@@ -307,6 +324,17 @@ $itemOpenFolder.Add_Click({
     [System.Diagnostics.Process]::Start("explorer.exe", $projectDir)
 })
 $itemToolsMenu.DropDownItems.Add($itemOpenFolder) | Out-Null
+
+$itemCreateShortcut = New-Object System.Windows.Forms.ToolStripMenuItem
+$itemCreateShortcut.Text = "📌 Crea/Ripristina Collegamento su Desktop (Taskbar)"
+$itemCreateShortcut.Add_Click({
+    $shortcutScript = Join-Path $projectDir "create_taskbar_shortcut.ps1"
+    if (Test-Path $shortcutScript) {
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $shortcutScript
+        $notifyIcon.ShowBalloonTip(3500, "StudiPlanner", "Collegamento creato sul Desktop!`nFai clic destro per 'Aggiungi alla barra delle applicazioni'.", [System.Windows.Forms.ToolTipIcon]::Info)
+    }
+})
+$itemToolsMenu.DropDownItems.Add($itemCreateShortcut) | Out-Null
 
 $contextMenu.Items.Add($itemToolsMenu) | Out-Null
 
