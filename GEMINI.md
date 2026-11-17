@@ -1,5 +1,5 @@
 # 🤖 Antigravity / Gemini — Workspace Guidelines & Standards
-## Study Plan Rebalancer (UNIMORE — Ingegneria Informatica)
+## StudiPlanner (UNIMORE — Ingegneria Informatica)
 
 Questo documento definisce il contesto operativo, gli standard architetturali, i vincoli algoritmici e le linee guida per qualsiasi conversazione e sessione di sviluppo all'interno di questo repository.
 

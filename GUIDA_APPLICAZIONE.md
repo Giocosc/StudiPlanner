@@ -1,4 +1,4 @@
-# 📘 Guida Completa all'Uso — Study Plan Rebalancer
+# 📘 Guida Completa all'Uso — StudiPlanner
 ### *Pianificatore Dinamico per gli Esami di Analisi Matematica 1 e Geometria (UNIMORE)*
 **Sessione Invernale: 16 Novembre 2026 – 10 Gennaio 2027**  
 **Profilo Utente:** Studente Lavoratore Full-Time (Ingegneria Informatica)
@@ -33,7 +33,7 @@
 
 ## 1. Introduzione e Obiettivo dell'Applicazione
 
-Lo **Study Plan Rebalancer** è una Single Page Application (SPA) responsive progettata specificamente per risolvere il problema principale degli studenti lavoratori universitari: **la rigidità dei piani di studio tradizionali**.
+Lo **StudiPlanner** è una Single Page Application (SPA) responsive progettata specificamente per risolvere il problema principale degli studenti lavoratori universitari: **la rigidità dei piani di studio tradizionali**.
 
 Quando si lavora a tempo pieno (40 ore settimanali), è inevitabile che imprevisti lavorativi, stanchezza o emergenze personali costringano a saltare uno o più giorni di studio. In una tabella Excel statica, un giorno saltato fa crollare l'intero piano.  
 

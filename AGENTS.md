@@ -1,5 +1,5 @@
 # 🤖 Antigravity / Agent Guidelines & Workspace Standards
-## Study Plan Rebalancer (UNIMORE — Ingegneria Informatica)
+## StudiPlanner (UNIMORE — Ingegneria Informatica)
 
 Per tutte le linee guida architetturali, i vincoli algoritmici immutabili, le istruzioni di build e le regole di propedeuticità matematica, fare riferimento al file principale:
 

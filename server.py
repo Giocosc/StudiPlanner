@@ -36,7 +36,7 @@ def run():
 
     url = f"http://localhost:{port}"
     print("=" * 60)
-    print("🚀 Study Plan Rebalancer — Server Avviato!")
+    print("🚀 StudiPlanner — Server Avviato!")
     print(f"📍 URL: {url}")
     print("📂 Cartella:", DIRECTORY)
     print("Premere CTRL+C per arrestare il server.")

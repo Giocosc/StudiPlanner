@@ -138,7 +138,7 @@ export function App() {
             <div>
               <div className="flex items-center space-x-2">
                 <h1 className="text-base md:text-lg font-black tracking-tight text-white">
-                  Study Plan <span className="bg-gradient-to-r from-cyan-400 to-indigo-400 bg-clip-text text-transparent">Rebalancer</span>
+                  Studi<span className="bg-gradient-to-r from-cyan-400 to-indigo-400 bg-clip-text text-transparent">Planner</span>
                 </h1>
                 <span className="hidden sm:inline-block text-[10px] font-bold uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded-full">
                   UNIMORE Ingegneria

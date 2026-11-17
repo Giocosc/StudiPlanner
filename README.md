@@ -1,4 +1,4 @@
-# 🎓 Study Plan Rebalancer — Analisi 1 & Geometria
+# 🎓 StudiPlanner — Analisi 1 & Geometria
 ### *Pianificatore Didattico Adattivo per Studenti Lavoratori (UNIMORE Ingegneria Informatica)*
 
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](https://react.dev/)
