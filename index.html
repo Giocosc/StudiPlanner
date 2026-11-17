@@ -16,42 +16,44 @@
   <meta name="apple-mobile-web-app-title" content="StudiPlanner" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
 
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Tailwind CSS (Offline-first locale con fallback CDN) -->
+  <script src="vendor/tailwindcss.js" onerror="this.onerror=null;this.src='https://cdn.tailwindcss.com';"></script>
   <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            slate: {
-              850: '#111827',
-              900: '#0f172a',
-              950: '#070b14',
-            }
-          },
-          animation: {
-            'pulse-subtle': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-            'fade-in': 'fadeIn 0.25s ease-out forwards',
-          },
-          keyframes: {
-            fadeIn: {
-              '0%': { opacity: '0', transform: 'scale(0.98)' },
-              '100%': { opacity: '1', transform: 'scale(1)' },
+    if (window.tailwind) {
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              slate: {
+                850: '#111827',
+                900: '#0f172a',
+                950: '#070b14',
+              }
+            },
+            animation: {
+              'pulse-subtle': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              'fade-in': 'fadeIn 0.25s ease-out forwards',
+            },
+            keyframes: {
+              fadeIn: {
+                '0%': { opacity: '0', transform: 'scale(0.98)' },
+                '100%': { opacity: '1', transform: 'scale(1)' },
+              }
             }
           }
         }
-      }
+      };
     }
   </script>
 
-  <!-- React 18, ReactDOM 18 & SheetJS (XLSX) -->
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+  <!-- React 18, ReactDOM 18 & SheetJS (Offline-first locali con fallback CDN) -->
+  <script src="vendor/react.production.min.js" onerror="this.onerror=null;this.src='https://unpkg.com/react@18/umd/react.production.min.js';"></script>
+  <script src="vendor/react-dom.production.min.js" onerror="this.onerror=null;this.src='https://unpkg.com/react-dom@18/umd/react-dom.production.min.js';"></script>
+  <script src="vendor/xlsx.full.min.js" onerror="this.onerror=null;this.src='https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js';"></script>
 
-  <!-- Babel Standalone (for in-browser JSX transpilation) -->
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- Babel Standalone (Offline-first locale con fallback CDN) -->
+  <script src="vendor/babel.min.js" onerror="this.onerror=null;this.src='https://unpkg.com/@babel/standalone/babel.min.js';"></script>
 
   <style>
     /* Custom dark scrollbar */
@@ -80,16 +82,47 @@
 </head>
 <body class="bg-[#070b14] text-slate-100 min-h-screen">
   <div id="root">
-    <!-- Initial Loading State -->
-    <div class="min-h-screen flex flex-col items-center justify-center p-4">
+    <!-- Initial Loading State con Watchdog anti-schermo nero -->
+    <div id="initial-loader" class="min-h-screen flex flex-col items-center justify-center p-4 select-none">
       <div class="relative w-16 h-16 mb-4">
         <div class="absolute inset-0 rounded-full border-4 border-cyan-500/20"></div>
         <div class="absolute inset-0 rounded-full border-4 border-cyan-400 border-t-transparent animate-spin"></div>
       </div>
       <h2 class="text-lg font-bold text-white tracking-wide">StudiPlanner</h2>
-      <p class="text-xs text-slate-400 mt-1">Caricamento piano di studio UNIMORE in corso...</p>
+      <p class="text-xs text-slate-400 mt-1">Caricamento piano didattico UNIMORE...</p>
+      
+      <!-- Pulsante di emergenza mostrato solo in caso di ritardo -->
+      <div id="loader-watchdog" class="hidden mt-6 text-center">
+        <p class="text-xs text-amber-400/90 mb-3">Il caricamento iniziale richiede più tempo del previsto.</p>
+        <button onclick="window.location.reload()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-white rounded-xl shadow-lg transition">
+          Ricarica Pagina (F5)
+        </button>
+      </div>
     </div>
   </div>
+
+  <!-- Watchdog script per prevenire qualsiasi blocco o schermo nero -->
+  <script>
+    setTimeout(function() {
+      var loader = document.getElementById('initial-loader');
+      var watchdog = document.getElementById('loader-watchdog');
+      // Se dopo 3.5s il loader iniziale è ancora presente, mostra il pulsante di riavvio rapido
+      if (loader && watchdog) {
+        watchdog.classList.remove('hidden');
+      }
+    }, 3500);
+
+    // Global Error Catcher prima di React
+    window.addEventListener('error', function(e) {
+      console.error('[StudiPlanner Global Error]', e);
+      var root = document.getElementById('root');
+      var loader = document.getElementById('initial-loader');
+      if (loader) {
+        var watchdog = document.getElementById('loader-watchdog');
+        if (watchdog) watchdog.classList.remove('hidden');
+      }
+    });
+  </script>
 
   <!-- Main Bundle Script -->
   <script type="text/babel" src="bundle.js"></script>
@@ -97,10 +130,10 @@
   <!-- Service Worker Registration -->
   <script>
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
+      window.addEventListener('load', function() {
         navigator.serviceWorker.register('./sw.js')
-          .then((reg) => console.log('[PWA] ServiceWorker registered with scope:', reg.scope))
-          .catch((err) => console.log('[PWA] ServiceWorker registration failed:', err));
+          .then(function(reg) { console.log('[PWA] ServiceWorker registered with scope:', reg.scope); })
+          .catch(function(err) { console.warn('[PWA] ServiceWorker registration warning:', err); });
       });
     }
   </script>

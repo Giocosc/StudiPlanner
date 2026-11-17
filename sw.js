@@ -1,19 +1,28 @@
-const CACHE_NAME = 'studiplanner-v1';
+const CACHE_NAME = 'studiplanner-v2';
 const STATIC_ASSETS = [
   './',
   './index.html',
   './bundle.js',
   './manifest.json',
+  './favicon.ico',
+  './icons/app.ico',
   './icons/icon-192.png',
-  './icons/icon-512.png'
+  './icons/icon-512.png',
+  './vendor/react.production.min.js',
+  './vendor/react-dom.production.min.js',
+  './vendor/babel.min.js',
+  './vendor/xlsx.full.min.js',
+  './vendor/tailwindcss.js'
 ];
 
-// Install: Cache critical static assets
+// Install: Cache critical static assets locally
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[ServiceWorker] Caching app shell and static assets');
-      return cache.addAll(STATIC_ASSETS);
+      console.log('[ServiceWorker] Pre-caching local app shell and vendor assets');
+      return cache.addAll(STATIC_ASSETS).catch((err) => {
+        console.warn('[ServiceWorker] Some static assets failed to pre-cache:', err);
+      });
     }).then(() => self.skipWaiting())
   );
 });
@@ -25,7 +34,7 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         keyList.map((key) => {
           if (key !== CACHE_NAME) {
-            console.log('[ServiceWorker] Removing old cache:', key);
+            console.log('[ServiceWorker] Removing old cache version:', key);
             return caches.delete(key);
           }
         })
@@ -34,19 +43,17 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch: Network-first for dynamic code/bundle with cache fallback
+// Fetch strategy
 self.addEventListener('fetch', (event) => {
-  // Only handle GET requests
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
 
-  // If requesting local app assets, use network-first strategy with cache fallback
+  // Local app assets (Network-first with immediate cache fallback)
   if (url.origin === self.location.origin) {
     event.respondWith(
       fetch(event.request)
         .then((networkResponse) => {
-          // If valid response, cache a clone
           if (networkResponse && networkResponse.status === 200) {
             const responseToCache = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => {
@@ -56,11 +63,8 @@ self.addEventListener('fetch', (event) => {
           return networkResponse;
         })
         .catch(() => {
-          // Offline fallback
           return caches.match(event.request).then((cachedResponse) => {
-            if (cachedResponse) {
-              return cachedResponse;
-            }
+            if (cachedResponse) return cachedResponse;
             if (event.request.headers.get('accept')?.includes('text/html')) {
               return caches.match('./index.html');
             }
@@ -68,7 +72,7 @@ self.addEventListener('fetch', (event) => {
         })
     );
   } else {
-    // For external CDN requests (React, Tailwind, etc.), cache-first with network fallback
+    // External CDN assets (Cache-first with network fallback)
     event.respondWith(
       caches.match(event.request).then((cachedResponse) => {
         if (cachedResponse) return cachedResponse;
@@ -80,8 +84,6 @@ self.addEventListener('fetch', (event) => {
             });
           }
           return networkResponse;
-        }).catch((err) => {
-          console.warn('[ServiceWorker] Failed to fetch external asset offline:', event.request.url);
         });
       })
     );

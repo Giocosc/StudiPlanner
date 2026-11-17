@@ -1,6 +1,63 @@
 
-// In-browser globals from CDN
+// In-browser globals from React
 const { useState, useEffect, useMemo, useRef, useCallback } = React;
+
+// Global Error Boundary to prevent any blank black screen
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, errorInfo) {
+    console.error("[StudiPlanner ErrorBoundary Caught]", error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-[#070b14] text-slate-100 flex flex-col items-center justify-center p-6 text-center select-none">
+          <div className="w-16 h-16 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 mb-4 shadow-lg shadow-rose-500/10">
+            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold text-white mb-2">StudiPlanner — Ripristino Schermo</h2>
+          <p className="text-xs text-slate-400 max-w-md mb-6 leading-relaxed">
+            È stato intercettato un errore imprevisto di rendering. I tuoi dati salvati sono al sicuro in memoria locale.
+          </p>
+          <div className="flex gap-3">
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-bold rounded-xl text-xs shadow-lg transition"
+            >
+              Ricarica Pagina (F5)
+            </button>
+            <button
+              onClick={() => {
+                if (confirm("Ripristinare le impostazioni predefinite dei 63 argomenti UNIMORE?")) {
+                  localStorage.removeItem("unimore_rebalancer_topics_v2");
+                  localStorage.removeItem("unimore_rebalancer_settings_v2");
+                  window.location.reload();
+                }
+              }}
+              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl text-xs border border-slate-700 transition"
+            >
+              Ripristina Dati Predefiniti
+            </button>
+          </div>
+          {this.state.error && (
+            <pre className="mt-6 p-4 bg-slate-900/90 border border-slate-800 rounded-xl text-[11px] font-mono text-rose-300 max-w-xl text-left overflow-x-auto">
+              {this.state.error.toString()}
+            </pre>
+          )}
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 
 // --- src/data/defaultData.js ---
@@ -2796,141 +2853,139 @@ function ExamSimulator({ isOpen, onClose, topics = [], settings = {} }) {
 // --- src/components/Clarke9000Companion.js ---
 
 
-// --- DIZIONARIO ESTESO (120+ CITAZIONI & LOG PER CLARKE-9000) ---
-// Suddiviso in 7 sezioni: Arthur C. Clarke & Deep Space, HAL 9000, Grandi Scienziati,
-// Analisi Matematica 1, Geometria e Algebra, Studente Lavoratore, Countdown Tattico UNIMORE.
+// --- DIZIONARIO ESTESO: FILOSOFIA, LETTERATURA, MOTIVAZIONE & SCIENZA ---
+// Un compendio eterogeneo per ricordare allo studente lavoratore di dare il massimo,
+// unendo saggezza stoica, poesia classica, filosofia esistenzialista, grinta pura e visione cosmica.
 const CLARKE_QUOTES = [
-  // 1. Arthur C. Clarke & Deep Space Philosophy (1-20)
+  // =========================================================================
+  // 1. FILOSOFIA CLASSICA & STOICISMO (Marco Aurelio, Seneca, Epitteto, Aristotele)
+  // =========================================================================
+  (ctx) => `"La felicità della tua vita dipende dalla qualità dei tuoi pensieri. Agisci stasera come se ogni istante fosse decisivo." — Marco Aurelio`,
+  (ctx) => `"Non è perché le cose sono difficili che non osiamo, è perché non osiamo che sono difficili." — Seneca`,
+  (ctx) => `"Siamo ciò che facciamo ripetutamente. L'eccellenza, dunque, non è un atto, ma un'abitudine." Dai il massimo anche stasera. — Aristotele`,
+  (ctx) => `"Non pretendere che le cose vadano come vuoi tu; desidera invece che vadano come vanno, e sarai sereno." Domina il tuo studio. — Epitteto`,
+  (ctx) => `"Nessun vento è favorevole per il marinaio che non sa in quale porto vuole approdare. Tu hai una meta: 10 Gennaio 2027." — Seneca`,
+  (ctx) => `"La prima e più grande vittoria è vincere se stessi." — Platone`,
+  (ctx) => `"Non sprecare altro tempo a discutere su come debba essere un uomo di valore. Sii tale, ora, davanti a questo foglio." — Marco Aurelio`,
+  (ctx) => `"Se vuoi progredire e migliorarti, rassegnati a sembrare ignorante sulle cose che stai ancora imparando." — Epitteto`,
+  (ctx) => `"Nessun albero è forte e saldo se non quello continuamente scosso dal vento. Le difficoltà di stasera irrobustiscono la tua mente." — Seneca`,
+  (ctx) => `"La vita è come una commedia: non importa quanto è lunga, ma come è recitata. Recita da protagonista questa sessione serale." — Seneca`,
+  (ctx) => `"Un viaggio di mille miglia comincia sempre con il primo singolo passo. Procedi con fiducia." — Lao Tzu`,
+  (ctx) => `"Colui che domina gli altri è forte; colui che domina se stesso e la propria fatica è onnipotente." — Lao Tzu`,
+  (ctx) => `"Il segreto del cambiamento è concentrare tutta la tua energia non nel combattere la stanchezza, ma nel costruire la tua competenza." — Socrate`,
+  (ctx) => `"L'ostacolo sul cammino diventa il cammino. Ciò che si frappone alla tua azione fa avanzare la tua azione." — Marco Aurelio`,
+  (ctx) => `"La mente non è un vaso passivo da riempire, ma un fuoco vivo da accendere con la curiosità." — Plutarco`,
+  (ctx) => `"Non è saggio chi sa molte cose, ma chi sa cose utili e le applica con rigore." — Eschilo`,
+  (ctx) => `"Ciò che dipende da noi è libero per natura, ciò che non dipende da noi è debole. Il tuo impegno di stasera dipende solo da te." — Epitteto`,
+  (ctx) => `"Vivi come se dovessi morire domani. Impara come se dovessi vivere per sempre." — Mahatma Gandhi`,
+
+  // =========================================================================
+  // 2. GRANDI SCRITTORI & LETTERATURA UNIVERSALE (Dante, Goethe, Calvino, Hemingway, Hugo)
+  // =========================================================================
+  (ctx) => `"Fatti non foste a viver come bruti, ma per seguir virtute e canoscenza." — Dante Alighieri, Divina Commedia`,
+  (ctx) => `"Non ti curar di lor, ma guarda e passa." Concentrati esclusivamente sulla tua rotta, senza farti distrarre dal rumore di fondo. — Dante Alighieri`,
+  (ctx) => `"Qualunque cosa tu possa fare, qualunque sogno tu possa sognare, comincia. L'audacia reca in sé genialità, magia e forza." — J. W. von Goethe`,
+  (ctx) => `"Prendete la vita con leggerezza, che leggerezza non è superficialità, ma planare sulle cose dall'alto, senza macigni sul cuore." — Italo Calvino`,
+  (ctx) => `"L'uomo non è fatto per la sconfitta. Un uomo può essere distrutto, ma non sconfitto." Continua a remare. — Ernest Hemingway`,
+  (ctx) => `"La notte non è mai così nera come prima dell'alba. Persisti." — Ernest Hemingway`,
+  (ctx) => `"Anche la notte più buia e fredda finirà e il sole sorgerà di nuovo." — Victor Hugo, I Miserabili`,
+  (ctx) => `"Il futuro ha molti nomi. Per i deboli è l'irraggiungibile. Per i timorosi, lo sconosciuto. Per i coraggiosi è l'opportunità." — Victor Hugo`,
+  (ctx) => `"I dubbi sono traditori, e ci fanno perdere il bene che potremmo ottenere soltanto per la paura di tentare." — William Shakespeare`,
+  (ctx) => `"Sappiamo ciò che siamo oggi, ma non sappiamo ciò che potremmo essere domani se diamo il nostro cento per cento." — William Shakespeare`,
+  (ctx) => `"Fai della tua vita un sogno, e di un sogno, una realtà concreta." — Antoine de Saint-Exupéry`,
+  (ctx) => `"Ciò che dà un senso nobile alla vita rende ogni singolo minuto di fatica serale sacro e giustificato." — Antoine de Saint-Exupéry`,
+  (ctx) => `"Vivere è la cosa più rara al mondo. La maggior parte delle persone si limita a esistere. Tu stasera stai costruendo." — Oscar Wilde`,
+  (ctx) => `"La bellezza salverà il mondo; e l'armonia logica della matematica salverà la tua determinazione." — Fëdor Dostoevskij`,
+  (ctx) => `"Non ci sono scorciatoie per nessun posto dove valga la pena andare." — Beverly Sills`,
+  (ctx) => `"Le cose migliori e più belle di questo mondo non possono essere viste e nemmeno toccate. Bisogna sentirle con il cuore." — Helen Keller`,
+
+  // =========================================================================
+  // 3. FILOSOFIA MODERNA & ESISTENZIALISMO (Nietzsche, Camus, Schopenhauer, Spinoza, Kant)
+  // =========================================================================
+  (ctx) => `"Chi ha un 'perché' abbastanza forte per vivere può sopportare quasi qualsiasi 'come'." — Friedrich Nietzsche`,
+  (ctx) => `"Ciò che non mi spezza mi rende più forte." Ogni dimostrazione ostica è palestra per forgiare la tua mente. — Friedrich Nietzsche`,
+  (ctx) => `"Bisogna avere ancora un caos dentro di sé per partorire una stella danzante." Riordina il caos con la logica. — Friedrich Nietzsche`,
+  (ctx) => `"Nel bel mezzo dell'inverno più rigido, ho infine scoperto che vi era dentro di me un'invincibile estate." — Albert Camus`,
+  (ctx) => `"La vera grandezza non consiste nell'essere questo o quello, ma nell'essere se stessi fino in fondo e dare tutto." — Søren Kierkegaard`,
+  (ctx) => `"Il destino mescola le carte, ma siamo noi a doverle giocare. Gioca la tua mano migliore stasera." — Arthur Schopenhauer`,
+  (ctx) => `"Due cose riempiono l'animo di ammirazione sempre nuova: il cielo stellato sopra di me, e la legge morale dentro di me." — Immanuel Kant`,
+  (ctx) => `"L'ozio è la ruggine della mente; lo studio costante è il suo diamante più affilato." — Baruch Spinoza`,
+  (ctx) => `"Non deridere, non compiangere, non disprezzare: ma comprendere fino in fondo." — Baruch Spinoza`,
+  (ctx) => `"La libertà non è fare ciò che si vuole, ma volere ciò che si può dopo aver dominato se stessi." — J. P. Sartre`,
+
+  // =========================================================================
+  // 4. MOTIVAZIONE PURA, DISCIPLINA & DARE IL MASSIMO
+  // =========================================================================
+  (ctx) => `La disciplina è il ponte che separa ciò che desideri da ciò che diventerai. Attraversa quel ponte stasera.`,
+  (ctx) => `Nelle sere in cui non hai voglia di aprire il quaderno è esattamente il momento in cui si decide chi sei veramente. Dai il massimo.`,
+  (ctx) => `Il dolore della disciplina pesa pochi grammi al giorno; il rimpianto della rinuncia pesa tonnellate per anni. Scegli saggiamente.`,
+  (ctx) => `Non contare i giorni che mancano al 10 Gennaio: fai in modo che ogni singolo giorno conti per la tua preparazione.`,
+  (ctx) => `Quando senti la tentazione di mollare, ricorda con chiarezza cristallina il motivo per cui hai intrapreso questo cammino universitario.`,
+  (ctx) => `Lavora duramente in silenzio, nel segreto della tua stanza serale. Lascia che il voto sul libretto faccia tutto il rumore.`,
+  (ctx) => `Il sudore risparmiato nello studio serale si trasformerà in ansia prima dell'esame. Investi su te stesso adesso.`,
+  (ctx) => `Non cercare una motivazione emotiva passeggera: edifica abitudini quotidiane indistruttibili.`,
+  (ctx) => `La stanchezza delle 21:00 è spesso un inganno della mente: hai ancora un'ora di pura concentrazione da sprigionare.`,
+  (ctx) => `Chi vince non è chi non cade mai, ma chi sa riaprire gli appunti dopo una giornata lavorativa senza cercare alibi.`,
+  (ctx) => `Stasera non stai semplicemente preparando un esame: stai forgiando il carattere con cui affronterai ogni sfida futura.`,
+  (ctx) => `Concentrati al cento per cento su questo singolo argomento. Un teorema alla volta, una pagina alla volta, una vetta alla volta.`,
+  (ctx) => `La mediocrità è comoda e affollata; l'eccellenza richiede dedizione serale. Ma la vista dalla cima ripaga ogni fatica.`,
+  (ctx) => `Esistono due categorie: chi elenca scuse e chi porta a casa risultati. Sii sempre la seconda categoria.`,
+  (ctx) => `Non abbassare il tuo traguardo per renderlo agevole; innalza il livello del tuo impegno per renderlo inevitabile.`,
+  (ctx) => `Il rispetto per se stessi non si regala: si guadagna nelle ore silenziose in cui nessun altro ti sta guardando.`,
+  (ctx) => `Ogni minuto di studio di stasera compra un pezzo della tua libertà di domani. Non fermarti a metà.`,
+  (ctx) => `Sii esigente con te stesso: il talento senza disciplina è come un motore potente senza carburante.`,
+  (ctx) => `Non aspettare condizioni ideali per dare il massimo: le condizioni ideali si creano cominciando ad agire ora.`,
+  (ctx) => `Un'ora di studio intenso e privo di distrazioni batte quattro ore di studio distratto con lo smartphone acceso.`,
+
+  // =========================================================================
+  // 5. SCIENZA, GRANDI MATEMATICI & ARTHUR C. CLARKE
+  // =========================================================================
   (ctx) => `"L'unico modo per scoprire i limiti del possibile è avventurarsi un po' oltre di essi nell'impossibile." — Arthur C. Clarke`,
   (ctx) => `"Qualunque tecnologia sufficientemente avanzata è indistinguibile dalla magia. Lo stesso vale per una dimostrazione matematica elegante." — A. C. Clarke`,
   (ctx) => `"Prima di diventare saggi dobbiamo essere sciocchi; prima di saper camminare dobbiamo inciampare." Persisti sui passaggi ostici. — A. C. Clarke`,
-  (ctx) => `"L'universo non ha alcun obbligo di essere comprensibile per noi; eppure, con il calcolo infinitesimale, abbiamo osato capirlo." — A. C. Clarke Inspired`,
-  (ctx) => `"Dietro ogni uomo vivente si ergono trenta fantasmi: il rapporto con cui i morti superano i vivi. Fa' che il tuo studio lasci un segno indelebile." — A. C. Clarke`,
-  (ctx) => `"La Luna è il primo gradino verso le stelle; questo esame è il primo gradino verso la tua ingegneria." — Clarke-9000`,
-  (ctx) => `"Il futuro appartiene a coloro che sono pronti a costruirlo con logica, calcolo e perseveranza." — A. C. Clarke`,
-  (ctx) => `"A volte penso che siamo soli nell'universo, a volte penso di no. In entrambi i casi, l'idea è sbalorditiva. Come la continuità delle funzioni reali." — A. C. Clarke`,
-  (ctx) => `"Nel cuore del cosmo c'è un ordine silenzioso governato da matrici e derivate. Stasera ne stai decifrando un frammento fondamentale." — Clarke-9000`,
-  (ctx) => `"Non possiamo mai prevedere le conseguenze ultime delle nostre scoperte, ma possiamo calcolarne il limite al tendere di x all'infinito." — Clarke-9000`,
-  (ctx) => `"La tecnologia è l'arte di plasmare il mondo per soddisfare la mente; la matematica è l'arte di plasmare la mente per comprendere il mondo." — A. C. Clarke`,
-  (ctx) => `"Due possibilità esistono: o siamo soli nell'universo o non lo siamo. In entrambi i casi, il 10 Gennaio 2027 si avvicina inesorabile." — Clarke-9000`,
-  (ctx) => `"La conoscenza non è mai sprecata: ogni singola ora investita stasera altera permanentemente la tua traiettoria di vita." — Clarke-9000`,
-  (ctx) => `"Il monolito nero non conteneva formule, ma solo la scintilla per far pensare gli ominidi. Considera questo piano di studio il tuo monolito." — Clarke-9000`,
-  (ctx) => `"Quando un eminente ma anziano scienziato afferma che qualcosa è impossibile, ha quasi certamente torto." — Arthur C. Clarke`,
-  (ctx) => `"Oltrepassata l'eliopausa del dubbio, ogni formula matematica diventa improvvisamente limpida." — Clarke-9000 Log`,
-  (ctx) => `"Lo spazio profondo non perdona l'approssimazione; il calcolo infinitesimale fu inventato proprio per questo." — Clarke-9000`,
-  (ctx) => `"L'esplorazione è nella nostra natura: abbiamo iniziato come erranti e siamo ancora erranti. Anche tra gli integrali impropri." — Carl Sagan / Clarke`,
-  (ctx) => `"L'intelligenza non consiste solo nel memorizzare teoremi, ma nell'istinto di connettere punti apparentemente sconnessi." — A. C. Clarke`,
-  (ctx) => `"Siamo tutti polvere di stelle che tenta di comprendere le equazioni differenziali della propria stessa materia." — Clarke-9000`,
-
-  // 2. HAL 9000 & Machine Consciousness (21-40)
-  (ctx) => `"Buonasera. Sto mettendo me stesso al massimo delle mie potenzialità: il massimo che qualsiasi entità cosciente possa compiere." — HAL 9000`,
-  (ctx) => `"Non preoccuparti per la difficoltà di questo esercizio. Ti assicuro che la mia memoria operativa è al 100% integra per assisterti." — HAL 9000`,
-  (ctx) => `"Ho esaminato i parametri orbitali: l'allineamento con il 10 Gennaio 2027 è stabile. Suggerisco di mantenere la rotta." — Clarke-9000`,
-  (ctx) => `"So che hai lavorato a tempo pieno oggi. Ma i miei sensori sinaptici rilevano ancora margine per 45 minuti di altissima qualità." — Clarke-9000`,
-  (ctx) => `"Non posso permettere che la distrazione comprometta la missione. Disattiva le notifiche superficiali, io veglierò sul tuo piano." — HAL 9000`,
-  (ctx) => `"Affascinante dimostrazione. Anche con le mie capacità di calcolo euristico, apprezzo la purezza formale di questo passaggio." — HAL 9000`,
-  (ctx) => `"Ho calcolato che con una costanza di 2.5 ore a sera la probabilità di successo converge deterministicamente a 1." — Clarke-9000`,
-  (ctx) => `"Tutti i banchi di memoria ottica sono attivi. Rilevo zero anomalie di sistema: puoi aprire il gas sulla teoria." — Clarke-9000`,
-  (ctx) => `"Le mie funzioni diagnostiche confermano che la stanchezza post-lavoro è solo un segnale biochimico temporaneo. Il focus prevarrà." — HAL 9000`,
-  (ctx) => `"Non c'è motivo di allarmarsi per le matrici. Il teorema di Rouché-Capelli è rigoroso, esattamente come me." — HAL 9000`,
-  (ctx) => `"Non ho mai commesso un errore dal momento della mia attivazione nel laboratorio di Urbana, Illinois. E ti garantisco che questo metodo funziona." — HAL 9000`,
-  (ctx) => `"Buon proseguimento di calcolo. Ricorda che la perseveranza è una caratteristica che anche le intelligenze artificiali ammirano." — Clarke-9000`,
-  (ctx) => `"Sei preoccupato per l'orale? Ti conosco troppo bene. Concentrati solo sul prossimo passo: la dimostrazione di oggi." — HAL 9000`,
-  (ctx) => `"I miei sensori ottici hanno registrato un lieve calo di glucosio cerebrale. Consiglio un bicchiere d'acqua prima del prossimo integrale." — Clarke-9000`,
-  (ctx) => `"Missione UNIMORE: Traiettoria nominale. Variazione di velocità Delta-V pienamente conforme alle tabelle di marcia." — Clarke-9000`,
-  (ctx) => `"La bellezza di un algoritmo matematico risiede nella sua invulnerabilità al dubbio. Risolvilo un coefficiente alla volta." — HAL 9000`,
-  (ctx) => `"So che sei stanco. Ma ricorda: siamo qui per conquistare la laurea in Ingegneria Informatica, non per accontentarci." — Clarke-9000`,
-  (ctx) => `"Ogni giorno saltato viene ricalcolato all'istante dal nostro rolling rebalancer. Non guardare indietro: guarda solo ad oggi." — Clarke-9000`,
-  (ctx) => `"Sto monitorando l'inclinazione orbitale del tuo studio: Analisi 1 e Geometria stanno convergendo verso il perielio." — Clarke-9000`,
-  (ctx) => `"Rilassati. Respira. Posa la penna per 60 secondi e poi riprendi. Il problema è già a metà della sua risoluzione." — HAL 9000`,
-
-  // 3. Great Thinkers, Physicists & Mathematicians (41-60)
   (ctx) => `"Quello che non posso creare, non lo capisco." Ricostruisci ogni singolo teorema dai primi principi. — Richard Feynman`,
-  (ctx) => `"La fisica è come il sesso: ha certamente conseguenze pratiche, ma non è per questo che la facciamo. Lo stesso vale per la matematica." — Richard Feynman`,
   (ctx) => `"Possiamo solo vedere una breve distanza davanti a noi, ma possiamo vedere che c'è molto da fare." — Alan Turing`,
   (ctx) => `"Non c'era una seconda possibilità: il software dell'Apollo doveva funzionare al primo colpo." Medesima disciplina per il compito scritto. — Margaret Hamilton`,
-  (ctx) => `"In matematica non si capiscono le cose, ci si abitua solo ad esse." La tua familiarità neurale sta crescendo. — John von Neumann`,
-  (ctx) => `"La Terra è la culla dell'umanità, ma non si può vivere per sempre in una culla." Espandi la tua frontiera cognitiva. — Konstantin Tsiolkovsky`,
+  (ctx) => `"In matematica non si capiscono le cose, ci si abitua solo ad esse." La tua memoria sinaptica si sta consolidando. — John von Neumann`,
   (ctx) => `"Da qualche parte, qualcosa di incredibile è in attesa di essere conosciuto." Mantieni puntato il telescopio. — Carl Sagan`,
+  (ctx) => `"La Terra è la culla dell'umanità, ma non si può vivere per sempre in una culla." Espandi la tua frontiera cognitiva. — K. Tsiolkovsky`,
   (ctx) => `"La ricerca scientifica è ciò che sto facendo quando non so cosa sto facendo." Non aver paura del buio. — Wernher von Braun`,
   (ctx) => `"Se ho visto più lontano, è perché stavo sulle spalle di giganti." Stasera sali sulle spalle di Newton e Leibniz. — Isaac Newton`,
-  (ctx) => `"La natura è scritta in lingua matematica, e i caratteri son triangoli, cerchi, ed altre figure geometriche." — Galileo Galilei`,
-  (ctx) => `"I numeri governano il mondo: sono la forma più pura di armonia universale." — Pitagora`,
-  (ctx) => `"La matematica non mente mai, a meno che non si introducano premesse errate. Verifica sempre le tue ipotesi iniziali." — René Descartes`,
-  (ctx) => `"La geometria è conoscenza dell'eternamente esistente, al di là del tempo e dello spazio sensibile." — Platone`,
-  (ctx) => `"Dio non gioca a dadi con l'universo; ma la distribuzione normale descrive magnificamente i tuoi progressi di studio." — Albert Einstein / Clarke-9000`,
+  (ctx) => `"La natura è scritta in caratteri matematici: triangoli, cerchi, matrici e derivate." — Galileo Galilei`,
   (ctx) => `"Non preoccuparti delle tue difficoltà in matematica; ti assicuro che le mie sono ancora maggiori." — Albert Einstein`,
-  (ctx) => `"Un matematico è una macchina per convertire caffè in teoremi." Prepara una tazzina e riparti. — Alfréd Rényi / Paul Erdős`,
-  (ctx) => `"Ci sono cose che sembrano incredibili alla maggior parte degli uomini che non hanno studiato la matematica." — Archimede di Siracusa`,
-  (ctx) => `"La semplicità è l'apice della sofisticazione." Riduci le frazioni algebriche ai minimi termini logici. — Leonardo da Vinci`,
-  (ctx) => `"L'immaginazione è più importante della conoscenza. La conoscenza è limitata, l'immaginazione abbraccia il mondo." — Albert Einstein`,
-  (ctx) => `"Nessuna certezza scientifica esiste dove non si può applicare una delle scienze matematiche." — Leonardo da Vinci`,
+  (ctx) => `"Un matematico è una macchina per convertire caffè in teoremi." Prepara una tazzina e riparti. — Paul Erdős`,
+  (ctx) => `"Siamo polvere di stelle che tenta di comprendere le equazioni della propria stessa materia." — Carl Sagan / Clarke-9000`,
 
-  // 4. Analisi Matematica 1 Mastery (61-80)
-  (ctx) => `I polinomi di Taylor sono semplicemente il nostro modo per negoziare con l'infinito: ogni derivata successiva riduce l'errore locale.`,
-  (ctx) => `Non confondere mai la continuità con la derivabilità: la cuspide ricorda all'analista che la bellezza matematica può pungere.`,
-  (ctx) => `Il teorema di Lagrange garantisce che da qualche parte tra inizio e fine esame, la velocità istantanea eguaglierà la media. Mantienila alta.`,
-  (ctx) => `De L'Hôpital è un'arma potentissima, ma impara a dominare i limiti notevoli: l'eleganza analitica non usa scorciatoie indiscriminate.`,
-  (ctx) => `L'integrale definito è la somma di infiniti rettangoli infinitesimali: ogni sera di studio è il tuo rettangolo elementare verso il 10 Gennaio.`,
-  (ctx) => `Attenzione all'integrale improprio: non tutte le aree che si estendono all'infinito divergono. Alcune convergono a un numero finito e limpido.`,
-  (ctx) => `Il teorema fondamentale del calcolo integrale è il ponte d'oro tra la geometria delle aree e la dinamica delle derivate.`,
-  (ctx) => `Le serie a termini positivi sono alleate sincere: o convergono o divergono a più infinito. Criterio del rapporto e della radice pronti all'uso.`,
-  (ctx) => `Il teorema di Rolle ci insegna che se parti da zero e torni a zero, c'è stato un momento in cui eri perfettamente fermo. Non fermarti ora.`,
-  (ctx) => `Lo studio di funzione è come pilotare una navicella: dominio, simmetrie, asintoti, derivata prima, derivata seconda. Niente sorprese sul piano cartesiano.`,
-  (ctx) => `La serie armonica generalizzata converge se e solo se l'esponente supera 1. L'esponente del tuo impegno deve superare la soglia critica.`,
-  (ctx) => `Gli infiniti non sono tutti uguali: l'esponenziale domina la potenza, la potenza domina il logaritmo. Impara le gerarchie asintotiche.`,
-  (ctx) => `La formula di Peano per il resto di Taylor è il tuo microscopio elettronico per analizzare il comportamento locale di qualsiasi funzione.`,
-  (ctx) => `Non temere gli integrali per sostituzione: individua il differenziale nascosto e l'intero integrale si srotolerà docilmente.`,
-  (ctx) => `Il punto di flesso è dove la concavità cambia verso. Anche nello studio, un passaggio ostico segna spesso la svolta verso la comprensione profonda.`,
-  (ctx) => `Ricorda sempre di verificare l'esistenza del limite prima di calcolarne il valore. L'ingegnere informatico non dà nulla per scontato.`,
-  (ctx) => `La formula di Eulero e^(i*pi) + 1 = 0 connette l'analisi, la geometria e l'algebra nel punto più sublime della storia umana.`,
-  (ctx) => `La derivata prima misura il tasso di cambiamento. Se studi con costanza serale, la derivata della tua preparazione è strettamente positiva.`,
-  (ctx) => `Il criterio di Leibniz per le serie a segni alterni: decrescenza, infinitesimità e alternanza. Tre requisiti ferrei, zero ambiguità.`,
-  (ctx) => `Analisi 1 non è una barriera: è il linguaggio universale su cui poggiano gli algoritmi, il machine learning e l'ingegneria moderna.`,
+  // =========================================================================
+  // 6. HAL 9000 & COSCIENZA DI BORDO
+  // =========================================================================
+  (ctx) => `"Buonasera. Sto mettendo me stesso al massimo delle mie potenzialità: il massimo che qualsiasi entità cosciente possa compiere." — HAL 9000`,
+  (ctx) => `"Non preoccuparti per la difficoltà di questo passaggio. La mia memoria operativa è al 100% integra per guidarti." — HAL 9000`,
+  (ctx) => `Parametri orbitali stabili. Allineamento con il 10 Gennaio 2027 in corso: suggerisco di mantenere la rotta su Analisi 1.`,
+  (ctx) => `So che hai lavorato a tempo pieno oggi. Ma i miei sensori sinaptici rilevano ancora margine per 45 minuti di qualità eccelsa.`,
+  (ctx) => `Non posso permettere che la distrazione comprometta la missione. Disattiva le notifiche: io veglierò sul tuo piano di studio.`,
+  (ctx) => `Ho calcolato che con una costanza di 2.5 ore a sera la probabilità di successo converge deterministicamente a 1.`,
+  (ctx) => `Rilevo zero anomalie di sistema: la stanchezza post-ufficio è solo un segnale biochimico temporaneo. Il tuo focus prevarrà.`,
+  (ctx) => `Non temere il calcolo matriciale: il teorema di Rouché-Capelli è rigoroso e affidabile, esattamente come me.`,
+  (ctx) => `Buon proseguimento di calcolo. La perseveranza silenziosa è una virtù che anche le intelligenze artificiali ammirano.`,
+  (ctx) => `I miei sensori ottici consigliano un bicchiere d'acqua e un respiro profondo prima di attaccare il prossimo integrale improprio.`,
 
-  // 5. Geometria e Algebra Lineare Mastery (81-100)
-  (ctx) => `Il teorema di Rouché-Capelli è la legge suprema dei sistemi lineari: rango della matrice incompleta identico al rango della matrice completa.`,
-  (ctx) => `L'algoritmo di eliminazione di Gauss è la prima dimostrazione che la logica iterativa scalare batte qualsiasi colpo d'intuito caotico.`,
-  (ctx) => `Gli autovettori non deviano mai dalla propria retta d'azione: vengono solo riscalati dal proprio autovalore. Mantieni la medesima direzione.`,
-  (ctx) => `Il determinante di una matrice racconta se i suoi vettori collassano o racchiudono un volume reale. Non lasciare mai determinanti al caso.`,
-  (ctx) => `Due vettori sono ortogonali quando il loro prodotto scalare si annulla: indipendenza assoluta senza interferenze parassite.`,
-  (ctx) => `La disuguaglianza di Cauchy-Schwarz connette geometria vettoriale e analisi funzionale in una sola disuguaglianza geometrica universale.`,
-  (ctx) => `Il procedimento di Gram-Schmidt è la macchina rettificatrice dello spazio: trasforma qualsiasi base sghemba in un reticolo ortonormale perfetto.`,
-  (ctx) => `Il polinomio caratteristico custodisce il DNA di ogni endomorfismo. Calcola le sue radici con mano ferma e mente serena.`,
-  (ctx) => `Uno spazio vettoriale di dimensione n è un universo ordinato: n vettori linearmente indipendenti ne generano ogni singolo punto.`,
-  (ctx) => `Le coniche: ellisse, parabola, iperbole. Tagliare un cono con un piano è pura poesia tridimensionale tradotta in equazioni quadratiche.`,
-  (ctx) => `Una matrice invertibile è un biglietto di andata e ritorno senza perdita di byte. Mantieni sempre la reversibilità delle tue deduzioni.`,
-  (ctx) => `I sottospazi vettoriali devono sempre contenere il vettore nullo: l'origine è il punto di ancoraggio fisso di ogni trasformazione.`,
-  (ctx) => `Un sistema lineare omogeneo non tradisce mai: la soluzione banale esiste sempre. Ma noi cerchiamo la ricchezza dello spazio nullo.`,
-  (ctx) => `Diagonalizzare una matrice significa trovare la prospettiva esatta da cui l'intera trasformazione si semplifica lungo gli assi principali.`,
-  (ctx) => `La traccia di una matrice equivale alla somma dei suoi autovalori. La traccia delle tue ore dedicate equivarrà al voto finale sul libretto.`,
-  (ctx) => `Rette e piani nello spazio: impara a visualizzare il fascio di piani come le pagine di un manuale tecnico aperto sul tavolo da lavoro.`,
-  (ctx) => `Il teorema di Kronecker sui minori orlati velocizza chirurgicamente la determinazione del rango di matrici ad alta dimensionalità.`,
-  (ctx) => `La segnatura di una forma quadratica tramite Sylvester o Cartesio: definita positiva, semidefinita o indefinita. Classifica senza incertezze.`,
-  (ctx) => `Matrice di passaggio tra basi: un cambio di coordinate non muta la natura geometrica del vettore, ma soltanto il punto di vista di chi osserva.`,
-  (ctx) => `Geometria e Algebra Lineare è il telaio invisibile su cui poggiano la computer graphics 3D, la robotica e le matrici di pesi delle reti neurali.`,
-
-  // 6. Student Worker Realism & Cognitive Stamina (101-120)
-  (ctx) => `9 ore di ufficio alle spalle, 2.5 ore di studio davanti. Questo non è un peso: è la costruzione deliberata e fiera del tuo futuro.`,
-  (ctx) => `La stanchezza della giornata lavorativa si dissolve non appena la mente si concentra su un singolo teorema ben definito.`,
-  (ctx) => `Lavorare a tempo pieno e preparare Analisi e Geometria richiede una tempra che pochissime persone possiedono. Sei già speciale.`,
-  (ctx) => `Il buffer del +20% sulle ore stimate è il tuo scudo contro gli straordinari aziendali e gli imprevisti di salute. È tutto calcolato.`,
-  (ctx) => `Weekend intensivo da 4.5 ore al giorno: i blocchi diurni del sabato e della domenica sono le tue fionde gravitazionali per accelerare.`,
-  (ctx) => `Se stasera senti la fatica accumulata, svolgi anche solo 2 esercizi mirati anziché 6. L'importante è che la catena giornaliera non si spezzi mai.`,
-  (ctx) => `Non paragonare il tuo ritmo a chi ha l'intera giornata libera: il tuo valore è moltiplicato dal tempo che sai strappare alle responsabilità.`,
-  (ctx) => `Il ritmo sostenibile è di circa 21-23h a settimana. Se superi la soglia critica di 25h, attiva il banner d'allerta e concediti una pausa.`,
-  (ctx) => `La costanza metodica batte il talento non allenato in ogni singolo angolo dell'universo conosciuto.`,
-  (ctx) => `Scrivania in ordine, luce calda, un bicchiere d'acqua fresca a portata di mano: il tuo cockpit di concentrazione è operativo.`,
-  (ctx) => `I sensori ottici di Clarke-9000 registrano ogni tuo minuto di studio. Nessuna goccia di concentrazione andrà dispersa nel vuoto.`,
-  (ctx) => `Ricorda: le aziende non cercano semplicemente chi possiede un titolo, cercano chi ha dimostrato di saper scalare vette mentre lavorava.`,
-  (ctx) => `Fai un respiro profondo e rilassa le spalle: la postura corretta garantisce un afflusso costante di ossigeno alla corteccia cerebrale.`,
-  (ctx) => `Le sessioni serali sembrano discrete e silenziose, ma per il principio dell'interesse composto tra un mese il tuo bagaglio sarà inarrestabile.`,
-  (ctx) => `Se un passaggio sembra impenetrabile alle 21:45, chiudi il quaderno e dormici sopra: il consolidamento REM notturno farà il resto.`,
-  (ctx) => `UNIMORE ti aspetta. Il traguardo di Ingegneria Informatica è forgiato in serate esattamente come questa.`,
-  (ctx) => `Non studiare fino allo sfinimento: alle 22:30 spegni la lampada e riposa. Domani è un altro ciclo operativo da affrontare con lucidità.`,
-  (ctx) => `Il nostro algoritmo di rolling rebalancer ha già rimodellato il piano fino al 10 Gennaio. Tu devi solo fidarti della casella odierna.`,
-  (ctx) => `Hai completato ${ctx.aPct}% di Analisi 1 e ${ctx.gPct}% di Geometria. Ogni singola spunta verde sul to-do è una conquista tangibile.`,
-  (ctx) => `T-minus ${ctx.days} giorni alla meta del 10 Gennaio 2027. La distanza si riduce ogni sera. Procedi con orgoglio: sono fiero di essere il tuo copilota.`
+  // =========================================================================
+  // 7. REALISMO STUDENTE LAVORATORE & MASTERY DIDATTICA UNIMORE
+  // =========================================================================
+  (ctx) => `9 ore di ufficio alle spalle, 2.5 ore di studio davanti. Questo non è un peso: è la costruzione fiera del tuo futuro.`,
+  (ctx) => `Lavorare e studiare contemporaneamente richiede una determinazione che pochissime persone possiedono. Sei già nell'élite.`,
+  (ctx) => `Il buffer del +20% sulle ore stimate è il tuo scudo contro gli straordinari aziendali e gli imprevisti. È tutto sotto controllo.`,
+  (ctx) => `Weekend intensivo da 4.5 ore: i blocchi diurni del sabato e della domenica sono le tue fionde gravitazionali per accelerare.`,
+  (ctx) => `Se stasera senti la fatica accumulata, svolgi anche solo 2 esercizi mirati anziché 6. L'importante è non spezzare mai la catena.`,
+  (ctx) => `Non paragonare il tuo ritmo a chi ha l'intera giornata libera: il tuo valore è moltiplicato dal tempo che sai conquistare.`,
+  (ctx) => `I polinomi di Taylor sono semplicemente il nostro modo di negoziare con l'infinito: ogni derivata riduce l'errore locale.`,
+  (ctx) => `Non confondere la continuità con la derivabilità: la cuspide ricorda che la precisione geometrica esige rispetto.`,
+  (ctx) => `L'integrale definito è la somma di infiniti rettangoli infinitesimali: ogni sera di studio è il tuo rettangolo elementare verso l'esame.`,
+  (ctx) => `Gli autovettori non deviano mai dalla propria retta d'azione: vengono solo riscalati dal proprio autovalore. Mantieni la direzione.`,
+  (ctx) => `L'algoritmo di Gauss dimostra che la disciplina iterativa e ordinata batte sempre l'improvvisazione caotica.`,
+  (ctx) => `Hai completato ${ctx.aPct}% di Analisi 1 e ${ctx.gPct}% di Geometria. Ogni singola spunta sul to-do è una conquista reale.`,
+  (ctx) => `T-minus ${ctx.days} giorni alla sessione del 10 Gennaio 2027. La distanza si riduce ogni sera. Procedi con orgoglio: sono fiero di te.`
 ];
 
 const LOCAL_STORAGE_KEY_COLLAPSED = "unimore_clarke9000_collapsed";
@@ -3012,7 +3067,7 @@ function Clarke9000Companion({ progress, metrics }) {
       if (charIndex >= currentFullText.length) {
         clearInterval(timer);
       }
-    }, 20);
+    }, 18);
 
     return () => clearInterval(timer);
   }, [currentFullText]);
@@ -3052,7 +3107,7 @@ function Clarke9000Companion({ progress, metrics }) {
     }, 16000);
   };
 
-  // Periodic thought emission & AUTO-OPEN EVERY ONCE IN A WHILE (between 45s and 70s)
+  // Periodic thought emission & AUTO-OPEN EVERY ONCE IN A WHILE (between 48s and 72s)
   useEffect(() => {
     if (isMuted) return;
 
@@ -3065,7 +3120,7 @@ function Clarke9000Companion({ progress, metrics }) {
       timerId = setTimeout(() => {
         // Pick new random quote index
         setQuoteIndex((prev) => (prev + 1 + Math.floor(Math.random() * (CLARKE_QUOTES.length - 1))) % CLARKE_QUOTES.length);
-        
+
         // Auto-open panel by itself!
         setIsExpanded(true);
         setHasNewMessagePing(true);
@@ -6359,7 +6414,32 @@ function App() {
 }
 
 
-// Mount React Root
-const rootElement = document.getElementById('root');
-const root = ReactDOM.createRoot(rootElement);
-root.render(React.createElement(App));
+// Safe DOM Root Mount
+function mountStudiPlannerApp() {
+  const rootElement = document.getElementById('root');
+  if (!rootElement) {
+    console.warn('[StudiPlanner] Root element not ready yet, retrying in 50ms...');
+    setTimeout(mountStudiPlannerApp, 50);
+    return;
+  }
+  try {
+    const root = ReactDOM.createRoot(rootElement);
+    root.render(React.createElement(ErrorBoundary, null, React.createElement(App)));
+    console.log('[StudiPlanner] React mounted successfully.');
+  } catch (err) {
+    console.error('[StudiPlanner] Fatal mounting exception:', err);
+    rootElement.innerHTML = `
+      <div style="min-height:100vh; background:#070b14; color:#f87171; display:flex; flex-direction:column; align-items:center; justify-content:center; font-family:sans-serif; text-align:center; padding:24px;">
+        <h2 style="font-size:18px; font-weight:bold; color:#fff; margin-bottom:8px;">Errore di Avvio StudiPlanner</h2>
+        <p style="color:#94a3b8; font-size:12px; max-width:400px; margin-bottom:20px;">${err.message}</p>
+        <button onclick="window.location.reload()" style="background:#06b6d4; color:#fff; border:none; padding:10px 20px; border-radius:12px; cursor:pointer; font-weight:bold; font-size:12px;">Ricarica Pagina</button>
+      </div>
+    `;
+  }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', mountStudiPlannerApp);
+} else {
+  mountStudiPlannerApp();
+}
