@@ -8,6 +8,7 @@ import { TopicsTable } from "./components/TopicsTable.js";
 import { FileImporter } from "./components/FileImporter.js";
 import { HistoryLog } from "./components/HistoryLog.js";
 import { SettingsModal } from "./components/SettingsModal.js";
+import { Clarke9000Companion } from "./components/Clarke9000Companion.js";
 import {
   IconBarChart,
   IconCalendar,
@@ -558,6 +559,12 @@ export function App() {
         onClose={() => setIsSettingsOpen(false)}
         settings={settings}
         onSaveSettings={(newSettings) => setSettings(newSettings)}
+      />
+
+      {/* CLARKE-9000 Isolated Side Companion */}
+      <Clarke9000Companion
+        progress={progress}
+        metrics={metrics}
       />
     </div>
   );
