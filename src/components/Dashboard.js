@@ -11,7 +11,6 @@ import {
 } from "./Icons.js";
 import { NeuraDeckPromptGenerator } from "./NeuraDeckPromptGenerator.js";
 import { ExamSimulator } from "./ExamSimulator.js";
-import { DynamicMotivationWidget } from "./DynamicMotivationWidget.js";
 
 export function Dashboard({ progress, metrics, onTabChange, topics = [], settings = {} }) {
   const { analisi, geometria, global } = progress;
@@ -20,15 +19,6 @@ export function Dashboard({ progress, metrics, onTabChange, topics = [], setting
 
   return (
     <div className="space-y-6">
-      {/* 🚀 Dynamic Motivation Widget (Sci-Fi Terminal & Telemetry Modes) - Subito sotto gli alert */}
-      <DynamicMotivationWidget
-        progress={progress}
-        analisi={analisi}
-        geometria={geometria}
-        metrics={metrics}
-        onTabChange={onTabChange}
-      />
-
       {/* KPI Cards Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         {/* Days Left */}
@@ -119,6 +109,145 @@ export function Dashboard({ progress, metrics, onTabChange, topics = [], setting
           </div>
           <div className="mt-1 text-xs text-slate-400 font-medium">
             <span>{global.completedHours}h di {global.totalHours}h svolte</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Two Progress Bars (Analisi 1 & Geometria) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {/* Analisi 1 Progress Card */}
+        <div className="bg-gradient-to-b from-slate-900/90 to-slate-950/90 border border-emerald-500/20 p-5 md:p-6 rounded-3xl shadow-xl shadow-emerald-950/10 relative overflow-hidden">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <div className="flex items-center space-x-2">
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  ANALISI MATEMATICA 1
+                </span>
+                <span className="text-xs text-slate-400">UNIMORE</span>
+              </div>
+              <h3 className="text-xl font-bold text-white mt-1">Stato Avanzamento Analisi</h3>
+            </div>
+            <div className="text-right">
+              <span className="text-3xl font-black text-emerald-400 font-mono">
+                {analisi.percent}%
+              </span>
+            </div>
+          </div>
+
+          {/* Progress Bar Analisi */}
+          <div className="space-y-2 mb-4">
+            <div className="w-full h-4 bg-slate-800/90 rounded-full overflow-hidden p-0.5 border border-slate-700/50">
+              <div
+                className="h-full bg-gradient-to-r from-teal-500 to-emerald-400 rounded-full transition-all duration-700 ease-out shadow-sm shadow-emerald-500/50"
+                style={{ width: `${Math.max(2, analisi.percent)}%` }}
+              />
+            </div>
+            <div className="flex justify-between text-xs text-slate-400 font-mono">
+              <span>{analisi.completedHours}h completate</span>
+              <span className="text-slate-300 font-semibold">{analisi.totalHours}h previste</span>
+            </div>
+          </div>
+
+          {/* Detailed stats */}
+          <div className="grid grid-cols-3 gap-2 pt-3 border-t border-slate-800/80 text-center">
+            <div className="bg-slate-900/50 p-2.5 rounded-xl border border-slate-800">
+              <div className="text-xs text-slate-400">Argomenti</div>
+              <div className="text-sm font-bold text-white font-mono mt-0.5">
+                {analisi.completedCount} / {analisi.totalCount}
+              </div>
+            </div>
+            <div className="bg-slate-900/50 p-2.5 rounded-xl border border-slate-800">
+              <div className="text-xs text-slate-400">Ore Residue</div>
+              <div className="text-sm font-bold text-emerald-300 font-mono mt-0.5">
+                {analisi.remainingHours}h
+              </div>
+            </div>
+            <div className="bg-slate-900/50 p-2.5 rounded-xl border border-slate-800">
+              <div className="text-xs text-slate-400">Esame Scritto</div>
+              <div className="text-sm font-bold text-slate-200 mt-0.5">
+                5-6 Esercizi
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 flex items-center justify-between">
+            <span className="text-xs text-slate-500">
+              Focus: Taylor, Integrali, Studio Funzione, Serie
+            </span>
+            <button
+              onClick={() => onTabChange("weekly")}
+              className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition flex items-center gap-1"
+            >
+              Vedi orari Analisi →
+            </button>
+          </div>
+        </div>
+
+        {/* Geometria Progress Card */}
+        <div className="bg-gradient-to-b from-slate-900/90 to-slate-950/90 border border-indigo-500/20 p-5 md:p-6 rounded-3xl shadow-xl shadow-indigo-950/10 relative overflow-hidden">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <div className="flex items-center space-x-2">
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                  GEOMETRIA E ALGEBRA
+                </span>
+                <span className="text-xs text-slate-400">UNIMORE</span>
+              </div>
+              <h3 className="text-xl font-bold text-white mt-1">Stato Avanzamento Geometria</h3>
+            </div>
+            <div className="text-right">
+              <span className="text-3xl font-black text-indigo-400 font-mono">
+                {geometria.percent}%
+              </span>
+            </div>
+          </div>
+
+          {/* Progress Bar Geometria */}
+          <div className="space-y-2 mb-4">
+            <div className="w-full h-4 bg-slate-800/90 rounded-full overflow-hidden p-0.5 border border-slate-700/50">
+              <div
+                className="h-full bg-gradient-to-r from-violet-500 to-indigo-400 rounded-full transition-all duration-700 ease-out shadow-sm shadow-indigo-500/50"
+                style={{ width: `${Math.max(2, geometria.percent)}%` }}
+              />
+            </div>
+            <div className="flex justify-between text-xs text-slate-400 font-mono">
+              <span>{geometria.completedHours}h completate</span>
+              <span className="text-slate-300 font-semibold">{geometria.totalHours}h previste</span>
+            </div>
+          </div>
+
+          {/* Detailed stats */}
+          <div className="grid grid-cols-3 gap-2 pt-3 border-t border-slate-800/80 text-center">
+            <div className="bg-slate-900/50 p-2.5 rounded-xl border border-slate-800">
+              <div className="text-xs text-slate-400">Argomenti</div>
+              <div className="text-sm font-bold text-white font-mono mt-0.5">
+                {geometria.completedCount} / {geometria.totalCount}
+              </div>
+            </div>
+            <div className="bg-slate-900/50 p-2.5 rounded-xl border border-slate-800">
+              <div className="text-xs text-slate-400">Ore Residue</div>
+              <div className="text-sm font-bold text-indigo-300 font-mono mt-0.5">
+                {geometria.remainingHours}h
+              </div>
+            </div>
+            <div className="bg-slate-900/50 p-2.5 rounded-xl border border-slate-800">
+              <div className="text-xs text-slate-400">Test Scritto</div>
+              <div className="text-sm font-bold text-slate-200 mt-0.5">
+                11 Domande Quiz
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 flex items-center justify-between">
+            <span className="text-xs text-slate-500">
+              Focus: Rouché-Capelli, Autovalori, Coniche, Spazi Vettoriali
+            </span>
+            <button
+              onClick={() => onTabChange("weekly")}
+              className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition flex items-center gap-1"
+            >
+              Vedi orari Geometria →
+            </button>
           </div>
         </div>
       </div>
