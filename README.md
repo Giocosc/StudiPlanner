@@ -47,6 +47,15 @@ L'applicazione si aprirà automaticamente nel browser predefinito su **`http://l
 ### Metodo 2: Apertura Diretta nel Browser
 Puoi fare doppio clic direttamente sul file `index.html` con qualsiasi browser moderno (Google Chrome, Microsoft Edge, Mozilla Firefox, Safari).
 
+### Metodo 3: Servizio di Avvio Automatico Windows & Rete Locale (LAN)
+Per avviare l'applicazione in background all'avvio del PC, allinearsi automaticamente a Git e accedervi da iPad o MacBook:
+1. Apri PowerShell come Amministratore ed esegui:
+   ```powershell
+   .\setup_windows_service.ps1 -StartService
+   ```
+2. L'app configurerà la regola Firewall per la porta 3000 TCP e installerà il servizio `UnimoreStudyPlanner` con rotazione log e credenziali utente per il `git pull` automatico.
+
+
 ---
 
 ## 📊 Viste dell'Interfaccia Utente

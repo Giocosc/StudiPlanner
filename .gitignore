@@ -28,3 +28,11 @@ screenshot_alert.png
 screenshot_history_tab.png
 screenshot_week1_fixed.png
 screenshot_final_week.png
+
+# Application & Service Logs
+logs/
+*.log
+
+# Third-party binary tools
+tools/
+
