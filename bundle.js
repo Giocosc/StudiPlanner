@@ -5595,6 +5595,50 @@ function App() {
     error: null
   });
 
+  // PWA Installation & Standalone detection
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [isStandalone, setIsStandalone] = useState(false);
+
+  useEffect(() => {
+    // Detect standalone PWA mode
+    const isRunningStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    setIsStandalone(isRunningStandalone);
+
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      console.log("[PWA] beforeinstallprompt event captured and ready");
+    };
+
+    const handleAppInstalled = () => {
+      setIsStandalone(true);
+      setDeferredPrompt(null);
+      console.log("[PWA] App installed successfully!");
+    };
+
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    window.addEventListener("appinstalled", handleAppInstalled);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+      window.removeEventListener("appinstalled", handleAppInstalled);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const choiceResult = await deferredPrompt.userChoice;
+      if (choiceResult.outcome === "accepted") {
+        setIsStandalone(true);
+      }
+      setDeferredPrompt(null);
+    } else {
+      alert("Per installare StudiPlanner tramite Chrome o Edge:\n\n1. Clicca sull'icona 'Installa' nella barra degli indirizzi in alto a destra (icona monitor con freccia verso il basso).\n2. Oppure apri il menu a tre puntini (⋮) -> 'Installa StudiPlanner'.\n\nL'app si aprirà in una finestra desktop dedicata e potrai fissarla alla Barra delle Applicazioni!");
+    }
+  };
+
+
   // Save to localStorage on change with visual confirmation
   useEffect(() => {
     try {
@@ -5933,6 +5977,21 @@ function App() {
               <IconClock className="w-3.5 h-3.5 text-cyan-400" />
               <span className="font-bold text-white">{metrics.remainingDays} gg</span>
             </div>
+
+            {/* PWA Install Button (active when accessed via browser) */}
+            {!isStandalone && (
+              <button
+                type="button"
+                onClick={handleInstallClick}
+                className="flex items-center space-x-1.5 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-bold px-2.5 py-1.5 rounded-xl text-xs shadow-md shadow-cyan-500/20 border border-cyan-400/30 transition transform active:scale-95"
+                title="Installa StudiPlanner come app desktop nativa su Windows tramite Chrome o Edge"
+              >
+                <svg className="w-3.5 h-3.5 text-cyan-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                <span className="hidden sm:inline">Installa PWA</span>
+              </button>
+            )}
 
             <button
               onClick={() => setIsSettingsOpen(true)}
