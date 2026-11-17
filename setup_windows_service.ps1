@@ -340,6 +340,15 @@ Write-Host "  -> Configurazione rotazione log (1MB max per file)..." -Foreground
 & $nssmExecutable set $ServiceName AppRotateOnline 1 | Out-Null
 & $nssmExecutable set $ServiceName AppRotateBytes 1048576 | Out-Null
 
+# Iniezione percorso Python e Git nell'ambiente di servizio
+$pyCmd = Get-Command python.exe -ErrorAction SilentlyContinue
+if ($pyCmd) {
+    $pyDir = Split-Path $pyCmd.Source
+    Write-Host "  -> Iniezione PATH Python ($pyDir) nell'ambiente di servizio..." -ForegroundColor Gray
+    & $nssmExecutable set $ServiceName AppEnvironmentExtra "PATH=%PATH%;$pyDir;$pyDir\Scripts;C:\Program Files\Git\cmd" | Out-Null
+}
+
+
 # ==============================================================================
 # 4. CONFIGURAZIONE ACCOUNT DI ESECUZIONE (LocalSystem vs ObjectName)
 # ==============================================================================
@@ -430,8 +439,10 @@ Write-Host "  📱 Accesso LAN (iPad/MacBook): http://${lanIp}:$Port" -Foregroun
 Write-Host "----------------------------------------------------------------------" -ForegroundColor DarkGray
 
 if ($StartService) {
-    Write-Host "[*] Tentativo di avvio del servizio '$ServiceName'..." -ForegroundColor Cyan
+    Write-Host "[*] Riavvio pulito del servizio '$ServiceName'..." -ForegroundColor Cyan
     try {
+        & $nssmExecutable stop $ServiceName 2>$null | Out-Null
+        Start-Sleep -Seconds 1
         & $nssmExecutable start $ServiceName | Out-Null
         Start-Sleep -Seconds 2
         $currSvc = Get-Service -Name $ServiceName
