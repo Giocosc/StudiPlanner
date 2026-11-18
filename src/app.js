@@ -558,6 +558,20 @@ export function App() {
     });
   };
 
+  const handleBatchUpdateDayCapacities = (capacitiesMap) => {
+    setCustomDayCapacities(prev => {
+      const updated = { ...prev };
+      Object.entries(capacitiesMap).forEach(([dateStr, hours]) => {
+        if (hours === null || hours === undefined) {
+          delete updated[dateStr];
+        } else {
+          updated[dateStr] = Math.max(0, Number(Number(hours).toFixed(1)));
+        }
+      });
+      return updated;
+    });
+  };
+
   const handleResetDayCapacities = () => {
     setCustomDayCapacities({});
   };
@@ -1019,6 +1033,7 @@ export function App() {
             settings={settings}
             customDayCapacities={customDayCapacities}
             onUpdateDayCapacity={handleUpdateDayCapacity}
+            onBatchUpdateDayCapacities={handleBatchUpdateDayCapacities}
             onOpenLogModal={handleOpenLogModal}
             onOpenTopicDetail={handleOpenTopicDetail}
             onToggleSpacedReview={handleToggleSpacedReview}

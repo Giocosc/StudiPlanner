@@ -5303,6 +5303,7 @@ function WeeklyTodo({
   settings,
   customDayCapacities = {},
   onUpdateDayCapacity,
+  onBatchUpdateDayCapacities,
   onOpenLogModal,
   onOpenTopicDetail,
   onToggleSpacedReview
@@ -5529,6 +5530,64 @@ function WeeklyTodo({
     return `${d}/${m}`;
   };
 
+  // Punto 6: Work Emergency / Overtime Mode (Weekdays compressed to 1.0h, shifted to weekend)
+  const isEmergencyActive = useMemo(() => {
+    if (!currentWeek || !currentWeek.days) return false;
+    const weekdays = currentWeek.days.filter(d => !d.isWeekend);
+    if (weekdays.length === 0) return false;
+    return weekdays.every(d => customDayCapacities[d.date] !== undefined && customDayCapacities[d.date] <= 1.0);
+  }, [currentWeek, customDayCapacities]);
+
+  const handleToggleEmergencyWeek = () => {
+    if (!onBatchUpdateDayCapacities || !currentWeek || !currentWeek.days) return;
+    const updates = {};
+    if (isEmergencyActive) {
+      currentWeek.days.forEach(d => {
+        updates[d.date] = null;
+      });
+    } else {
+      currentWeek.days.forEach(d => {
+        if (!d.isWeekend) {
+          updates[d.date] = 1.0;
+        } else {
+          updates[d.date] = Math.min(8.0, Number(((d.maxHours || 4.5) + 1.5).toFixed(1)));
+        }
+      });
+    }
+    onBatchUpdateDayCapacities(updates);
+  };
+
+  // Punto 7: Holiday Bootcamp Profile (24 Dec - 6 Jan boosted to 6.5h/day)
+  const holidayDates = useMemo(() => {
+    const dates = [];
+    let cur = new Date("2026-12-24");
+    const end = new Date("2027-01-06");
+    while (cur <= end) {
+      dates.push(cur.toISOString().split("T")[0]);
+      cur.setDate(cur.getDate() + 1);
+    }
+    return dates;
+  }, []);
+
+  const isHolidayBootcampActive = useMemo(() => {
+    return holidayDates.every(d => customDayCapacities[d] && customDayCapacities[d] >= 6.0);
+  }, [holidayDates, customDayCapacities]);
+
+  const handleToggleHolidayBootcamp = () => {
+    if (!onBatchUpdateDayCapacities) return;
+    const updates = {};
+    if (isHolidayBootcampActive) {
+      holidayDates.forEach(d => {
+        updates[d] = null;
+      });
+    } else {
+      holidayDates.forEach(d => {
+        updates[d] = 6.5;
+      });
+    }
+    onBatchUpdateDayCapacities(updates);
+  };
+
   return (
     <div className="space-y-6">
       {/* Week Selector Bar */}
@@ -5600,6 +5659,34 @@ function WeeklyTodo({
               {currentWeek.totalAllocatedHours}h
             </span>
           </div>
+
+          {/* Work Emergency / Overtime Mode (Punto 6) */}
+          <button
+            type="button"
+            onClick={handleToggleEmergencyWeek}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border shadow-sm ${
+              isEmergencyActive
+                ? "bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-amber-950/30"
+                : "bg-slate-950/80 hover:bg-slate-800 text-slate-300 border-slate-800"
+            }`}
+            title="Modalità Straordinari: comprime le sere feriali di questa settimana a 1h/sera e ridistribuisce il carico"
+          >
+            <span>⚡ {isEmergencyActive ? "Straordinari Attivi (1h)" : "Modalità Straordinari"}</span>
+          </button>
+
+          {/* Holiday Bootcamp (Punto 7) */}
+          <button
+            type="button"
+            onClick={handleToggleHolidayBootcamp}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border shadow-sm ${
+              isHolidayBootcampActive
+                ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-emerald-950/30"
+                : "bg-slate-950/80 hover:bg-slate-800 text-slate-300 border-slate-800"
+            }`}
+            title="Holiday Bootcamp (24 Dic - 6 Gen): attiva 6.5h/giorno a tempo pieno durante le vacanze natalizie"
+          >
+            <span>🎄 {isHolidayBootcampActive ? "Bootcamp Natale Attivo (6.5h)" : "Bootcamp Natale"}</span>
+          </button>
 
           {/* Filter subject */}
           <div className="flex bg-slate-950/80 p-1 rounded-xl border border-slate-800 text-xs font-medium">
@@ -9802,6 +9889,20 @@ function App() {
     });
   };
 
+  const handleBatchUpdateDayCapacities = (capacitiesMap) => {
+    setCustomDayCapacities(prev => {
+      const updated = { ...prev };
+      Object.entries(capacitiesMap).forEach(([dateStr, hours]) => {
+        if (hours === null || hours === undefined) {
+          delete updated[dateStr];
+        } else {
+          updated[dateStr] = Math.max(0, Number(Number(hours).toFixed(1)));
+        }
+      });
+      return updated;
+    });
+  };
+
   const handleResetDayCapacities = () => {
     setCustomDayCapacities({});
   };
@@ -10263,6 +10364,7 @@ function App() {
             settings={settings}
             customDayCapacities={customDayCapacities}
             onUpdateDayCapacity={handleUpdateDayCapacity}
+            onBatchUpdateDayCapacities={handleBatchUpdateDayCapacities}
             onOpenLogModal={handleOpenLogModal}
             onOpenTopicDetail={handleOpenTopicDetail}
             onToggleSpacedReview={handleToggleSpacedReview}
