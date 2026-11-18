@@ -23,7 +23,29 @@ export function TopicDetailModal({
 }) {
   if (!isOpen || !topic) return null;
 
-  const [activeTab, setActiveTab] = useState("overview"); // "overview" | "theorems" | "sessions"
+  const [activeTab, setActiveTab] = useState("overview"); // "overview" | "theorems" | "sessions" | "notes"
+  const [noteText, setNoteText] = useState(topic.scratchpadNotes || topic.note || "");
+  const [notesSavedAlert, setNotesSavedAlert] = useState(false);
+  const [isNotePreview, setIsNotePreview] = useState(false);
+
+  useEffect(() => {
+    setNoteText(topic.scratchpadNotes || topic.note || "");
+  }, [topic.id, topic.scratchpadNotes, topic.note]);
+
+  const handleSaveNotes = () => {
+    if (onUpdateTopic) {
+      onUpdateTopic(topic.id, {
+        scratchpadNotes: noteText,
+        note: noteText
+      });
+      setNotesSavedAlert(true);
+      setTimeout(() => setNotesSavedAlert(false), 2500);
+    }
+  };
+
+  const insertSnippet = (snippet) => {
+    setNoteText(prev => prev ? `${prev}\n\n${snippet}` : snippet);
+  };
 
   const feynman = topic.feynmanChecklist || { intuitive: false, formal: false, proof: false };
   const feynmanCount = (feynman.intuitive ? 1 : 0) + (feynman.formal ? 1 : 0) + (feynman.proof ? 1 : 0);
@@ -278,6 +300,21 @@ export function TopicDetailModal({
               {topicSessions.length}
             </span>
           </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("notes")}
+            className={`pb-2.5 px-3 font-bold border-b-2 transition flex items-center gap-1.5 ${
+              activeTab === "notes"
+                ? isAnalisi ? "border-emerald-400 text-emerald-300" : "border-indigo-400 text-indigo-300"
+                : "border-transparent text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <span>📝 Appunti & Scratchpad</span>
+            {Boolean(topic.scratchpadNotes || topic.note) && (
+              <span className="w-2 h-2 rounded-full bg-cyan-400 inline-block animate-pulse"></span>
+            )}
+          </button>
         </div>
 
         {/* Tab Body */}
@@ -523,6 +560,95 @@ export function TopicDetailModal({
                     </div>
                   ))}
                 </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === "notes" && (
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-cyan-400 inline-block"></span>
+                    <span>Appunti Personali & Scratchpad Didattico</span>
+                  </h4>
+                  <p className="text-[11px] text-slate-400">
+                    Annota passaggi critici, domande per il docente UNIMORE e formule di questo argomento.
+                  </p>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsNotePreview(!isNotePreview)}
+                    className="px-2.5 py-1 text-xs rounded-lg border border-slate-700 bg-slate-900 text-slate-300 hover:text-white"
+                  >
+                    {isNotePreview ? "✏️ Modifica" : "👁️ Anteprima"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleSaveNotes}
+                    className="px-3 py-1 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition flex items-center gap-1 shadow-sm"
+                  >
+                    <span>💾 Salva Appunti</span>
+                  </button>
+                </div>
+              </div>
+
+              {notesSavedAlert && (
+                <div className="bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 px-3 py-1.5 rounded-xl text-xs flex items-center gap-2 font-medium">
+                  <span>✓ Appunti salvati con successo e sincronizzati!</span>
+                </div>
+              )}
+
+              {/* Quick Snippets */}
+              <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                <span className="text-slate-500 font-medium">Snippet veloci:</span>
+                <button
+                  type="button"
+                  onClick={() => insertSnippet("### 💡 Domanda per il Ricevimento\n- ")}
+                  className="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800"
+                >
+                  + Domanda Ricevimento
+                </button>
+                <button
+                  type="button"
+                  onClick={() => insertSnippet("### ⚠️ Trappola / Errore Ricorrente\n- Non dimenticare che: ")}
+                  className="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-rose-300 border border-slate-800"
+                >
+                  + Trappola Tipica
+                </button>
+                <button
+                  type="button"
+                  onClick={() => insertSnippet("### 📐 Formula Chiave\n$$  $$")}
+                  className="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-cyan-300 border border-slate-800"
+                >
+                  + Formula Chiave
+                </button>
+                <button
+                  type="button"
+                  onClick={() => insertSnippet("### 📝 Passaggi Risolutivi Esercizio Tipo\n1. \n2. \n3. ")}
+                  className="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-amber-300 border border-slate-800"
+                >
+                  + Passaggi Esercizio
+                </button>
+              </div>
+
+              {/* Editor / Preview */}
+              {isNotePreview ? (
+                <div className="min-h-[220px] max-h-96 overflow-y-auto bg-slate-950/80 border border-slate-800 rounded-2xl p-4 text-xs text-slate-200 whitespace-pre-wrap font-sans leading-relaxed">
+                  {noteText ? noteText : <span className="text-slate-500 italic">Nessun appunto presente. Clicca su Modifica per iniziare a scrivere.</span>}
+                </div>
+              ) : (
+                <textarea
+                  rows={10}
+                  value={noteText}
+                  onChange={(e) => setNoteText(e.target.value)}
+                  onBlur={handleSaveNotes}
+                  placeholder="Scrivi qui i tuoi appunti, formule o dubbi per questo argomento (supporta testo e formattazione)..."
+                  className="w-full bg-slate-950/90 border border-slate-800 rounded-2xl p-4 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-cyan-500 font-mono resize-y"
+                />
               )}
             </div>
           )}
