@@ -15,10 +15,12 @@ import {
 import { parseCSVString, parseExcelData, mergeTopicsWithExcelData } from "../services/parserService.js";
 import { INITIAL_TOPICS } from "../data/defaultData.js";
 import { testGitLabConnection } from "../services/gitlabSyncService.js";
+import { downloadIcsCalendar } from "../services/calendarExportService.js";
 
 export function FileImporter({
   topics,
   settings,
+  calendarDays = [],
   customDayCapacities = {},
   onCustomCapacitiesUpdated,
   onTopicsUpdated,
@@ -666,13 +668,23 @@ export function FileImporter({
           </div>
         </div>
 
-        <button
-          onClick={handleExportJsonBackup}
-          className="text-xs bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 px-3 py-1.5 rounded-xl font-semibold transition flex items-center gap-1.5 flex-shrink-0"
-        >
-          <IconDownload className="w-3.5 h-3.5" />
-          Scarica Backup JSON
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => downloadIcsCalendar(calendarDays)}
+            className="text-xs bg-sky-600/20 hover:bg-sky-600/30 text-sky-300 border border-sky-500/40 px-3 py-1.5 rounded-xl font-semibold transition flex items-center gap-1.5 flex-shrink-0"
+            title="Esporta calendario in formato standard iCal / Google Calendar"
+          >
+            <IconDownload className="w-3.5 h-3.5 text-sky-400" />
+            Esporta Calendario (.ics)
+          </button>
+          <button
+            onClick={handleExportJsonBackup}
+            className="text-xs bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 px-3 py-1.5 rounded-xl font-semibold transition flex items-center gap-1.5 flex-shrink-0"
+          >
+            <IconDownload className="w-3.5 h-3.5" />
+            Scarica Backup JSON
+          </button>
+        </div>
       </div>
 
       {/* Upload Box */}
@@ -727,6 +739,15 @@ export function FileImporter({
             >
               <IconDownload className="w-4 h-4 text-emerald-400" />
               <span>Esporta Excel (.xlsx)</span>
+            </button>
+
+            <button
+              onClick={() => downloadIcsCalendar(calendarDays)}
+              className="bg-slate-800 hover:bg-slate-700 text-sky-300 text-xs font-semibold px-4 py-2.5 rounded-xl border border-sky-500/30 transition inline-flex items-center gap-2"
+              title="Esporta calendario completo delle sessioni in formato iCal (.ics)"
+            >
+              <IconDownload className="w-4 h-4 text-sky-400" />
+              <span>Esporta Calendario (.ics)</span>
             </button>
           </div>
 

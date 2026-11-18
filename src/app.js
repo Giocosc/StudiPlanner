@@ -1028,6 +1028,7 @@ export function App() {
         {activeTab === "weekly" && (
           <WeeklyTodo
             weeklyPlans={weeklyPlans}
+            calendarDays={rebalancedPlan.calendarDays}
             onToggleComplete={handleToggleComplete}
             onUpdateTopicHours={handleUpdateTopicHours}
             onLogStudySession={handleLogStudySession}
@@ -1069,6 +1070,7 @@ export function App() {
           <FileImporter
             topics={topics}
             settings={settings}
+            calendarDays={rebalancedPlan.calendarDays}
             customDayCapacities={customDayCapacities}
             onCustomCapacitiesUpdated={(newCapacities) => setCustomDayCapacities(newCapacities)}
             onTopicsUpdated={handleTopicsUpdated}

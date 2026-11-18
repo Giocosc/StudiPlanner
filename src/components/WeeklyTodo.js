@@ -10,13 +10,16 @@ import {
   IconPlay,
   IconPause,
   IconRotateCcw,
-  IconTomato
+  IconTomato,
+  IconCalendar
 } from "./Icons.js";
+import { downloadIcsCalendar } from "../services/calendarExportService.js";
 
 const LOCAL_STORAGE_KEY_POMODORO = "unimore_rebalancer_pomodoro_v2";
 
 export function WeeklyTodo({
   weeklyPlans,
+  calendarDays = [],
   onToggleComplete,
   onUpdateTopicHours,
   onLogStudySession,
@@ -450,6 +453,17 @@ export function WeeklyTodo({
             title="Holiday Bootcamp (24 Dic - 6 Gen): attiva 6.5h/giorno a tempo pieno durante le vacanze natalizie"
           >
             <span>🎄 {isHolidayBootcampActive ? "Bootcamp Natale Attivo (6.5h)" : "Bootcamp Natale"}</span>
+          </button>
+
+          {/* iCal / Google Calendar Export (Punto 9) */}
+          <button
+            type="button"
+            onClick={() => downloadIcsCalendar(calendarDays)}
+            className="px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border shadow-sm bg-sky-950/60 hover:bg-sky-900/60 text-sky-300 border-sky-500/40"
+            title="Esporta il calendario serale e weekend completo (.ics) compatibile con Google Calendar, Apple Calendar e Outlook"
+          >
+            <IconCalendar className="w-3.5 h-3.5 text-sky-400" />
+            <span>Esporta .ics</span>
           </button>
 
           {/* Filter subject */}

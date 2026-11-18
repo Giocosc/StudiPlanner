@@ -7,6 +7,7 @@ files_order = [
     'src/services/rebalancerEngine.js',
     'src/services/parserService.js',
     'src/services/gitlabSyncService.js',
+    'src/services/calendarExportService.js',
     'src/components/AlertBanner.js',
     'src/components/NeuraDeckPromptGenerator.js',
     'src/components/ExamSimulator.js',
