@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { IconSearch, IconFilter, IconCheck, IconClock, IconFlame, IconCheckCircle } from "./Icons.js";
 
-export function TopicsTable({ topics, onToggleComplete, onUpdateTopicHours, onBatchUpdate }) {
+export function TopicsTable({ topics, onToggleComplete, onUpdateTopicHours, onBatchUpdate, onOpenTopicDetail }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [subjectFilter, setSubjectFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -175,8 +175,18 @@ export function TopicsTable({ topics, onToggleComplete, onUpdateTopicHours, onBa
                     </td>
 
                     {/* ID */}
-                    <td className="py-3 px-3 font-mono font-bold text-slate-200">
-                      {topic.id}
+                    <td className="py-3 px-3">
+                      <button
+                        type="button"
+                        onClick={() => onOpenTopicDetail && onOpenTopicDetail(topic)}
+                        className="font-mono font-bold text-slate-200 hover:text-cyan-300 transition flex items-center gap-1 group/btn"
+                        title="Apri scheda informativa"
+                      >
+                        <span>{topic.id}</span>
+                        <span className="text-[9px] font-sans px-1 py-0.2 rounded bg-cyan-500/10 text-cyan-400 group-hover/btn:bg-cyan-500/20 border border-cyan-500/30">
+                          ℹ
+                        </span>
+                      </button>
                     </td>
 
                     {/* Subject */}
@@ -192,10 +202,17 @@ export function TopicsTable({ topics, onToggleComplete, onUpdateTopicHours, onBa
 
                     {/* Chapter & Topic */}
                     <td className="py-3 px-4">
-                      <div className="font-semibold text-slate-200 text-xs flex items-center gap-2">
-                        <span>{topic.argomento}</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => onOpenTopicDetail && onOpenTopicDetail(topic)}
+                          className="font-semibold text-slate-200 hover:text-cyan-300 transition text-xs text-left group/title"
+                          title="Apri scheda informativa dettagliata"
+                        >
+                          <span className="group-hover/title:underline">{topic.argomento}</span>
+                        </button>
                         {!isDone && effHours > 0 && (
-                          <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
+                          <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 flex-shrink-0">
                             In Corso
                           </span>
                         )}

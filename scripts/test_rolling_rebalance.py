@@ -35,14 +35,26 @@ with sync_playwright() as p:
     history_tab = page.locator("nav button:has-text('Storico & Diario')")
     print("Storico & Diario tab exists:", history_tab.count() > 0)
 
-    # 2. Test Date Controls: simulate skipping Monday and Tuesday by advancing date to Wednesday 18/11
-    # Currently simulated date is 17/11. Click "▶" to advance to 18/11 (Mercoledì)
+    # 2. Test Date Controls & Real-Time Today Synchronization
+    # Verify app automatically starts on real today: Mercoledì 18/11
+    initial_today = page.locator("header span:has-text('Oggi: 18/11')").count()
+    print("App automatically synchronized with real today (Mercoledì 18/11):", initial_today > 0)
+
+    # Click "▶" to simulate advancing to Giovedì 19/11
     advance_btn = page.locator("header button[title*='Giorno successivo']").first
     advance_btn.click()
     page.wait_for_timeout(300)
 
-    date_text = page.locator("header span:has-text('Oggi: 18/11')").count()
-    print("Simulated date advanced to Mercoledì 18/11:", date_text > 0)
+    date_adv = page.locator("header span:has-text('Oggi: 19/11')").count()
+    print("Simulated date advanced to Giovedì 19/11:", date_adv > 0)
+
+    # Click "Oggi Reale" button to return to real today
+    oggi_reale_btn = page.locator("button:has-text('Oggi Reale')").first
+    if oggi_reale_btn.is_visible():
+        oggi_reale_btn.click()
+        page.wait_for_timeout(300)
+        date_back = page.locator("header span:has-text('Oggi: 18/11')").count()
+        print("Successfully returned to real today (18/11):", date_back > 0)
 
     # 3. Check Catch-up Banner
     catchup_banner = page.locator("text=Ribilanciamento Dinamico Attivo").count()

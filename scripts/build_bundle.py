@@ -6,6 +6,7 @@ files_order = [
     'src/components/Icons.js',
     'src/services/rebalancerEngine.js',
     'src/services/parserService.js',
+    'src/services/gitlabSyncService.js',
     'src/components/AlertBanner.js',
     'src/components/NeuraDeckPromptGenerator.js',
     'src/components/ExamSimulator.js',
@@ -17,6 +18,8 @@ files_order = [
     'src/components/TopicsTable.js',
     'src/components/FileImporter.js',
     'src/components/SettingsModal.js',
+    'src/components/LogStudyModal.js',
+    'src/components/TopicDetailModal.js',
     'src/app.js'
 ]
 
@@ -90,8 +93,7 @@ for p in files_order:
     code = re.sub(r'import\s+[\s\S]*?from\s+[\'"][^\'"]+[\'"];?', '', code)
     code = re.sub(r'import\s+[\'"][^\'"]+[\'"];?', '', code)
     # Strip export keywords
-    code = re.sub(r'\bexport\s+const\b', 'const', code)
-    code = re.sub(r'\bexport\s+function\b', 'function', code)
+    code = re.sub(r'\bexport\s+(async\s+function|function|const|let|var|class)\b', r'\1', code)
     code = re.sub(r'\bexport\s+default\b', '', code)
     code = re.sub(r'\bexport\s*\{[^}]*\};?', '', code)
     combined.append(f'// --- {p} ---\n' + code)

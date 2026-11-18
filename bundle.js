@@ -1090,6 +1090,56 @@ function IconX({ className = "w-5 h-5" }) {
   );
 }
 
+function IconPlus({ className = "w-5 h-5" }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
+    </svg>
+  );
+}
+
+function IconTrash({ className = "w-4 h-4" }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+    </svg>
+  );
+}
+
+function IconInfo({ className = "w-5 h-5" }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  );
+}
+
+function IconExternalLink({ className = "w-4 h-4" }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+    </svg>
+  );
+}
+
+function IconGitLab({ className = "w-5 h-5" }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M22.65 14.39L20.6 8.08a.7.7 0 00-1.33 0l-1.58 4.85H6.31L4.73 8.08a.7.7 0 00-1.33 0L1.35 14.39a1.05 1.05 0 00.38 1.18l10.02 7.28a.5.5 0 00.59 0l10.02-7.28a1.05 1.05 0 00.38-1.18z" />
+    </svg>
+  );
+}
+
+function IconCloud({ className = "w-5 h-5" }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 00-9.78 2.096A4.001 4.001 0 003 15z" />
+    </svg>
+  );
+}
+
+
+
 
 
 
@@ -1105,10 +1155,22 @@ function IconX({ className = "w-5 h-5" }) {
  * - Full historical tracking of past dates (completed vs skipped days).
  */
 
+function getLocalTodayDateStr() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  const dateStr = `${year}-${month}-${day}`;
+  // Clamp within session bounds if outside
+  if (dateStr < "2026-11-16") return "2026-11-16";
+  if (dateStr > "2027-01-10") return "2027-01-10";
+  return dateStr;
+}
+
 const DEFAULT_SETTINGS = {
   roadmapStartDate: "2026-11-16", // Start of winter session roadmap
   targetExamDate: "2027-01-10",
-  currentSimulatedDate: "2026-11-17", // Active date (today)
+  currentSimulatedDate: getLocalTodayDateStr(), // Active date: synchronized with real today!
   criticalWeeklyHoursThreshold: 25.0, // Base lavoratore full-time
   eveningStudyHours: 2.5, // 19:30 - 22:00 (2.5h)
   weekdayStudyHours: 2.5, // Standard feriale base
@@ -1235,11 +1297,14 @@ function sortBySequentialId(a, b) {
  * 3. Shifts topics forward automatically if days were missed.
  * 4. Pulls topics forward automatically if ahead of schedule.
  */
-function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacities = {}) {
+function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacities = {}, studySessions = []) {
   const settings = { ...DEFAULT_SETTINGS, ...customSettings };
   const dayCapacities = (customDayCapacities && typeof customDayCapacities === "object" && Object.keys(customDayCapacities).length > 0)
     ? customDayCapacities
     : (customSettings && customSettings.customDayCapacities ? customSettings.customDayCapacities : {});
+  const sessions = Array.isArray(studySessions) && studySessions.length > 0
+    ? studySessions
+    : (customSettings && Array.isArray(customSettings.studySessions) ? customSettings.studySessions : []);
 
   const { remainingDays, remainingWeeks } = getCalendarMetrics(settings.currentSimulatedDate, settings.targetExamDate);
 
@@ -1375,27 +1440,58 @@ function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacities = {
     dayOffset++;
   }
 
-  // 3. Populate COMPLETED TOPICS on their completion dates (Past + Today + Future if completed ahead)
+  // 3. Populate COMPLETED TOPICS & REGISTERED STUDY SESSIONS on their dates (Past + Today + Future if completed ahead)
   let pastDaysStudied = 0;
   let pastDaysSkipped = 0;
   let totalPastHours = 0;
 
   allCalendarDays.forEach(day => {
-    // Find topics completed on this exact date
+    // 1. Check for explicitly logged study sessions on this date
+    const sessionsOnThisDay = sessions.filter(s => s.date === day.date);
+
+    // 2. Check for topics completed on this exact date (direct checkbox / legacy)
     const completedOnThisDay = processedTopics.filter(t => t.completato && t.completedDate === day.date);
 
-    if (completedOnThisDay.length > 0) {
-      if (day.isPast || day.isToday) {
-        day.dayStatus = "completed";
-      }
-      day.topics = completedOnThisDay.map(t => ({
-        ...t,
-        effectiveHours: Number(t.oreEffettive || t.oreStimate || 0),
+    const dayTopics = [];
+    const seenTopicIds = new Set();
+
+    // First add logged study sessions for this date
+    sessionsOnThisDay.forEach(sess => {
+      const topicRef = processedTopics.find(t => t.id === sess.topicId);
+      seenTopicIds.add(sess.topicId);
+      dayTopics.push({
+        ...(topicRef || { id: sess.topicId, materia: "Studio", argomento: "Sessione di Studio", capitolo: "" }),
+        effectiveHours: Number(sess.hours || 0),
+        isSessionLog: true,
+        sessionId: sess.id,
+        sessionCompleted: Boolean(sess.completed),
+        sessionNote: sess.note || "",
         assignedDate: day.date,
         assignedWeek: day.weekIndex,
         assignedDayName: day.dayName
-      }));
-      day.allocatedHours = Number(completedOnThisDay.reduce((acc, t) => acc + (Number(t.oreEffettive || t.oreStimate || 0)), 0).toFixed(1));
+      });
+    });
+
+    // Then add any completed topics on this date not already represented in sessions
+    completedOnThisDay.forEach(t => {
+      if (!seenTopicIds.has(t.id)) {
+        seenTopicIds.add(t.id);
+        dayTopics.push({
+          ...t,
+          effectiveHours: Number(t.oreEffettive || t.oreStimate || 0),
+          assignedDate: day.date,
+          assignedWeek: day.weekIndex,
+          assignedDayName: day.dayName
+        });
+      }
+    });
+
+    if (dayTopics.length > 0) {
+      if (day.isPast || day.isToday) {
+        day.dayStatus = "completed";
+      }
+      day.topics = dayTopics;
+      day.allocatedHours = Number(dayTopics.reduce((acc, t) => acc + (Number(t.effectiveHours || 0)), 0).toFixed(1));
       if (day.isPast || day.isToday) {
         pastDaysStudied++;
         totalPastHours += day.allocatedHours;
@@ -1426,7 +1522,12 @@ function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacities = {
   activeAndFutureDays.forEach(day => {
     let capacityLeft = Math.max(0, Number((day.maxHours - day.allocatedHours).toFixed(2)));
 
-    while (capacityLeft > 0.4) {
+    // An empty day always gets at least one topic (if queue has topics).
+    // A day that already has topics/sessions only gets an extra topic if there is at least 1.0h of capacity left AND it hasn't reached maxHours.
+    while (
+      (day.topics.length === 0 && capacityLeft > 0.4) ||
+      (day.topics.length > 0 && capacityLeft >= 1.0 && day.allocatedHours < day.maxHours)
+    ) {
       let chosenTopic = null;
       let chosenQueue = null;
 
@@ -1578,6 +1679,7 @@ function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacities = {
     currentWeekPlan,
     calendarDays: allCalendarDays,
     historyDays,
+    studySessions: sessions,
     progress: calculateSubjectProgress(topics)
   };
 }
@@ -1854,6 +1956,233 @@ function mergeTopicsWithExcelData(topics, excelParsedData) {
     topics: merged,
     matchedCount,
     totalTopics: merged.length
+  };
+}
+
+
+// --- src/services/gitlabSyncService.js ---
+/**
+ * GitLab Cloud Synchronization Service for StudiPlanner
+ * Provides frictionless, zero-server cloud sync via GitLab REST API v4.
+ * Enables real-time synchronization of study sessions, topics, and settings
+ * across multiple devices (Desktop, Laptop, Smartphone, Tablet).
+ */
+
+const LOCAL_STORAGE_KEY_GITLAB_CONFIG = "unimore_rebalancer_gitlab_config_v1";
+
+const DEFAULT_GITLAB_CONFIG = {
+  enabled: false,
+  autoSync: true, // Auto-pull on app start & auto-push on state changes
+  instanceUrl: "https://gitlab.com",
+  projectId: "", // e.g. "username/studiplanner" or numeric project ID
+  branch: "main",
+  filePath: "data/studiplanner-state.json",
+  token: "", // Personal access token (stored only locally in browser)
+  lastSynced: null,
+  lastCommitId: null,
+  syncStatus: "idle", // "idle" | "syncing" | "success" | "error"
+  errorMessage: null
+};
+
+/**
+ * Normalizes GitLab instance URL
+ */
+function cleanInstanceUrl(url) {
+  if (!url) return "https://gitlab.com";
+  let cleaned = url.trim().replace(/\/+$/, "");
+  if (!/^https?:\/\//i.test(cleaned)) {
+    cleaned = "https://" + cleaned;
+  }
+  return cleaned;
+}
+
+/**
+ * Normalizes Project Identifier (path with slash or numerical ID)
+ */
+function encodeProjectId(projectId) {
+  if (!projectId) return "";
+  const trimmed = String(projectId).trim();
+  // If it's a numeric ID, use as is; otherwise URL-encode the namespace/project path
+  if (/^\d+$/.test(trimmed)) {
+    return trimmed;
+  }
+  return encodeURIComponent(trimmed);
+}
+
+/**
+ * Decodes UTF-8 base64 encoded text from GitLab API
+ */
+function decodeBase64Utf8(base64Str) {
+  try {
+    const binStr = atob(base64Str.replace(/\s/g, ""));
+    const bytes = new Uint8Array(binStr.length);
+    for (let i = 0; i < binStr.length; i++) {
+      bytes[i] = binStr.charCodeAt(i);
+    }
+    return new TextDecoder("utf-8").decode(bytes);
+  } catch (e) {
+    // Fallback
+    return decodeURIComponent(escape(atob(base64Str)));
+  }
+}
+
+/**
+ * Tests connection to GitLab and verifies project access
+ */
+async function testGitLabConnection(config) {
+  const instanceUrl = cleanInstanceUrl(config.instanceUrl);
+  const projectId = encodeProjectId(config.projectId);
+  const token = (config.token || "").trim();
+
+  if (!projectId) {
+    throw new Error("Specificare il Project ID o il percorso del repository (es. username/studiplanner).");
+  }
+  if (!token) {
+    throw new Error("Specificare un Personal Access Token di GitLab.");
+  }
+
+  const endpoint = `${instanceUrl}/api/v4/projects/${projectId}`;
+  const response = await fetch(endpoint, {
+    method: "GET",
+    headers: {
+      "PRIVATE-TOKEN": token,
+      "Accept": "application/json"
+    }
+  });
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error("Token non valido o scaduto (401 Unauthorized). Verifica i permessi del tuo Personal Access Token.");
+    }
+    if (response.status === 404) {
+      throw new Error("Repository non trovato (404 Not Found). Verifica che il Project ID/Path sia corretto e accessibile al token.");
+    }
+    throw new Error(`Errore connessione GitLab (${response.status}): ${response.statusText}`);
+  }
+
+  const projectData = await response.json();
+  return {
+    success: true,
+    projectName: projectData.name_with_namespace || projectData.name,
+    defaultBranch: projectData.default_branch || "main",
+    webUrl: projectData.web_url
+  };
+}
+
+/**
+ * Pulls latest state from GitLab repository
+ */
+async function pullFromGitLab(config) {
+  const instanceUrl = cleanInstanceUrl(config.instanceUrl);
+  const projectId = encodeProjectId(config.projectId);
+  const token = (config.token || "").trim();
+  const branch = (config.branch || "main").trim();
+  const filePath = encodeURIComponent((config.filePath || "data/studiplanner-state.json").trim());
+
+  if (!projectId || !token) {
+    throw new Error("Configurazione GitLab incompleta per il pull.");
+  }
+
+  const endpoint = `${instanceUrl}/api/v4/projects/${projectId}/repository/files/${filePath}?ref=${encodeURIComponent(branch)}`;
+  const response = await fetch(endpoint, {
+    method: "GET",
+    headers: {
+      "PRIVATE-TOKEN": token,
+      "Accept": "application/json"
+    }
+  });
+
+  if (response.status === 404) {
+    // File not yet created on remote repository
+    return {
+      success: true,
+      notFound: true,
+      data: null,
+      message: "Il file di stato non esiste ancora nel repository remoto: verrà creato al primo push."
+    };
+  }
+
+  if (!response.ok) {
+    throw new Error(`Errore durante il download da GitLab (${response.status}): ${response.statusText}`);
+  }
+
+  const fileData = await response.json();
+  const jsonContent = decodeBase64Utf8(fileData.content);
+  const parsedData = JSON.parse(jsonContent);
+
+  return {
+    success: true,
+    notFound: false,
+    data: parsedData,
+    commitId: fileData.commit_id,
+    lastCommitId: fileData.last_commit_id,
+    fileName: fileData.file_name
+  };
+}
+
+/**
+ * Pushes updated state to GitLab repository (creates file if not present, updates if present)
+ */
+async function pushToGitLab(config, payload, commitMessage = "") {
+  const instanceUrl = cleanInstanceUrl(config.instanceUrl);
+  const projectId = encodeProjectId(config.projectId);
+  const token = (config.token || "").trim();
+  const branch = (config.branch || "main").trim();
+  const rawFilePath = (config.filePath || "data/studiplanner-state.json").trim();
+  const filePath = encodeURIComponent(rawFilePath);
+
+  if (!projectId || !token) {
+    throw new Error("Configurazione GitLab incompleta per il push.");
+  }
+
+  const checkEndpoint = `${instanceUrl}/api/v4/projects/${projectId}/repository/files/${filePath}?ref=${encodeURIComponent(branch)}`;
+  let fileExists = false;
+
+  try {
+    const checkRes = await fetch(checkEndpoint, {
+      method: "HEAD",
+      headers: { "PRIVATE-TOKEN": token }
+    });
+    fileExists = checkRes.status === 200;
+  } catch (e) {
+    fileExists = false;
+  }
+
+  const method = fileExists ? "PUT" : "POST";
+  const endpoint = `${instanceUrl}/api/v4/projects/${projectId}/repository/files/${filePath}`;
+
+  const defaultMsg = commitMessage || `Update StudiPlanner: ${new Date().toLocaleDateString('it-IT')} ${new Date().toLocaleTimeString('it-IT')}`;
+
+  const requestBody = {
+    branch: branch,
+    commit_message: defaultMsg,
+    content: JSON.stringify(payload, null, 2),
+    encoding: "text"
+  };
+
+  const response = await fetch(endpoint, {
+    method: method,
+    headers: {
+      "PRIVATE-TOKEN": token,
+      "Content-Type": "application/json",
+      "Accept": "application/json"
+    },
+    body: JSON.stringify(requestBody)
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => "");
+    throw new Error(`Errore durante il push su GitLab (${response.status}): ${errorBody || response.statusText}`);
+  }
+
+  const resultData = await response.json().catch(() => ({}));
+
+  return {
+    success: true,
+    created: !fileExists,
+    commitId: resultData.commit_id || null,
+    filePath: rawFilePath,
+    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
   };
 }
 
@@ -3359,15 +3688,44 @@ function Clarke9000Companion({ progress, metrics }) {
 
 
 
-function Dashboard({ progress, metrics, onTabChange, topics = [], settings = {} }) {
+function Dashboard({ progress, metrics, onTabChange, topics = [], settings = {}, onOpenLogModal }) {
   const { analisi, geometria, global } = progress;
   const [isFlashcardsOpen, setIsFlashcardsOpen] = useState(false);
   const [isExamSimulatorOpen, setIsExamSimulatorOpen] = useState(false);
 
   return (
     <div className="space-y-6">
+      {/* Quick Action Banner for Logging Study */}
+      <div className="bg-gradient-to-r from-emerald-950/40 via-slate-900/80 to-teal-950/40 border border-emerald-500/30 rounded-3xl p-4 md:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 backdrop-blur-md shadow-lg">
+        <div className="flex items-center space-x-3.5">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-500 flex items-center justify-center text-white font-black text-xl shadow-md shadow-emerald-500/20">
+            +
+          </div>
+          <div>
+            <h3 className="text-sm md:text-base font-bold text-white flex items-center gap-2">
+              <span>Registra Sessione di Studio</span>
+              <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-mono">
+                Adattamento Dinamico
+              </span>
+            </h3>
+            <p className="text-xs text-slate-300 mt-0.5">
+              Hai svolto ore di studio oggi o in una data passata? Clicca qui per indicare data, ore e argomento: il resto si adatterà in tempo reale!
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => onOpenLogModal && onOpenLogModal({ date: settings.currentSimulatedDate })}
+          className="w-full sm:w-auto flex items-center justify-center space-x-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold px-4 py-2.5 rounded-2xl text-xs shadow-lg shadow-emerald-500/20 border border-emerald-400/30 transition transform active:scale-95 flex-shrink-0"
+        >
+          <span className="text-base font-black leading-none">+</span>
+          <span>Registra Ore di Studio</span>
+        </button>
+      </div>
+
       {/* KPI Cards Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 2xl:gap-6">
         {/* Days Left */}
         <div className="bg-slate-900/80 border border-slate-800/80 p-4 rounded-2xl backdrop-blur-md relative overflow-hidden group hover:border-slate-700 transition">
           <div className="flex items-center justify-between text-slate-400 mb-2">
@@ -4033,7 +4391,9 @@ function WeeklyTodo({
   onUpdateTopicHours,
   settings,
   customDayCapacities = {},
-  onUpdateDayCapacity
+  onUpdateDayCapacity,
+  onOpenLogModal,
+  onOpenTopicDetail
 }) {
   // Default to the week containing Today
   const [selectedWeekIndex, setSelectedWeekIndex] = useState(() => {
@@ -4440,6 +4800,17 @@ function WeeklyTodo({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2.5">
+                  {/* Quick Log Studio Button for this day */}
+                  <button
+                    type="button"
+                    onClick={() => onOpenLogModal && onOpenLogModal({ date: day.date })}
+                    className="px-2.5 py-1 rounded-xl bg-gradient-to-r from-emerald-600/30 to-teal-600/30 hover:from-emerald-500/40 hover:to-teal-500/40 text-emerald-300 hover:text-emerald-200 text-xs font-mono font-bold border border-emerald-500/40 transition active:scale-95 flex items-center gap-1.5 shadow-sm"
+                    title={`Registra ore di studio svolte per ${day.dayName} ${formatDateDisplay(day.date)} (+)`}
+                  >
+                    <span className="text-sm font-black leading-none">+</span>
+                    <span>Registra Studio</span>
+                  </button>
+
                   {/* Time Shifter: Stepper Controls */}
                   <div className="flex items-center space-x-1 bg-slate-950/80 border border-slate-800 p-1 rounded-xl shadow-inner">
                     <button
@@ -4508,7 +4879,13 @@ function WeeklyTodo({
                   Nessun argomento previsto in questo slot (riposo o filtro attivo).
                 </div>
               ) : (
-                <div className="space-y-2.5">
+                <div className={`grid gap-3.5 ${
+                  visibleTopics.length >= 3
+                    ? "grid-cols-1 md:grid-cols-2 2xl:grid-cols-3"
+                    : visibleTopics.length === 2
+                    ? "grid-cols-1 xl:grid-cols-2"
+                    : "grid-cols-1"
+                }`}>
                   {visibleTopics.map(topic => {
                     const isAnalisi = topic.materia.toLowerCase().includes("analisi");
                     const isDone = Boolean(topic.completato !== undefined ? topic.completato : topic.isCompleted);
@@ -4525,10 +4902,12 @@ function WeeklyTodo({
 
                     return (
                       <div
-                        key={topic.id}
-                        className={`flex flex-col p-3.5 rounded-2xl border transition-all ${
+                        key={topic.sessionId || (topic.id + '_' + (topic.isSessionLog ? 'log' : 'sched'))}
+                        className={`flex flex-col justify-between p-3.5 md:p-4 rounded-2xl border transition-all h-full ${
                           isDone
                             ? "bg-slate-950/60 border-slate-800/50 opacity-60"
+                            : topic.isSessionLog
+                            ? "bg-slate-950/90 border-emerald-500/40 shadow-sm shadow-emerald-950/20"
                             : isAnalisi
                             ? "bg-slate-950/80 hover:bg-slate-900 border-emerald-500/20 hover:border-emerald-500/40"
                             : "bg-slate-950/80 hover:bg-slate-900 border-indigo-500/20 hover:border-indigo-500/40"
@@ -4547,15 +4926,30 @@ function WeeklyTodo({
                                 {topic.materia}
                               </span>
 
-                              {/* Topic ID */}
-                              <span className="text-[11px] font-mono font-bold text-slate-300">
-                                {topic.id}
-                              </span>
+                              {/* Topic ID & Info Trigger */}
+                              <button
+                                type="button"
+                                onClick={() => onOpenTopicDetail && onOpenTopicDetail(topic)}
+                                className="text-[11px] font-mono font-bold text-slate-300 hover:text-cyan-300 transition flex items-center gap-1 group/btn"
+                                title="Apri scheda informativa dettagliata"
+                              >
+                                <span>{topic.id}</span>
+                                <span className="text-[9px] font-sans px-1.5 py-0.2 rounded bg-cyan-500/10 text-cyan-400 group-hover/btn:bg-cyan-500/20 border border-cyan-500/30">
+                                  ℹ Info
+                                </span>
+                              </button>
 
                               {/* Chapter */}
                               <span className="text-[11px] text-slate-400 truncate max-w-[200px]">
                                 • {topic.capitolo}
                               </span>
+
+                              {/* Session Log Badge */}
+                              {topic.isSessionLog && (
+                                <span className="text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded-full">
+                                  ✓ Sessione Svolta ({topic.effectiveHours}h){isDone ? ` • Completato il ${formatDateDisplay(topic.completedDate || topic.assignedDate)}` : ""}
+                                </span>
+                              )}
 
                               {/* Buffer +20% badge */}
                               {topic.hasBuffer && (
@@ -4564,30 +4958,41 @@ function WeeklyTodo({
                                 </span>
                               )}
 
-                              {isDone && (
+                              {isDone && !topic.isSessionLog && (
                                 <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
                                   ✓ Completato {topic.completedDate ? `il ${formatDateDisplay(topic.completedDate)}` : ""}
                                 </span>
                               )}
 
-                              {!isDone && (topic.oreEffettive || 0) > 0 && (
+                              {!isDone && (topic.oreEffettive || 0) > 0 && !topic.isSessionLog && (
                                 <span className="text-[10px] font-mono text-cyan-300 bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 rounded-full">
                                   ⏳ In Corso ({Number(topic.oreEffettive).toFixed(1)}h svolte)
                                 </span>
                               )}
                             </div>
 
-                            <p className={`text-xs md:text-sm font-medium ${
-                              isDone ? "line-through text-slate-500" : "text-slate-200"
-                            }`}>
-                              {topic.argomento}
-                            </p>
+                            <button
+                              type="button"
+                              onClick={() => onOpenTopicDetail && onOpenTopicDetail(topic)}
+                              className="text-left group/title block cursor-pointer w-full"
+                              title="Clicca per aprire la scheda dell'argomento"
+                            >
+                              <p className={`text-xs md:text-sm font-semibold transition ${
+                                isDone ? "line-through text-slate-500" : "text-slate-200 group-hover/title:text-cyan-300"
+                              }`}>
+                                {topic.argomento}
+                              </p>
+                            </button>
 
-                            {topic.note && (
+                            {topic.sessionNote ? (
+                              <p className="text-[11px] text-emerald-300/90 italic mt-0.5">
+                                Nota di studio: "{topic.sessionNote}"
+                              </p>
+                            ) : topic.note ? (
                               <p className="text-[11px] text-slate-500 mt-0.5 truncate">
                                 Obiettivo: {topic.note}
                               </p>
-                            )}
+                            ) : null}
                           </div>
 
                           {/* Allocation info on this day */}
@@ -4654,6 +5059,16 @@ function WeeklyTodo({
                                 title="Aggiungi 1 ora al tempo speso (+1.0h)"
                               >
                                 + 1h
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => onOpenLogModal && onOpenLogModal({ date: day.date, topicId: topic.id })}
+                                className="px-2.5 py-1 rounded-lg bg-emerald-600/25 hover:bg-emerald-500/35 text-emerald-300 hover:text-emerald-200 border border-emerald-500/40 text-[11px] font-mono font-bold transition active:scale-95 shadow-sm flex items-center gap-1"
+                                title="Registra sessione personalizzata (+)"
+                              >
+                                <span className="font-black">+</span>
+                                <span>Log</span>
                               </button>
                             </div>
                           </div>
@@ -4811,7 +5226,17 @@ function WeeklyTodo({
 
 
 
-function HistoryLog({ historyDays, calendarDays = [], metrics, onAdvanceDate, onRetrocedeDate, onSetDate }) {
+function HistoryLog({
+  historyDays,
+  calendarDays = [],
+  metrics,
+  onAdvanceDate,
+  onRetrocedeDate,
+  onSetDate,
+  onOpenLogModal,
+  onDeleteSession,
+  onOpenTopicDetail
+}) {
   const [filterType, setFilterType] = useState("all"); // "all" | "completed" | "skipped"
 
   const filteredHistory = historyDays.filter(day => {
@@ -4912,36 +5337,48 @@ function HistoryLog({ historyDays, calendarDays = [], metrics, onAdvanceDate, on
           </p>
         </div>
 
-        <div className="flex bg-slate-950/80 p-1 rounded-xl border border-slate-800 text-xs font-medium">
+        <div className="flex flex-wrap items-center gap-3">
           <button
-            onClick={() => setFilterType("all")}
-            className={`px-3 py-1 rounded-lg transition ${
-              filterType === "all" ? "bg-slate-800 text-white shadow" : "text-slate-400 hover:text-slate-200"
-            }`}
+            type="button"
+            onClick={() => onOpenLogModal && onOpenLogModal({ date: metrics.currentSimulatedDate })}
+            className="flex items-center space-x-1.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold px-3 py-1.5 rounded-xl text-xs shadow-md shadow-emerald-500/20 border border-emerald-400/40 transition active:scale-95"
+            title="Registra ore di studio svolte (+)"
           >
-            Tutti i Giorni
+            <span className="text-sm font-black leading-none">+</span>
+            <span>Registra Studio</span>
           </button>
-          <button
-            onClick={() => setFilterType("completed")}
-            className={`px-3 py-1 rounded-lg transition ${
-              filterType === "completed" ? "bg-emerald-600/30 text-emerald-300 shadow" : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            Solo Studiati
-          </button>
-          <button
-            onClick={() => setFilterType("skipped")}
-            className={`px-3 py-1 rounded-lg transition ${
-              filterType === "skipped" ? "bg-amber-600/30 text-amber-300 shadow" : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            Solo Saltati
-          </button>
+
+          <div className="flex bg-slate-950/80 p-1 rounded-xl border border-slate-800 text-xs font-medium">
+            <button
+              onClick={() => setFilterType("all")}
+              className={`px-3 py-1 rounded-lg transition ${
+                filterType === "all" ? "bg-slate-800 text-white shadow" : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              Tutti i Giorni
+            </button>
+            <button
+              onClick={() => setFilterType("completed")}
+              className={`px-3 py-1 rounded-lg transition ${
+                filterType === "completed" ? "bg-emerald-600/30 text-emerald-300 shadow" : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              Solo Studiati
+            </button>
+            <button
+              onClick={() => setFilterType("skipped")}
+              className={`px-3 py-1 rounded-lg transition ${
+                filterType === "skipped" ? "bg-amber-600/30 text-amber-300 shadow" : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              Solo Saltati
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Timeline of Days */}
-      <div className="space-y-3">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         {filteredHistory.map(day => {
           const isToday = day.isToday;
           const isSkipped = day.dayStatus === "skipped";
@@ -4950,7 +5387,7 @@ function HistoryLog({ historyDays, calendarDays = [], metrics, onAdvanceDate, on
           return (
             <div
               key={day.date}
-              className={`p-4 md:p-5 rounded-2xl border transition backdrop-blur-md ${
+              className={`p-4 md:p-5 rounded-2xl border transition backdrop-blur-md flex flex-col justify-between ${
                 isToday
                   ? "bg-slate-900/95 border-cyan-500/50 shadow-lg shadow-cyan-950/40 ring-1 ring-cyan-500/30"
                   : isCompleted
@@ -4993,8 +5430,19 @@ function HistoryLog({ historyDays, calendarDays = [], metrics, onAdvanceDate, on
                   )}
                 </div>
 
-                <div className="text-xs text-slate-500 font-mono">
-                  {day.timeSlot}
+                <div className="flex items-center space-x-2">
+                  <span className="text-xs text-slate-500 font-mono">
+                    {day.timeSlot}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onOpenLogModal && onOpenLogModal({ date: day.date })}
+                    className="px-2 py-0.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-500/30 text-emerald-300 text-xs font-mono font-bold border border-emerald-500/30 transition active:scale-95 flex items-center gap-1"
+                    title={`Aggiungi o registra sessione per ${day.dayName} ${formatDateDisplay(day.date)} (+)`}
+                  >
+                    <span className="font-black">+</span>
+                    <span>Studio</span>
+                  </button>
                 </div>
               </div>
 
@@ -5003,20 +5451,59 @@ function HistoryLog({ historyDays, calendarDays = [], metrics, onAdvanceDate, on
                 <div className="mt-3 pt-3 border-t border-slate-800/70 space-y-2">
                   {day.topics.map(t => (
                     <div
-                      key={t.id}
+                      key={t.sessionId || (t.id + '_' + (t.isSessionLog ? 'log' : 'topic'))}
                       className="flex items-center justify-between text-xs bg-black/30 p-2.5 rounded-xl border border-slate-800/60"
                     >
-                      <div className="flex items-center space-x-2">
-                        <span className="font-mono font-bold text-slate-200">
-                          {t.id}
-                        </span>
-                        <span className="text-slate-300">
+                      <div className="flex items-center space-x-2 min-w-0 flex-1 pr-2">
+                        <button
+                          type="button"
+                          onClick={() => onOpenTopicDetail && onOpenTopicDetail(t.id)}
+                          className="font-mono font-bold text-slate-200 hover:text-cyan-300 transition text-left cursor-pointer flex items-center gap-1 group/btn"
+                          title="Apri scheda dettagli argomento"
+                        >
+                          <span>{t.id}</span>
+                          <span className="text-[9px] font-sans px-1 py-0.2 rounded bg-cyan-500/10 text-cyan-400 group-hover/btn:bg-cyan-500/20 border border-cyan-500/30">
+                            ℹ
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onOpenTopicDetail && onOpenTopicDetail(t.id)}
+                          className="text-slate-300 hover:text-cyan-200 truncate text-left transition cursor-pointer"
+                          title="Apri scheda dettagli argomento"
+                        >
                           {t.argomento}
-                        </span>
+                        </button>
+                        {t.isSessionLog && (
+                          <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.2 rounded font-bold flex-shrink-0">
+                            Sessione
+                          </span>
+                        )}
+                        {t.sessionNote && (
+                          <span className="text-[11px] text-slate-400 italic truncate max-w-xs">
+                            "{t.sessionNote}"
+                          </span>
+                        )}
                       </div>
-                      <span className="font-mono text-emerald-400 font-bold">
-                        {t.effectiveHours}h
-                      </span>
+                      <div className="flex items-center space-x-2 flex-shrink-0">
+                        <span className="font-mono text-emerald-400 font-bold">
+                          {t.effectiveHours}h
+                        </span>
+                        {t.sessionId && onDeleteSession && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (window.confirm(`Eliminare la sessione di ${t.effectiveHours}h su ${t.id}?`)) {
+                                onDeleteSession(t.sessionId);
+                              }
+                            }}
+                            className="p-1 text-slate-500 hover:text-rose-400 rounded transition"
+                            title="Elimina sessione"
+                          >
+                            <IconTrash className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -5034,7 +5521,7 @@ function HistoryLog({ historyDays, calendarDays = [], metrics, onAdvanceDate, on
 
 
 
-function TopicsTable({ topics, onToggleComplete, onUpdateTopicHours, onBatchUpdate }) {
+function TopicsTable({ topics, onToggleComplete, onUpdateTopicHours, onBatchUpdate, onOpenTopicDetail }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [subjectFilter, setSubjectFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -5208,8 +5695,18 @@ function TopicsTable({ topics, onToggleComplete, onUpdateTopicHours, onBatchUpda
                     </td>
 
                     {/* ID */}
-                    <td className="py-3 px-3 font-mono font-bold text-slate-200">
-                      {topic.id}
+                    <td className="py-3 px-3">
+                      <button
+                        type="button"
+                        onClick={() => onOpenTopicDetail && onOpenTopicDetail(topic)}
+                        className="font-mono font-bold text-slate-200 hover:text-cyan-300 transition flex items-center gap-1 group/btn"
+                        title="Apri scheda informativa"
+                      >
+                        <span>{topic.id}</span>
+                        <span className="text-[9px] font-sans px-1 py-0.2 rounded bg-cyan-500/10 text-cyan-400 group-hover/btn:bg-cyan-500/20 border border-cyan-500/30">
+                          ℹ
+                        </span>
+                      </button>
                     </td>
 
                     {/* Subject */}
@@ -5225,10 +5722,17 @@ function TopicsTable({ topics, onToggleComplete, onUpdateTopicHours, onBatchUpda
 
                     {/* Chapter & Topic */}
                     <td className="py-3 px-4">
-                      <div className="font-semibold text-slate-200 text-xs flex items-center gap-2">
-                        <span>{topic.argomento}</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => onOpenTopicDetail && onOpenTopicDetail(topic)}
+                          className="font-semibold text-slate-200 hover:text-cyan-300 transition text-xs text-left group/title"
+                          title="Apri scheda informativa dettagliata"
+                        >
+                          <span className="group-hover/title:underline">{topic.argomento}</span>
+                        </button>
                         {!isDone && effHours > 0 && (
-                          <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
+                          <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 flex-shrink-0">
                             In Corso
                           </span>
                         )}
@@ -5312,6 +5816,7 @@ function TopicsTable({ topics, onToggleComplete, onUpdateTopicHours, onBatchUpda
 
 
 
+
 function FileImporter({
   topics,
   settings,
@@ -5319,16 +5824,122 @@ function FileImporter({
   onCustomCapacitiesUpdated,
   onTopicsUpdated,
   onSettingsUpdated,
+  studySessions = [],
+  onStudySessionsUpdated,
   fsSyncStatus,
   onConnectFileSystem,
   onDisconnectFileSystem,
-  onTriggerManualSave
+  onTriggerManualSave,
+  gitlabConfig = {},
+  onUpdateGitLabConfig,
+  onGitLabPull,
+  onGitLabPush
 }) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [notification, setNotification] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
 
   const isFsAccessSupported = typeof window !== "undefined" && "showOpenFilePicker" in window;
+
+  // GitLab Cloud Sync Form State
+  const [glInstanceUrl, setGlInstanceUrl] = useState(gitlabConfig?.instanceUrl || "https://gitlab.com");
+  const [glProjectId, setGlProjectId] = useState(gitlabConfig?.projectId || "");
+  const [glBranch, setGlBranch] = useState(gitlabConfig?.branch || "main");
+  const [glFilePath, setGlFilePath] = useState(gitlabConfig?.filePath || "data/studiplanner-state.json");
+  const [glToken, setGlToken] = useState(gitlabConfig?.token || "");
+  const [glAutoSync, setGlAutoSync] = useState(gitlabConfig?.autoSync !== undefined ? gitlabConfig.autoSync : true);
+  const [glTesting, setGlTesting] = useState(false);
+  const [glTestResult, setGlTestResult] = useState(null);
+  const [glPulling, setGlPulling] = useState(false);
+  const [glPushing, setGlPushing] = useState(false);
+
+  const handleSaveGitLabConfig = (enabledState = null) => {
+    const isEnabled = enabledState !== null ? enabledState : (gitlabConfig?.enabled || false);
+    const updated = {
+      ...gitlabConfig,
+      enabled: isEnabled,
+      instanceUrl: glInstanceUrl,
+      projectId: glProjectId,
+      branch: glBranch,
+      filePath: glFilePath,
+      token: glToken,
+      autoSync: glAutoSync
+    };
+    if (onUpdateGitLabConfig) onUpdateGitLabConfig(updated);
+    setNotification({
+      type: "success",
+      message: isEnabled
+        ? "Configurazione GitLab salvata! Sincronizzazione automatica attiva."
+        : "Configurazione GitLab aggiornata."
+    });
+  };
+
+  const handleTestConnection = async () => {
+    setGlTesting(true);
+    setGlTestResult(null);
+    try {
+      const res = await testGitLabConnection({
+        instanceUrl: glInstanceUrl,
+        projectId: glProjectId,
+        token: glToken
+      });
+      setGlTestResult({
+        success: true,
+        message: `✓ Connesso con successo a "${res.projectName}"! Ramo: ${res.defaultBranch}`
+      });
+      // Save configuration on successful test
+      handleSaveGitLabConfig(true);
+    } catch (err) {
+      setGlTestResult({
+        success: false,
+        message: `Errore: ${err.message}`
+      });
+    } finally {
+      setGlTesting(false);
+    }
+  };
+
+  const handleManualPull = async () => {
+    setGlPulling(true);
+    setNotification(null);
+    try {
+      if (onGitLabPull) {
+        const res = await onGitLabPull();
+        setNotification({
+          type: "success",
+          message: res?.message || "Stato scaricato e applicato con successo da GitLab!"
+        });
+      }
+    } catch (err) {
+      setNotification({
+        type: "error",
+        message: `Errore durante il download da GitLab: ${err.message}`
+      });
+    } finally {
+      setGlPulling(false);
+    }
+  };
+
+  const handleManualPush = async () => {
+    setGlPushing(true);
+    setNotification(null);
+    try {
+      if (onGitLabPush) {
+        const res = await onGitLabPush("Salvataggio manuale da StudiPlanner");
+        setNotification({
+          type: "success",
+          message: res?.message || "Stato inviato su GitLab con successo!"
+        });
+      }
+    } catch (err) {
+      setNotification({
+        type: "error",
+        message: `Errore durante l'invio su GitLab: ${err.message}`
+      });
+    } finally {
+      setGlPushing(false);
+    }
+  };
 
   // Handle transparent File System Access connection
   const handleConnectFileClick = async () => {
@@ -5382,6 +5993,9 @@ function FileImporter({
           }
           if (backup.customDayCapacities && onCustomCapacitiesUpdated) {
             onCustomCapacitiesUpdated(backup.customDayCapacities);
+          }
+          if (backup.studySessions && Array.isArray(backup.studySessions) && onStudySessionsUpdated) {
+            onStudySessionsUpdated(backup.studySessions);
           }
           setNotification({
             type: "success",
@@ -5511,7 +6125,8 @@ function FileImporter({
       exportDate: new Date().toISOString(),
       settings,
       topics,
-      customDayCapacities
+      customDayCapacities,
+      studySessions
     };
 
     const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: "application/json" });
@@ -5614,6 +6229,224 @@ function FileImporter({
                 La File System Access API non è supportata da questo browser (usa Chrome, Edge o Opera per l'auto-sync trasparente).
               </div>
             )}
+          </div>
+        </div>
+      </div>
+
+      {/* GitLab Cloud Synchronization Card */}
+      <div className="bg-gradient-to-r from-slate-900/90 via-orange-950/20 to-slate-900/90 border border-orange-500/30 rounded-3xl p-5 md:p-6 shadow-xl backdrop-blur-md space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-start space-x-3.5">
+            <div className={`p-3 rounded-2xl flex-shrink-0 border ${
+              gitlabConfig?.enabled
+                ? "bg-orange-500/20 text-orange-400 border-orange-500/40 shadow-lg shadow-orange-500/20"
+                : "bg-slate-800/60 text-slate-400 border-slate-700"
+            }`}>
+              <IconGitLab className="w-6 h-6 text-orange-400" />
+            </div>
+            <div>
+              <div className="flex items-center space-x-2">
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <span>Sincronizzazione Cloud GitLab (Multi-Dispositivo)</span>
+                  <span className="text-[10px] bg-orange-500/20 text-orange-300 border border-orange-500/30 px-2 py-0.5 rounded-full font-mono font-bold">
+                    REST API v4
+                  </span>
+                </h3>
+                {gitlabConfig?.enabled ? (
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-pulse"></span>
+                    ATTIVA
+                  </span>
+                ) : (
+                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
+                    Disattivata
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
+                Sincronizza in automatico tutto il piano di studi (sessioni, ore e date) su un tuo repository privato GitLab. I dati saranno sempre allineati tra computer di casa, portatile, tablet e smartphone con <strong>zero server intermedi</strong>.
+              </p>
+
+              {gitlabConfig?.enabled && (
+                <div className="mt-2.5 flex flex-wrap items-center gap-2 text-xs">
+                  <span className="bg-slate-950/80 px-2.5 py-1 rounded-xl border border-slate-800 font-mono text-orange-300">
+                    🦊 Repo: <strong>{gitlabConfig.projectId}</strong>
+                  </span>
+                  <span className="bg-slate-950/80 px-2.5 py-1 rounded-xl border border-slate-800 font-mono text-cyan-300">
+                    🌿 Ramo: <strong>{gitlabConfig.branch || "main"}</strong>
+                  </span>
+                  <span className="bg-slate-950/80 px-2.5 py-1 rounded-xl border border-slate-800 font-mono text-emerald-400">
+                    ✓ Ultimo Sync: {gitlabConfig.lastSynced || "In attesa..."}
+                  </span>
+                  {gitlabConfig.syncStatus === "syncing" && (
+                    <span className="text-orange-400 animate-pulse text-[11px] font-mono">
+                      Sincronizzazione in corso...
+                    </span>
+                  )}
+                  {gitlabConfig.errorMessage && (
+                    <span className="text-rose-400 text-[11px] font-mono">
+                      ⚠️ {gitlabConfig.errorMessage}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 self-start md:self-center">
+            <button
+              type="button"
+              onClick={() => handleSaveGitLabConfig(!gitlabConfig?.enabled)}
+              className={`px-4 py-2.5 rounded-xl text-xs font-bold border transition ${
+                gitlabConfig?.enabled
+                  ? "bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border-rose-500/30"
+                  : "bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-400 hover:to-amber-500 text-white border-orange-400/30 shadow-lg shadow-orange-950/30"
+              }`}
+            >
+              {gitlabConfig?.enabled ? "Disattiva GitLab Sync" : "Abilita GitLab Sync"}
+            </button>
+          </div>
+        </div>
+
+        {/* Configuration inputs & controls */}
+        <div className="pt-3 border-t border-slate-800/80 space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+            <div>
+              <label className="block text-slate-400 font-medium mb-1">
+                Istanza GitLab:
+              </label>
+              <input
+                type="text"
+                value={glInstanceUrl}
+                onChange={(e) => setGlInstanceUrl(e.target.value)}
+                placeholder="https://gitlab.com"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-white font-mono text-xs focus:outline-none focus:border-orange-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-slate-400 font-medium mb-1">
+                Project Path o ID numerico:
+              </label>
+              <input
+                type="text"
+                value={glProjectId}
+                onChange={(e) => setGlProjectId(e.target.value)}
+                placeholder="username/studiplanner-data"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-white font-mono text-xs focus:outline-none focus:border-orange-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-slate-400 font-medium mb-1">
+                Ramo (Branch):
+              </label>
+              <input
+                type="text"
+                value={glBranch}
+                onChange={(e) => setGlBranch(e.target.value)}
+                placeholder="main"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-white font-mono text-xs focus:outline-none focus:border-orange-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-slate-400 font-medium mb-1">
+                Percorso File nel Repo:
+              </label>
+              <input
+                type="text"
+                value={glFilePath}
+                onChange={(e) => setGlFilePath(e.target.value)}
+                placeholder="data/studiplanner-state.json"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-white font-mono text-xs focus:outline-none focus:border-orange-500"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs items-end">
+            <div className="sm:col-span-2">
+              <label className="block text-slate-400 font-medium mb-1 flex items-center justify-between">
+                <span>Personal Access Token (GitLab):</span>
+                <span className="text-[10px] text-slate-500 font-normal">
+                  Permessi richiesti: <code>api</code> oppure <code>read_repository, write_repository</code>
+                </span>
+              </label>
+              <input
+                type="password"
+                value={glToken}
+                onChange={(e) => setGlToken(e.target.value)}
+                placeholder="glpat-xxxxxxxxxxxxxxxxxxxx"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-white font-mono text-xs focus:outline-none focus:border-orange-500"
+              />
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <button
+                type="button"
+                onClick={handleTestConnection}
+                disabled={glTesting || !glProjectId || !glToken}
+                className="flex-1 py-2 px-3 rounded-xl bg-orange-600/20 hover:bg-orange-600/30 text-orange-300 border border-orange-500/40 text-xs font-bold transition flex items-center justify-center gap-1.5 disabled:opacity-40"
+              >
+                {glTesting ? "Verifica in corso..." : "🧪 Testa Connessione"}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSaveGitLabConfig()}
+                className="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold transition"
+              >
+                Salva
+              </button>
+            </div>
+          </div>
+
+          {glTestResult && (
+            <div className={`p-2.5 rounded-xl text-xs font-mono flex items-center gap-2 ${
+              glTestResult.success
+                ? "bg-emerald-500/10 text-emerald-300 border border-emerald-500/30"
+                : "bg-rose-500/10 text-rose-300 border border-rose-500/30"
+            }`}>
+              <span>{glTestResult.message}</span>
+            </div>
+          )}
+
+          {/* Manual Pull & Push Actions */}
+          <div className="pt-2 flex flex-wrap items-center justify-between gap-3 text-xs bg-slate-950/40 p-3 rounded-2xl border border-slate-800/60">
+            <label className="flex items-center space-x-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={glAutoSync}
+                onChange={(e) => {
+                  setGlAutoSync(e.target.checked);
+                  handleSaveGitLabConfig();
+                }}
+                className="w-4 h-4 accent-orange-500 rounded cursor-pointer"
+              />
+              <span className="text-slate-300 font-medium">
+                Sincronizzazione Automatica Continua (Auto-Pull all'apertura + Auto-Commit ad ogni sessione/modifica)
+              </span>
+            </label>
+
+            <div className="flex items-center space-x-2">
+              <button
+                type="button"
+                onClick={handleManualPull}
+                disabled={glPulling || !gitlabConfig?.token}
+                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 rounded-xl font-bold transition flex items-center gap-1 disabled:opacity-40"
+                title="Scarica i dati più recenti dal repository GitLab"
+              >
+                <span>{glPulling ? "Scaricamento..." : "⬇ Pull da GitLab"}</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleManualPush}
+                disabled={glPushing || !gitlabConfig?.token}
+                className="px-3 py-1.5 bg-orange-600/30 hover:bg-orange-600/40 text-orange-200 border border-orange-500/40 rounded-xl font-bold transition flex items-center gap-1 disabled:opacity-40"
+                title="Invia lo stato attuale come nuovo commit su GitLab"
+              >
+                <span>{glPushing ? "Invio in corso..." : "⬆ Push su GitLab"}</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -5765,6 +6598,7 @@ function FileImporter({
 
 
 
+
 function SettingsModal({
   isOpen,
   onClose,
@@ -5817,7 +6651,7 @@ function SettingsModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-      <div className="bg-slate-900 border border-slate-700/80 rounded-3xl w-full max-w-lg p-6 shadow-2xl shadow-cyan-950/40 relative">
+      <div className="bg-slate-900 border border-slate-700/80 rounded-3xl w-full max-w-xl p-6 shadow-2xl shadow-cyan-950/40 relative">
         <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-800">
           <div className="flex items-center space-x-2.5">
             <div className="p-2 bg-cyan-500/10 rounded-xl text-cyan-400 border border-cyan-500/20">
@@ -5851,9 +6685,19 @@ function SettingsModal({
               />
             </div>
             <div>
-              <label className="block text-slate-300 font-semibold mb-1">
-                Data Odierna (Simulata)
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-slate-300 font-semibold">
+                  Data Odierna (Simulata)
+                </label>
+                <button
+                  type="button"
+                  onClick={() => handleChange("currentSimulatedDate", getLocalTodayDateStr())}
+                  className="text-[10px] text-cyan-400 hover:text-cyan-300 underline font-mono"
+                  title="Reimposta sulla data reale odierna del computer"
+                >
+                  Usa Oggi Reale
+                </button>
+              </div>
               <input
                 type="date"
                 value={formData.currentSimulatedDate}
@@ -6027,7 +6871,1319 @@ function SettingsModal({
 }
 
 
+// --- src/components/LogStudyModal.js ---
+
+
+
+function LogStudyModal({
+  isOpen,
+  onClose,
+  topics = [],
+  settings = {},
+  initialData = {},
+  onSaveSession,
+  studySessions = [],
+  onDeleteSession
+}) {
+  if (!isOpen) return null;
+
+  const [activeTab, setActiveTab] = useState("new"); // "new" | "recent"
+  const [selectedDate, setSelectedDate] = useState(() => {
+    return initialData.date || settings.currentSimulatedDate || "2026-11-18";
+  });
+  const [selectedSubject, setSelectedSubject] = useState("all"); // "all" | "analisi" | "geometria"
+  const [statusFilter, setStatusFilter] = useState("all"); // "uncompleted" | "all"
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const [selectedTopicId, setSelectedTopicId] = useState(() => {
+    if (initialData.topicId) return initialData.topicId;
+    // Default to the first uncompleted topic
+    const firstUncompleted = topics.find(t => !(t.completato !== undefined ? t.completato : t.isCompleted));
+    return firstUncompleted ? firstUncompleted.id : (topics[0]?.id || "A-01");
+  });
+
+  const [hours, setHours] = useState(() => {
+    if (initialData.hours !== undefined && initialData.hours !== null) {
+      return Number(initialData.hours);
+    }
+    return 2.0;
+  });
+
+  const [isCompleted, setIsCompleted] = useState(false);
+  const [hasManuallyToggledComplete, setHasManuallyToggledComplete] = useState(false);
+  const [note, setNote] = useState("");
+  const [notification, setNotification] = useState(null);
+
+  // Sync initialData when modal opens or initialData changes
+  useEffect(() => {
+    if (initialData.date) {
+      setSelectedDate(initialData.date);
+    } else if (settings.currentSimulatedDate) {
+      setSelectedDate(settings.currentSimulatedDate);
+    }
+
+    if (initialData.topicId) {
+      setSelectedTopicId(initialData.topicId);
+      const t = topics.find(item => item.id === initialData.topicId);
+      if (t) {
+        if (t.materia.toLowerCase().includes("analisi")) {
+          setSelectedSubject("analisi");
+        } else if (t.materia.toLowerCase().includes("geometria")) {
+          setSelectedSubject("geometria");
+        }
+        const est = Number(t.oreStimate || 2.0);
+        const eff = Number(t.oreEffettive || 0);
+        const residue = Math.max(0, Number((est - eff).toFixed(2)));
+        if (initialData.hours !== undefined) {
+          setHours(Number(initialData.hours));
+        } else if (residue > 0) {
+          setHours(residue);
+        } else {
+          setHours(est);
+        }
+      }
+    }
+
+    setHasManuallyToggledComplete(false);
+    setNotification(null);
+  }, [initialData, settings.currentSimulatedDate, topics]);
+
+  // Current selected topic reference
+  const currentTopic = useMemo(() => {
+    return topics.find(t => t.id === selectedTopicId) || topics[0] || null;
+  }, [topics, selectedTopicId]);
+
+  // Filtered topics list for selection
+  const filteredTopics = useMemo(() => {
+    return topics.filter(t => {
+      const isDone = Boolean(t.completato !== undefined ? t.completato : t.isCompleted);
+      if (statusFilter === "uncompleted" && isDone) return false;
+
+      // Subject filter
+      if (selectedSubject === "analisi" && !t.materia.toLowerCase().includes("analisi")) return false;
+      if (selectedSubject === "geometria" && !t.materia.toLowerCase().includes("geometria")) return false;
+
+      // Text search
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const mId = t.id.toLowerCase().includes(q);
+        const mArg = t.argomento.toLowerCase().includes(q);
+        const mCap = (t.capitolo || "").toLowerCase().includes(q);
+        if (!mId && !mArg && !mCap) return false;
+      }
+
+      return true;
+    });
+  }, [topics, statusFilter, selectedSubject, searchQuery]);
+
+  // CRITICAL FIX: Prevent topic desync when user filters by subject or searches!
+  // If the currently selected topic is no longer present in filteredTopics, auto-select the first matching topic.
+  useEffect(() => {
+    if (filteredTopics.length > 0) {
+      const isStillInList = filteredTopics.some(t => t.id === selectedTopicId);
+      if (!isStillInList) {
+        const target = filteredTopics[0];
+        setSelectedTopicId(target.id);
+        const est = Number(target.oreStimate || 2.0);
+        const eff = Number(target.oreEffettive || 0);
+        const residue = Math.max(0, Number((est - eff).toFixed(2)));
+        setHours(residue > 0 ? residue : est);
+        setHasManuallyToggledComplete(false);
+      }
+    }
+  }, [filteredTopics, selectedTopicId]);
+
+  // Select topic handler
+  const handleSelectTopic = (topic) => {
+    if (!topic) return;
+    setSelectedTopicId(topic.id);
+    const est = Number(topic.oreStimate || 2.0);
+    const eff = Number(topic.oreEffettive || 0);
+    const residue = Math.max(0, Number((est - eff).toFixed(2)));
+    setHours(residue > 0 ? residue : est);
+    setHasManuallyToggledComplete(false);
+  };
+
+  // Change subject filter and auto-pick corresponding topic if needed
+  const handleFilterSubject = (subj) => {
+    setSelectedSubject(subj);
+    // If current topic does not belong to new subject, pick first topic of that subject
+    if (subj === "analisi" && (!currentTopic || !currentTopic.materia.toLowerCase().includes("analisi"))) {
+      const firstAnalisi = topics.find(t => t.materia.toLowerCase().includes("analisi") && !t.completato);
+      if (firstAnalisi) handleSelectTopic(firstAnalisi);
+    } else if (subj === "geometria" && (!currentTopic || !currentTopic.materia.toLowerCase().includes("geometria"))) {
+      const firstGeom = topics.find(t => t.materia.toLowerCase().includes("geometria") && !t.completato);
+      if (firstGeom) handleSelectTopic(firstGeom);
+    }
+  };
+
+  // Auto-suggest completion when hours are entered unless user manually toggled
+  useEffect(() => {
+    if (!currentTopic || hasManuallyToggledComplete) return;
+
+    const est = Number(currentTopic.oreStimate || 2.0);
+    const eff = Number(currentTopic.oreEffettive || 0);
+    const totalAfter = eff + Number(hours || 0);
+
+    // If accumulated hours reach or exceed estimate, suggest completion
+    if (totalAfter >= est * 0.95) {
+      setIsCompleted(true);
+    } else {
+      setIsCompleted(false);
+    }
+  }, [currentTopic, hours, hasManuallyToggledComplete]);
+
+  // Next topic in sequential order (for previewing auto-adapt)
+  const nextSequentialTopic = useMemo(() => {
+    if (!currentTopic) return null;
+    const isAnalisi = currentTopic.materia.toLowerCase().includes("analisi");
+    const sameSubject = topics.filter(t => isAnalisi ? t.materia.toLowerCase().includes("analisi") : t.materia.toLowerCase().includes("geometria"));
+    const currentIndex = sameSubject.findIndex(t => t.id === currentTopic.id);
+    if (currentIndex >= 0 && currentIndex < sameSubject.length - 1) {
+      return sameSubject[currentIndex + 1];
+    }
+    return null;
+  }, [topics, currentTopic]);
+
+  const handleAdjustHours = (delta) => {
+    setHours(prev => Math.max(0.25, Number((prev + delta).toFixed(2))));
+  };
+
+  const handleSetExactResidue = () => {
+    if (!currentTopic) return;
+    const est = Number(currentTopic.oreStimate || 2.0);
+    const eff = Number(currentTopic.oreEffettive || 0);
+    const residue = Math.max(0.5, Number((est - eff).toFixed(2)));
+    setHours(residue);
+  };
+
+  const handleQuickDate = (target) => {
+    if (target === "today") {
+      setSelectedDate(settings.currentSimulatedDate || new Date().toISOString().split("T")[0]);
+    } else if (target === "yesterday") {
+      const cur = new Date(settings.currentSimulatedDate || new Date());
+      cur.setDate(cur.getDate() - 1);
+      setSelectedDate(cur.toISOString().split("T")[0]);
+    }
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!selectedTopicId || !selectedDate || hours <= 0) {
+      setNotification({ type: "error", message: "Compila tutti i campi obbligatori (argomento, data e ore > 0)." });
+      return;
+    }
+
+    if (onSaveSession) {
+      onSaveSession({
+        topicId: selectedTopicId,
+        date: selectedDate,
+        hours: Number(hours),
+        completed: Boolean(isCompleted),
+        note: note.trim()
+      });
+    }
+
+    setNotification({
+      type: "success",
+      message: `✓ Registrate ${hours}h su ${selectedTopicId} in data ${formatDateDisplay(selectedDate)}! Il piano si è aggiornato.`
+    });
+
+    setTimeout(() => {
+      onClose();
+    }, 600);
+  };
+
+  const formatDateDisplay = (dateStr) => {
+    if (!dateStr) return "";
+    const [y, m, d] = dateStr.split("-");
+    return `${d}/${m}/${y}`;
+  };
+
+  const isCurrentAnalisi = currentTopic ? currentTopic.materia.toLowerCase().includes("analisi") : true;
+  const oreStimate = Number(currentTopic?.oreStimate || 2.0);
+  const oreGiaSvolte = Number(currentTopic?.oreEffettive || 0);
+  const oreTotaliPost = Number((oreGiaSvolte + Number(hours || 0)).toFixed(2));
+  const residuoPost = Math.max(0, Number((oreStimate - oreTotaliPost).toFixed(2)));
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-md overflow-y-auto">
+      <div className="bg-[#0b101d] border border-slate-800 rounded-3xl w-full max-w-2xl 2xl:max-w-3xl shadow-2xl overflow-hidden my-auto flex flex-col max-h-[94vh]">
+        {/* Modal Header */}
+        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-800/80 bg-gradient-to-r from-slate-900/95 via-slate-900/70 to-slate-950/90">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center text-white font-black text-xl shadow-lg shadow-emerald-500/20">
+              +
+            </div>
+            <div>
+              <h2 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
+                <span>Registra Sessione di Studio</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full font-mono bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                  Ribilanciamento Dinamico
+                </span>
+              </h2>
+              <p className="text-[11px] text-slate-400">
+                Indica il giorno, l'argomento e le ore svolte: il piano si adatta in tempo reale!
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition"
+            title="Chiudi finestra"
+          >
+            <IconX className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Tab switch: Nuova sessione vs Ultime registrazioni */}
+        <div className="flex items-center justify-between px-5 pt-2.5 border-b border-slate-800/60 bg-slate-950/40 text-xs">
+          <div className="flex space-x-2">
+            <button
+              type="button"
+              onClick={() => setActiveTab("new")}
+              className={`pb-2.5 px-3 font-bold border-b-2 transition ${
+                activeTab === "new"
+                  ? "border-emerald-400 text-emerald-300"
+                  : "border-transparent text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              + Nuova Registrazione
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("recent")}
+              className={`pb-2.5 px-3 font-bold border-b-2 transition flex items-center gap-1.5 ${
+                activeTab === "recent"
+                  ? "border-emerald-400 text-emerald-300"
+                  : "border-transparent text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              <span>Ultime Sessioni</span>
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-800 text-slate-300 font-mono">
+                {studySessions.length}
+              </span>
+            </button>
+          </div>
+
+          <span className="text-[11px] font-mono text-cyan-400">
+            Oggi: {formatDateDisplay(settings.currentSimulatedDate)}
+          </span>
+        </div>
+
+        {/* Modal Body */}
+        <div className="p-4 sm:p-5 overflow-y-auto space-y-4 flex-1">
+          {notification && (
+            <div className={`p-3 rounded-2xl text-xs font-semibold flex items-center gap-2 ${
+              notification.type === "success"
+                ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                : "bg-rose-500/20 text-rose-300 border border-rose-500/40"
+            }`}>
+              <IconCheckCircle className="w-4 h-4 flex-shrink-0" />
+              <span>{notification.message}</span>
+            </div>
+          )}
+
+          {activeTab === "recent" ? (
+            /* Recent Sessions List */
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-xs text-slate-400">
+                <span>Storico delle sessioni registrate:</span>
+                <span className="font-mono">{studySessions.length} sessioni</span>
+              </div>
+
+              {studySessions.length === 0 ? (
+                <div className="text-center py-10 bg-slate-900/30 border border-slate-800/80 rounded-2xl text-slate-400 text-xs">
+                  Nessuna sessione registrata finora. Registra la tua prima sessione con il tab "+ Nuova Registrazione"!
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+                  {studySessions.map((sess) => {
+                    const topic = topics.find(t => t.id === sess.topicId);
+                    const isAnalisi = topic ? topic.materia.toLowerCase().includes("analisi") : true;
+
+                    return (
+                      <div
+                        key={sess.id}
+                        className="p-3.5 bg-slate-900/80 border border-slate-800/80 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs hover:border-slate-700 transition"
+                      >
+                        <div className="flex items-start space-x-3">
+                          <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold font-mono ${
+                            isAnalisi
+                              ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                              : "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                          }`}>
+                            {sess.topicId}
+                          </span>
+
+                          <div>
+                            <div className="flex items-center space-x-2">
+                              <span className="font-bold text-white font-mono">
+                                {formatDateDisplay(sess.date)}
+                              </span>
+                              <span className="text-slate-400">•</span>
+                              <span className="font-bold text-cyan-300 font-mono">
+                                +{sess.hours}h
+                              </span>
+                              {sess.completed && (
+                                <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.2 rounded font-bold">
+                                  ✓ Completato
+                                </span>
+                              )}
+                            </div>
+
+                            <p className="text-slate-300 font-medium mt-0.5 truncate max-w-sm">
+                              {topic ? topic.argomento : sess.topicId}
+                            </p>
+
+                            {sess.note && (
+                              <p className="text-slate-400 text-[11px] italic mt-0.5">
+                                "{sess.note}"
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (window.confirm(`Eliminare la sessione di ${sess.hours}h su ${sess.topicId} del ${formatDateDisplay(sess.date)}? Le ore e lo stato verranno ripristinati.`)) {
+                              onDeleteSession && onDeleteSession(sess.id);
+                            }
+                          }}
+                          className="self-end sm:self-center p-2 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition"
+                          title="Elimina questa sessione (ripristina ore)"
+                        >
+                          <IconTrash className="w-4 h-4" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ) : (
+            /* Form to Log New Study Session */
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* 1. Data di Studio */}
+              <div className="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-3 sm:p-4 space-y-2">
+                <label className="block text-xs font-bold text-slate-300 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <IconCalendar className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>1. Data della Sessione di Studio:</span>
+                  </span>
+                  <span className="text-[11px] font-normal text-slate-400">
+                    Oggi: <strong className="text-cyan-300 font-mono">{formatDateDisplay(settings.currentSimulatedDate)}</strong>
+                  </span>
+                </label>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    min={settings.roadmapStartDate || "2026-11-16"}
+                    max={settings.targetExamDate || "2027-01-10"}
+                    className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-cyan-500 transition shadow-inner"
+                  />
+
+                  {/* Quick Date Chips */}
+                  <button
+                    type="button"
+                    onClick={() => handleQuickDate("today")}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition ${
+                      selectedDate === settings.currentSimulatedDate
+                        ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/40 font-bold"
+                        : "bg-slate-900 text-slate-400 border-slate-800 hover:text-white"
+                    }`}
+                  >
+                    ★ Oggi
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleQuickDate("yesterday")}
+                    className="px-3 py-1.5 rounded-xl text-xs font-medium border bg-slate-900 text-slate-400 border-slate-800 hover:text-white transition"
+                  >
+                    ◀ Ieri
+                  </button>
+                </div>
+              </div>
+
+              {/* 2. Selezione Visiva dell'Argomento */}
+              <div className="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-3 sm:p-4 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                    <IconBookOpen className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>2. Quale argomento hai studiato?</span>
+                  </label>
+
+                  {/* Subject filter tabs */}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <div className="flex bg-slate-950 p-0.5 rounded-xl border border-slate-800 text-[11px]">
+                      <button
+                        type="button"
+                        onClick={() => handleFilterSubject("all")}
+                        className={`px-2.5 py-1 rounded-lg transition font-medium ${
+                          selectedSubject === "all" ? "bg-slate-800 text-white font-bold shadow" : "text-slate-400 hover:text-slate-200"
+                        }`}
+                      >
+                        Tutte ({topics.length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleFilterSubject("analisi")}
+                        className={`px-2.5 py-1 rounded-lg transition font-medium ${
+                          selectedSubject === "analisi" ? "bg-emerald-600/30 text-emerald-300 font-bold shadow" : "text-slate-400 hover:text-slate-200"
+                        }`}
+                      >
+                        Analisi 1 (32)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleFilterSubject("geometria")}
+                        className={`px-2.5 py-1 rounded-lg transition font-medium ${
+                          selectedSubject === "geometria" ? "bg-indigo-600/30 text-indigo-300 font-bold shadow" : "text-slate-400 hover:text-slate-200"
+                        }`}
+                      >
+                        Geometria (31)
+                      </button>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setStatusFilter(prev => prev === "uncompleted" ? "all" : "uncompleted")}
+                      className={`px-2.5 py-1 rounded-xl text-[10px] font-mono border transition ${
+                        statusFilter === "uncompleted"
+                          ? "bg-amber-500/20 text-amber-300 border-amber-500/40 font-bold"
+                          : "bg-slate-950 text-slate-400 border-slate-800 hover:text-white"
+                      }`}
+                      title="Mostra solo argomenti da completare"
+                    >
+                      {statusFilter === "uncompleted" ? "Da Svolgere" : "Tutti gli stati"}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Search Bar for instantaneous lookup */}
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+                    <IconSearch className="w-3.5 h-3.5" />
+                  </div>
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Cerca per ID (es. G-01, A-09) o parole chiave (es. matrici, integrali, autovalori)..."
+                    className="w-full pl-9 pr-8 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition shadow-inner"
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery("")}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-white text-xs"
+                      title="Cancella ricerca"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                {/* CURRENT SELECTED TOPIC HERO CARD */}
+                {currentTopic && (
+                  <div className={`p-3.5 rounded-2xl border transition-all ${
+                    isCurrentAnalisi
+                      ? "bg-emerald-950/20 border-emerald-500/40 shadow-sm shadow-emerald-950/20"
+                      : "bg-indigo-950/20 border-indigo-500/40 shadow-sm shadow-indigo-950/20"
+                  }`}>
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <div className="flex items-center space-x-2">
+                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                          isCurrentAnalisi
+                            ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                            : "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                        }`}>
+                          {currentTopic.materia}
+                        </span>
+                        <span className="font-mono font-black text-white text-sm">
+                          {currentTopic.id}
+                        </span>
+                        <span className="text-[11px] text-slate-400 truncate max-w-[200px]">
+                          • {currentTopic.capitolo}
+                        </span>
+                      </div>
+
+                      <span className="text-[10px] px-2 py-0.5 rounded-full font-mono font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                        Argomento Selezionato
+                      </span>
+                    </div>
+
+                    <h3 className="text-xs sm:text-sm font-bold text-white leading-snug">
+                      {currentTopic.argomento}
+                    </h3>
+
+                    <div className="mt-2 pt-2 border-t border-slate-800/80 flex flex-wrap items-center justify-between text-[11px] font-mono text-slate-400 gap-2">
+                      <div className="flex items-center space-x-3">
+                        <span>Già svolte: <strong className="text-cyan-300">{oreGiaSvolte}h</strong></span>
+                        <span>Stimate: <strong className="text-white">{oreStimate}h</strong></span>
+                        <span>Residuo attuale: <strong className="text-amber-300">{Math.max(0, Number((oreStimate - oreGiaSvolte).toFixed(1)))}h</strong></span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <span>Difficoltà: <strong className="text-cyan-400">{currentTopic.difficolta}/5</strong></span>
+                        <span>Priorità: <strong className="text-amber-400">{currentTopic.prioritaEsame}/5</strong></span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* SCROLLABLE TOPIC PICKER LIST */}
+                <div>
+                  <div className="flex items-center justify-between text-[11px] text-slate-400 mb-1.5">
+                    <span>Oppure seleziona un altro argomento dall'elenco ({filteredTopics.length} disponibili):</span>
+                    {filteredTopics.length > 0 && (
+                      <span className="text-slate-500 text-[10px]">Fai clic su un elemento per selezionarlo</span>
+                    )}
+                  </div>
+
+                  {filteredTopics.length === 0 ? (
+                    <div className="p-4 text-center rounded-2xl bg-slate-950/60 border border-slate-800 text-xs text-slate-400 space-y-2">
+                      <p>Nessun argomento trovato con i filtri attuali.</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedSubject("all");
+                          setStatusFilter("all");
+                          setSearchQuery("");
+                        }}
+                        className="px-3 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 text-xs font-mono font-bold transition"
+                      >
+                        Azzera filtri di ricerca
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="max-h-48 sm:max-h-56 overflow-y-auto space-y-1.5 pr-1 border border-slate-800/80 rounded-2xl p-2 bg-slate-950/80 shadow-inner">
+                      {filteredTopics.map((t) => {
+                        const isSelected = t.id === selectedTopicId;
+                        const isAnalisi = t.materia.toLowerCase().includes("analisi");
+                        const isDone = Boolean(t.completato !== undefined ? t.completato : t.isCompleted);
+                        const doneHours = Number(t.oreEffettive || 0);
+
+                        return (
+                          <div
+                            key={t.id}
+                            onClick={() => handleSelectTopic(t)}
+                            className={`p-2.5 rounded-xl border text-xs cursor-pointer transition-all flex items-center justify-between gap-2.5 ${
+                              isSelected
+                                ? isAnalisi
+                                  ? "bg-emerald-950/40 border-emerald-500/80 shadow-sm shadow-emerald-500/20"
+                                  : "bg-indigo-950/40 border-indigo-500/80 shadow-sm shadow-indigo-500/20"
+                                : "bg-slate-900/60 hover:bg-slate-850 border-slate-800/70 hover:border-slate-700"
+                            }`}
+                          >
+                            <div className="flex items-center space-x-2.5 min-w-0 flex-1">
+                              {/* Custom Radio Button */}
+                              <div className={`w-4 h-4 rounded-full border flex items-center justify-center flex-shrink-0 transition ${
+                                isSelected
+                                  ? isAnalisi
+                                    ? "border-emerald-400 bg-emerald-500 text-white"
+                                    : "border-indigo-400 bg-indigo-500 text-white"
+                                  : "border-slate-600 bg-slate-950"
+                              }`}>
+                                {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                              </div>
+
+                              {/* Topic ID */}
+                              <span className={`font-mono font-bold px-1.5 py-0.5 rounded text-[11px] ${
+                                isAnalisi ? "bg-emerald-500/10 text-emerald-300" : "bg-indigo-500/10 text-indigo-300"
+                              }`}>
+                                {t.id}
+                              </span>
+
+                              {/* Topic Name */}
+                              <span className={`truncate text-xs font-medium ${
+                                isSelected ? "text-white font-bold" : "text-slate-300"
+                              }`}>
+                                {t.argomento}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center space-x-2 flex-shrink-0 text-[10px] font-mono">
+                              <span className="text-slate-400">
+                                {doneHours}h / {t.oreStimate}h
+                              </span>
+                              {isDone ? (
+                                <span className="text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-1.5 py-0.2 rounded font-bold">
+                                  ✓ Fatto
+                                </span>
+                              ) : doneHours > 0 ? (
+                                <span className="text-cyan-300 bg-cyan-500/10 border border-cyan-500/30 px-1.5 py-0.2 rounded">
+                                  In Corso
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* 3. Quante ore hai studiato? */}
+              <div className="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-3 sm:p-4 space-y-2.5">
+                <label className="block text-xs font-bold text-slate-300 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <IconClock className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>3. Quante ore hai studiato in questa sessione?</span>
+                  </span>
+                  <span className="text-xs font-mono font-bold text-emerald-400">
+                    +{hours} ore ({Math.round(hours * 60)} min)
+                  </span>
+                </label>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center bg-slate-950 border border-slate-800 rounded-xl p-1 shadow-inner">
+                    <button
+                      type="button"
+                      onClick={() => handleAdjustHours(-0.5)}
+                      disabled={hours <= 0.25}
+                      className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-mono font-bold border border-slate-700 transition disabled:opacity-30"
+                      title="Riduci di 30 minuti (-0.5h)"
+                    >
+                      - 30m
+                    </button>
+                    <input
+                      type="number"
+                      step="0.25"
+                      min="0.25"
+                      max="14.0"
+                      value={hours}
+                      onChange={(e) => setHours(Math.max(0.25, Number(e.target.value)))}
+                      className="w-20 text-center bg-transparent text-white font-mono font-bold text-sm focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleAdjustHours(0.5)}
+                      className="px-2.5 py-1 rounded-lg bg-emerald-600/30 hover:bg-emerald-500/40 text-emerald-300 text-xs font-mono font-bold border border-emerald-500/40 transition active:scale-95"
+                      title="Aggiungi 30 minuti (+0.5h)"
+                    >
+                      + 30m
+                    </button>
+                  </div>
+
+                  {/* Stepper +1h */}
+                  <button
+                    type="button"
+                    onClick={() => handleAdjustHours(1.0)}
+                    className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-mono font-bold border border-slate-800 transition active:scale-95"
+                  >
+                    + 1h
+                  </button>
+
+                  {/* Residuo esatto button */}
+                  {currentTopic && Math.max(0, oreStimate - oreGiaSvolte) > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleSetExactResidue}
+                      className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs font-mono font-bold border border-amber-500/40 transition active:scale-95"
+                      title="Imposta le ore esattamente pari al residuo stimato dell'argomento"
+                    >
+                      Tutto il Residuo ({Math.max(0, Number((oreStimate - oreGiaSvolte).toFixed(1)))}h)
+                    </button>
+                  )}
+                </div>
+
+                {/* Quick Chips */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  <span className="text-[10px] text-slate-500">Preset rapidi:</span>
+                  {[0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.5].map(val => (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => setHours(val)}
+                      className={`px-2.5 py-0.5 rounded-lg text-[11px] font-mono transition border ${
+                        hours === val
+                          ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 font-bold"
+                          : "bg-slate-950 text-slate-400 border-slate-800 hover:text-white"
+                      }`}
+                    >
+                      {val}h
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 4. Completamento Argomento */}
+              <div className="p-3 bg-slate-950/70 border border-slate-800/80 rounded-2xl flex items-start space-x-3">
+                <input
+                  type="checkbox"
+                  id="completeToggle"
+                  checked={isCompleted}
+                  onChange={(e) => {
+                    setIsCompleted(e.target.checked);
+                    setHasManuallyToggledComplete(true);
+                  }}
+                  className="w-4 h-4 mt-0.5 accent-emerald-500 rounded cursor-pointer"
+                />
+                <label htmlFor="completeToggle" className="cursor-pointer select-none text-xs flex-1">
+                  <div className="font-bold text-white flex items-center gap-2">
+                    <span>Segna questo argomento come COMPLETATO</span>
+                    {isCompleted && (
+                      <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.2 rounded font-mono font-bold">
+                        ✓ Pronto per avanzamento
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-slate-400 text-[11px] mt-0.5">
+                    {isCompleted
+                      ? "L'argomento sarà archiviato come svolto. I giorni successivi attingeranno subito dai prossimi argomenti in sequenza propedeutica!"
+                      : `Studio parziale: l'argomento rimarrà in programma nei giorni successivi con ${residuoPost}h residue.`}
+                  </p>
+                </label>
+              </div>
+
+              {/* 5. Note facoltative */}
+              <div>
+                <label className="block text-[11px] font-medium text-slate-400 mb-1">
+                  Note di sessione (facoltativo):
+                </label>
+                <input
+                  type="text"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="es. Svolti esercizi sulle matrici inverse, rivedere il determinante..."
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 shadow-inner"
+                />
+              </div>
+
+              {/* 6. Dynamic Auto-Adapt Confirmation Box */}
+              <div className="p-3.5 bg-gradient-to-r from-cyan-950/30 via-slate-900 to-indigo-950/30 border border-cyan-500/30 rounded-2xl text-xs space-y-1.5">
+                <div className="flex items-center space-x-2 text-cyan-300 font-bold">
+                  <IconSparkles className="w-4 h-4 text-cyan-400" />
+                  <span>Riepilogo Registrazione & Auto-Adattamento:</span>
+                </div>
+                <div className="text-slate-300 text-[11px] leading-relaxed">
+                  Verranno registrate <strong>+{hours}h</strong> in data <strong>{formatDateDisplay(selectedDate)}</strong> sull'argomento:
+                  <div className="mt-1 p-2 bg-black/40 rounded-xl border border-slate-800 font-mono text-cyan-300 font-bold flex items-center gap-2">
+                    <span className="px-1.5 py-0.2 rounded bg-cyan-500/10 border border-cyan-500/30 text-white">
+                      {currentTopic?.id}
+                    </span>
+                    <span className="truncate">{currentTopic?.argomento}</span>
+                    <span className="text-slate-400 text-[10px] ml-auto">
+                      ({isCompleted ? "✓ Completato" : "In Corso"})
+                    </span>
+                  </div>
+                </div>
+                <p className="text-slate-400 text-[11px] pt-1">
+                  💡 <em>Se oggi avevi in programma un'altra materia, il calendario riadatterà automaticamente i carichi a partire da domani senza perdere nessun argomento.</em>
+                </p>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-800/80">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-xl text-xs font-semibold border border-slate-800 transition"
+                >
+                  Annulla
+                </button>
+
+                <button
+                  type="submit"
+                  className="flex items-center space-x-2 px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold rounded-xl text-xs shadow-lg shadow-emerald-500/25 border border-emerald-400/40 transition transform active:scale-95"
+                >
+                  <IconCheck className="w-4 h-4" />
+                  <span>Conferma e Salva Sessione</span>
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+// --- src/components/TopicDetailModal.js ---
+
+
+
+function TopicDetailModal({
+  isOpen,
+  onClose,
+  topic,
+  onToggleComplete,
+  onOpenLogModal,
+  studySessions = []
+}) {
+  if (!isOpen || !topic) return null;
+
+  const [activeTab, setActiveTab] = useState("overview"); // "overview" | "theorems" | "sessions"
+
+  const isAnalisi = topic.materia ? topic.materia.toLowerCase().includes("analisi") : true;
+  const isDone = Boolean(topic.completato !== undefined ? topic.completato : topic.isCompleted);
+  const effHours = Number(topic.oreEffettive || 0);
+  const estHours = Number(topic.oreStimate || 2.0);
+  const residue = Math.max(0, Number((estHours - effHours).toFixed(2)));
+  const hasBuffer = Boolean(topic.hasBuffer || (topic.prioritaEsame >= 4 || topic.difficolta >= 4));
+
+  // Sessions for this topic
+  const topicSessions = useMemo(() => {
+    return (studySessions || []).filter(s => s.topicId === topic.id);
+  }, [studySessions, topic.id]);
+
+  // Subtopics breakdown
+  const subtopics = useMemo(() => {
+    if (!topic.argomento) return [];
+    // Split by commas, semicolons or colons that represent lists
+    const rawParts = topic.argomento.split(/[,;:]+/).map(p => p.trim()).filter(Boolean);
+    return rawParts.length > 1 ? rawParts : [topic.argomento];
+  }, [topic.argomento]);
+
+  // Check if proof/theorem is required
+  const hasProofMention = useMemo(() => {
+    const text = ((topic.argomento || "") + " " + (topic.note || "") + " " + (topic.fonti || "")).toLowerCase();
+    return text.includes("dim") || text.includes("teorema") || text.includes("dimostrazione");
+  }, [topic]);
+
+  const formatDateDisplay = (dateStr) => {
+    if (!dateStr) return "";
+    const [y, m, d] = dateStr.split("-");
+    return `${d}/${m}/${y}`;
+  };
+
+  const getDifficultyLabel = (diff) => {
+    const d = Number(diff) || 3;
+    if (d <= 2) return "Bassa / Accessibile";
+    if (d === 3) return "Media / Standard";
+    if (d === 4) return "Alta / Impegnativo";
+    return "Massima / Critico";
+  };
+
+  const getPriorityLabel = (prio) => {
+    const p = Number(prio) || 3;
+    if (p <= 2) return "Secondaria (Frequenza bassa)";
+    if (p === 3) return "Rilevante (Standard scritto/orale)";
+    if (p === 4) return "Frequente (Sbarramento scritto)";
+    return "Pilastro d'Esame (Presenza fissa)";
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/80 backdrop-blur-md overflow-y-auto">
+      <div className={`bg-[#0b101d] border rounded-3xl w-full max-w-3xl 2xl:max-w-4xl shadow-2xl overflow-hidden my-auto flex flex-col max-h-[92vh] ${
+        isAnalisi ? "border-emerald-500/30" : "border-indigo-500/30"
+      }`}>
+        {/* Header */}
+        <div className={`p-5 sm:p-6 border-b flex flex-col gap-3 relative overflow-hidden bg-gradient-to-r ${
+          isAnalisi
+            ? "from-slate-900/95 via-emerald-950/30 to-slate-950/90 border-emerald-500/20"
+            : "from-slate-900/95 via-indigo-950/30 to-slate-950/90 border-indigo-500/20"
+        }`}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Subject Badge */}
+              <span className={`text-[11px] font-bold px-2.5 py-1 rounded-xl uppercase tracking-wider ${
+                isAnalisi
+                  ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                  : "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+              }`}>
+                {topic.materia}
+              </span>
+
+              {/* Topic ID */}
+              <span className="font-mono font-black text-sm px-2.5 py-0.5 rounded-xl bg-slate-950 text-white border border-slate-800">
+                {topic.id}
+              </span>
+
+              {/* Chapter */}
+              <span className="text-xs text-slate-400 font-medium">
+                Capitolo: <strong className="text-slate-200">{topic.capitolo}</strong>
+              </span>
+
+              {/* Status Badge */}
+              {isDone ? (
+                <span className="text-[11px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
+                  <IconCheck className="w-3.5 h-3.5" />
+                  <span>Completato {topic.completedDate ? `il ${formatDateDisplay(topic.completedDate)}` : ""}</span>
+                </span>
+              ) : effHours > 0 ? (
+                <span className="text-[11px] font-mono font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 px-2.5 py-0.5 rounded-full">
+                  ⏳ In Corso ({effHours.toFixed(1)}h svolte)
+                </span>
+              ) : (
+                <span className="text-[11px] font-mono text-slate-400 bg-slate-900 border border-slate-800 px-2.5 py-0.5 rounded-full">
+                  ⚪ Da Svolgere
+                </span>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-2 text-slate-400 hover:text-white hover:bg-slate-800/80 rounded-xl transition flex-shrink-0"
+              title="Chiudi scheda"
+            >
+              <IconX className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Big Argument Title */}
+          <div>
+            <div className="text-[10px] uppercase font-mono font-extrabold tracking-widest text-cyan-400 mb-0.5">
+              Scheda Argomento Didattica
+            </div>
+            <h2 className="text-lg sm:text-xl font-black text-white leading-snug">
+              {topic.argomento}
+            </h2>
+            {topic.assignedDate && (
+              <p className="text-xs text-slate-400 mt-1 flex items-center gap-1.5 font-mono">
+                <IconCalendar className="w-3.5 h-3.5 text-cyan-400" />
+                <span>
+                  {isDone ? "Svolto il:" : "Previsto nel calendario per:"}{" "}
+                  <strong className="text-cyan-300">{topic.assignedDayName || "Giorno"} {formatDateDisplay(topic.assignedDate)}</strong>
+                  {topic.assignedWeek ? ` (Settimana ${topic.assignedWeek})` : ""}
+                </span>
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Metric Cards Row */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-4 sm:p-5 bg-slate-950/60 border-b border-slate-800/80 text-xs">
+          {/* Hours Card */}
+          <div className="p-3 bg-slate-900/80 border border-slate-800 rounded-2xl">
+            <div className="text-slate-400 text-[11px] font-medium flex items-center justify-between">
+              <span>Monte Ore</span>
+              <IconClock className="w-3.5 h-3.5 text-cyan-400" />
+            </div>
+            <div className="text-base font-extrabold text-white font-mono mt-1">
+              <span className="text-cyan-300">{effHours.toFixed(1)}h</span>
+              <span className="text-slate-500 font-normal"> / {estHours.toFixed(1)}h</span>
+            </div>
+            <div className="text-[10px] text-amber-400/90 font-mono mt-0.5">
+              Residuo: {residue.toFixed(1)}h {hasBuffer ? "(+20% buffer)" : ""}
+            </div>
+          </div>
+
+          {/* Difficulty Card */}
+          <div className="p-3 bg-slate-900/80 border border-slate-800 rounded-2xl">
+            <div className="text-slate-400 text-[11px] font-medium flex items-center justify-between">
+              <span>Difficoltà</span>
+              <span className="text-cyan-400 font-bold font-mono">{topic.difficolta || 3}/5</span>
+            </div>
+            <div className="text-base font-extrabold text-white mt-1">
+              {topic.difficolta >= 4 ? "🔥 " : "⚡ "}
+              {getDifficultyLabel(topic.difficolta).split("/")[0]}
+            </div>
+            <div className="text-[10px] text-slate-400 truncate mt-0.5">
+              {getDifficultyLabel(topic.difficolta)}
+            </div>
+          </div>
+
+          {/* Priority Card */}
+          <div className="p-3 bg-slate-900/80 border border-slate-800 rounded-2xl">
+            <div className="text-slate-400 text-[11px] font-medium flex items-center justify-between">
+              <span>Priorità Esame</span>
+              <span className="text-amber-400 font-bold font-mono">{topic.prioritaEsame || 3}/5</span>
+            </div>
+            <div className="text-base font-extrabold text-white mt-1">
+              {topic.prioritaEsame >= 4 ? "★ Alta" : "☆ Media"}
+            </div>
+            <div className="text-[10px] text-slate-400 truncate mt-0.5">
+              {getPriorityLabel(topic.prioritaEsame)}
+            </div>
+          </div>
+
+          {/* Completion Progress Card */}
+          <div className="p-3 bg-slate-900/80 border border-slate-800 rounded-2xl">
+            <div className="text-slate-400 text-[11px] font-medium flex items-center justify-between">
+              <span>Avanzamento</span>
+              <span className="text-emerald-400 font-bold font-mono">
+                {Math.min(100, Math.round((effHours / estHours) * 100))}%
+              </span>
+            </div>
+            <div className="w-full bg-slate-950 h-2 rounded-full overflow-hidden border border-slate-800 mt-2">
+              <div
+                className={`h-full transition-all duration-500 ${
+                  isDone ? "bg-emerald-400" : effHours > 0 ? "bg-cyan-400" : "bg-transparent"
+                }`}
+                style={{ width: `${Math.min(100, Math.round((effHours / estHours) * 100))}%` }}
+              />
+            </div>
+            <div className="text-[10px] text-slate-400 mt-1 font-mono">
+              {isDone ? "Completato al 100%" : `${residue.toFixed(1)}h rimanenti`}
+            </div>
+          </div>
+        </div>
+
+        {/* Sub-tabs Navigation */}
+        <div className="flex items-center space-x-2 px-5 pt-3 border-b border-slate-800/80 bg-slate-950/30 text-xs">
+          <button
+            type="button"
+            onClick={() => setActiveTab("overview")}
+            className={`pb-2.5 px-3 font-bold border-b-2 transition flex items-center gap-1.5 ${
+              activeTab === "overview"
+                ? isAnalisi ? "border-emerald-400 text-emerald-300" : "border-indigo-400 text-indigo-300"
+                : "border-transparent text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <IconBookOpen className="w-4 h-4" />
+            <span>Programma & Contenuti</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("theorems")}
+            className={`pb-2.5 px-3 font-bold border-b-2 transition flex items-center gap-1.5 ${
+              activeTab === "theorems"
+                ? isAnalisi ? "border-emerald-400 text-emerald-300" : "border-indigo-400 text-indigo-300"
+                : "border-transparent text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <IconSparkles className="w-4 h-4" />
+            <span>Teoremi & Prove d'Esame</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("sessions")}
+            className={`pb-2.5 px-3 font-bold border-b-2 transition flex items-center gap-1.5 ${
+              activeTab === "sessions"
+                ? isAnalisi ? "border-emerald-400 text-emerald-300" : "border-indigo-400 text-indigo-300"
+                : "border-transparent text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <IconClock className="w-4 h-4" />
+            <span>Diario Sessioni</span>
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-800 text-slate-300">
+              {topicSessions.length}
+            </span>
+          </button>
+        </div>
+
+        {/* Tab Body */}
+        <div className="p-5 sm:p-6 overflow-y-auto space-y-5 flex-1">
+          {activeTab === "overview" && (
+            <div className="space-y-4">
+              {/* Detailed Breakdown of Concepts */}
+              <div className="bg-slate-950/70 border border-slate-800/80 rounded-2xl p-4 space-y-3">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-cyan-400 inline-block"></span>
+                  <span>Concetti Didattici Inclusi nell'Argomento</span>
+                </h4>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                  {subtopics.map((sub, idx) => (
+                    <div
+                      key={idx}
+                      className="p-2.5 bg-slate-900/60 border border-slate-800/60 rounded-xl flex items-start space-x-2 text-slate-200"
+                    >
+                      <span className="text-cyan-400 font-bold mt-0.5">•</span>
+                      <span className="leading-relaxed">{sub}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Deliverable / Learning Goal */}
+              {topic.note && (
+                <div className="bg-gradient-to-r from-cyan-950/30 to-indigo-950/30 border border-cyan-500/30 rounded-2xl p-4 space-y-1.5 text-xs">
+                  <div className="flex items-center space-x-2 text-cyan-300 font-bold">
+                    <IconSparkles className="w-4 h-4 text-cyan-400" />
+                    <span>Deliverable Operativo (Obiettivo di Fine Studio):</span>
+                  </div>
+                  <p className="text-slate-200 font-medium leading-relaxed">
+                    {topic.note}
+                  </p>
+                </div>
+              )}
+
+              {/* Official Sources and Textbooks */}
+              <div className="bg-slate-950/70 border border-slate-800/80 rounded-2xl p-4 space-y-2 text-xs">
+                <h4 className="font-bold text-slate-300 flex items-center gap-2">
+                  <IconBookOpen className="w-4 h-4 text-indigo-400" />
+                  <span>Fonti Bibliografiche e Riferimenti Ufficiali UNIMORE</span>
+                </h4>
+                <p className="text-slate-400 leading-relaxed">
+                  {topic.fonti || (isAnalisi
+                    ? "Testo ufficiale Marcellini-Sbordone (Analisi Matematica 1), Registro delle Lezioni e dispense d'aula."
+                    : "Testo Casali-Gagliardi-Grasselli (Geometria), dispense Algoritmo B e registro ufficiale.")}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "theorems" && (
+            <div className="space-y-4">
+              {/* Theorem and Proof Box */}
+              <div className="p-4 bg-slate-950/70 border border-slate-800/80 rounded-2xl space-y-3 text-xs">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-bold text-white flex items-center gap-2">
+                    <IconSparkles className="w-4 h-4 text-amber-400" />
+                    <span>Teoremi e Rigore Dimostrativo per l'Orale</span>
+                  </h4>
+                  {hasProofMention && (
+                    <span className="text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded-full">
+                      Dimostrazione Richiesta
+                    </span>
+                  )}
+                </div>
+
+                <div className="p-3 bg-black/40 border border-slate-800 rounded-xl space-y-2 text-slate-300">
+                  <p className="leading-relaxed">
+                    {topic.note ? (
+                      <>
+                        <strong className="text-amber-300 font-semibold">Focus Dimostrazioni & Formule:</strong>{" "}
+                        {topic.note}
+                      </>
+                    ) : (
+                      "Padroneggiare tutte le definizioni formali ($\forall \varepsilon > 0$), gli enunciati esatti e le ipotesi necessarie."
+                    )}
+                  </p>
+                  <p className="text-slate-400 text-[11px] leading-relaxed">
+                    {isAnalisi
+                      ? "Regola aurea della commissione: nello scritto ogni passaggio deve essere rigorosamente giustificato (sviluppi di Taylor all'ordine corretto, limiti notevoli, criteri di convergenza). All'orale vengono chiesti enunciati e dimostrazioni integrali."
+                      : "Regola d'esame Geometria: il test scritto contiene 11 domande con penalità (-1 risposta errata). All'orale è determinante la perfetta esposizione delle dimostrazioni numerate del testo Casali-Gagliardi-Grasselli."}
+                  </p>
+                </div>
+              </div>
+
+              {/* Strategic Exam Tips Card */}
+              <div className="p-4 bg-gradient-to-r from-amber-950/30 to-slate-900 border border-amber-500/30 rounded-2xl text-xs space-y-2">
+                <span className="font-bold text-amber-300 flex items-center gap-1.5">
+                  <IconFlame className="w-4 h-4 text-amber-400" />
+                  <span>Consigli per Massimizzare il Punteggio:</span>
+                </span>
+                <ul className="list-disc list-inside text-slate-300 space-y-1 text-[11px] leading-relaxed">
+                  <li>
+                    {isAnalisi
+                      ? "Non limitarsi al risultato numerico: la docente valuta la coerenza logica, la notazione corretta degli o-piccolo e la verifica delle ipotesi dei teoremi."
+                      : "Negli esercizi con parametro (k), discutere sempre separatamente i valori critici del determinante e del rango per evitare penalità."}
+                  </li>
+                  <li>
+                    Per l'orale, prova a riesporre il teorema e a scrivere la dimostrazione su un foglio bianco senza consultare gli appunti.
+                  </li>
+                </ul>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "sessions" && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-xs text-slate-400">
+                <span>Ore registrate specificamente per <strong>{topic.id}</strong>:</span>
+                <span className="font-mono">{topicSessions.length} registrazioni</span>
+              </div>
+
+              {topicSessions.length === 0 ? (
+                <div className="text-center py-8 bg-slate-950/40 border border-slate-800 rounded-2xl space-y-3 text-xs text-slate-400">
+                  <p>Non hai ancora registrato sessioni di studio per questo argomento.</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onOpenLogModal && onOpenLogModal({ topicId: topic.id, hours: residue > 0 ? residue : estHours });
+                    }}
+                    className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 text-white font-bold rounded-xl text-xs shadow-md transition"
+                  >
+                    + Registra Ore Ora
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                  {topicSessions.map((sess) => (
+                    <div
+                      key={sess.id}
+                      className="p-3 bg-slate-900/80 border border-slate-800 rounded-xl flex items-center justify-between text-xs"
+                    >
+                      <div>
+                        <div className="flex items-center space-x-2">
+                          <span className="font-bold text-white font-mono">
+                            {formatDateDisplay(sess.date)}
+                          </span>
+                          <span className="font-bold text-cyan-300 font-mono">
+                            +{sess.hours}h
+                          </span>
+                          {sess.completed && (
+                            <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-1.5 rounded font-bold">
+                              ✓ Completato
+                            </span>
+                          )}
+                        </div>
+                        {sess.note && (
+                          <p className="text-slate-400 text-[11px] italic mt-0.5">
+                            "{sess.note}"
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Action Footer */}
+        <div className="p-4 sm:p-5 border-t border-slate-800/80 bg-slate-950/80 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 text-xs">
+          {/* Quick toggle complete */}
+          <button
+            type="button"
+            onClick={() => onToggleComplete && onToggleComplete(topic.id)}
+            className={`px-4 py-2.5 rounded-xl border font-bold transition flex items-center justify-center gap-2 ${
+              isDone
+                ? "bg-emerald-600/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-600/30"
+                : "bg-slate-900 hover:bg-slate-850 text-slate-300 border-slate-700 hover:border-slate-500"
+            }`}
+          >
+            <div className={`w-4 h-4 rounded border flex items-center justify-center ${
+              isDone ? "bg-emerald-500 border-emerald-400 text-white" : "border-slate-500 bg-slate-950"
+            }`}>
+              {isDone && <IconCheck className="w-3 h-3" />}
+            </div>
+            <span>{isDone ? "Completato ✓ (Clicca per riaprire)" : "Segna come Completato"}</span>
+          </button>
+
+          <div className="flex items-center space-x-2.5">
+            {/* Quick Log Studio Button */}
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenLogModal && onOpenLogModal({
+                  topicId: topic.id,
+                  hours: residue > 0 ? residue : estHours
+                });
+              }}
+              className="flex-1 sm:flex-initial flex items-center justify-center space-x-1.5 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold rounded-xl shadow-md transition active:scale-95"
+            >
+              <span className="font-black text-sm leading-none">+</span>
+              <span>Registra Ore su Questo Argomento</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-xl font-semibold border border-slate-800 transition"
+            >
+              Chiudi
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 // --- src/app.js ---
+
+
+
 
 
 
@@ -6044,6 +8200,7 @@ function SettingsModal({
 const LOCAL_STORAGE_KEY_TOPICS = "unimore_rebalancer_topics_v2";
 const LOCAL_STORAGE_KEY_SETTINGS = "unimore_rebalancer_settings_v2";
 const LOCAL_STORAGE_KEY_CUSTOM_CAPACITIES = "unimore_rebalancer_custom_capacities_v2";
+const LOCAL_STORAGE_KEY_SESSIONS = "unimore_rebalancer_sessions_v2";
 
 function App() {
   // Load saved state from localStorage if available, or use official UNIMORE defaults
@@ -6078,13 +8235,27 @@ function App() {
   });
 
   const [settings, setSettings] = useState(() => {
+    const todayStr = getLocalTodayDateStr();
     try {
       const saved = localStorage.getItem(LOCAL_STORAGE_KEY_SETTINGS);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // If the saved date is older than today or empty, automatically sync to today's real date!
+        if (!parsed.currentSimulatedDate || parsed.currentSimulatedDate < todayStr) {
+          return {
+            ...parsed,
+            currentSimulatedDate: todayStr
+          };
+        }
+        return parsed;
+      }
     } catch (e) {
       console.warn("Could not load settings from localStorage", e);
     }
-    return DEFAULT_SETTINGS;
+    return {
+      ...DEFAULT_SETTINGS,
+      currentSimulatedDate: todayStr
+    };
   });
 
   // Dynamic daily capacities override (Time Shifter)
@@ -6098,9 +8269,43 @@ function App() {
     return {};
   });
 
+  // Recorded study sessions log
+  const [studySessions, setStudySessions] = useState(() => {
+    try {
+      const saved = localStorage.getItem(LOCAL_STORAGE_KEY_SESSIONS);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.warn("Could not load studySessions from localStorage", e);
+    }
+    return [];
+  });
+
+  const [isLogModalOpen, setIsLogModalOpen] = useState(false);
+  const [logModalInitialData, setLogModalInitialData] = useState({});
+  const [selectedTopicDetail, setSelectedTopicDetail] = useState(null);
+
   const [activeTab, setActiveTab] = useState("dashboard"); // "dashboard" | "weekly" | "history" | "topics" | "import"
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [lastSavedTime, setLastSavedTime] = useState("");
+
+  // GitLab Cloud Sync state
+  const [gitlabConfig, setGitlabConfig] = useState(() => {
+    try {
+      const saved = localStorage.getItem(LOCAL_STORAGE_KEY_GITLAB_CONFIG);
+      if (saved) return { ...DEFAULT_GITLAB_CONFIG, ...JSON.parse(saved) };
+    } catch (e) {
+      console.warn("Could not load gitlabConfig", e);
+    }
+    return DEFAULT_GITLAB_CONFIG;
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(LOCAL_STORAGE_KEY_GITLAB_CONFIG, JSON.stringify(gitlabConfig));
+    } catch (e) {
+      console.warn("Failed to persist gitlabConfig", e);
+    }
+  }, [gitlabConfig]);
 
   // Transparent File System Access API synchronization
   const [fileHandle, setFileHandle] = useState(null);
@@ -6156,7 +8361,25 @@ function App() {
   };
 
 
-  // Save to localStorage on change with visual confirmation
+  // Auto-sync date if day rolls over while tab is open or window receives focus
+  useEffect(() => {
+    const checkDateRoll = () => {
+      const todayStr = getLocalTodayDateStr();
+      setSettings(prev => {
+        if (prev.currentSimulatedDate < todayStr) {
+          return { ...prev, currentSimulatedDate: todayStr };
+        }
+        return prev;
+      });
+    };
+
+    window.addEventListener("focus", checkDateRoll);
+    const timer = setInterval(checkDateRoll, 60000); // Check once a minute
+    return () => {
+      window.removeEventListener("focus", checkDateRoll);
+      clearInterval(timer);
+    };
+  }, []);
   useEffect(() => {
     try {
       localStorage.setItem(LOCAL_STORAGE_KEY_TOPICS, JSON.stringify(topics));
@@ -6182,6 +8405,14 @@ function App() {
     }
   }, [customDayCapacities]);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(LOCAL_STORAGE_KEY_SESSIONS, JSON.stringify(studySessions));
+    } catch (e) {
+      console.warn("Failed to persist studySessions", e);
+    }
+  }, [studySessions]);
+
   // Transparent Auto-Sync: Automatically overwrite connected JSON file on any global state change
   useEffect(() => {
     if (!fileHandle) return;
@@ -6195,7 +8426,8 @@ function App() {
           exportDate: new Date().toISOString(),
           settings,
           topics,
-          customDayCapacities
+          customDayCapacities,
+          studySessions
         };
         await writable.write(JSON.stringify(backupData, null, 2));
         await writable.close();
@@ -6221,7 +8453,7 @@ function App() {
     return () => {
       isMounted = false;
     };
-  }, [topics, settings, customDayCapacities, fileHandle]);
+  }, [topics, settings, customDayCapacities, studySessions, fileHandle]);
 
   // Connect file handle using File System Access API
   const handleConnectFileSystem = async () => {
@@ -6253,6 +8485,9 @@ function App() {
           if (backup.customDayCapacities && typeof backup.customDayCapacities === "object") {
             setCustomDayCapacities(backup.customDayCapacities);
           }
+          if (backup.studySessions && Array.isArray(backup.studySessions)) {
+            setStudySessions(backup.studySessions);
+          }
           imported = true;
         }
       } catch (e) {
@@ -6276,7 +8511,8 @@ function App() {
           exportDate: new Date().toISOString(),
           settings,
           topics,
-          customDayCapacities
+          customDayCapacities,
+          studySessions
         }, null, 2));
         await writable.close();
       } catch (err) {
@@ -6307,7 +8543,8 @@ function App() {
         exportDate: new Date().toISOString(),
         settings,
         topics,
-        customDayCapacities
+        customDayCapacities,
+        studySessions
       }, null, 2));
       await writable.close();
       setFsSyncStatus({
@@ -6319,6 +8556,136 @@ function App() {
       });
     } catch (err) {
       setFsSyncStatus(prev => ({ ...prev, isSaving: false, error: err.message }));
+    }
+  };
+
+  // 1. GitLab Initial Auto-Pull on App Mount
+  useEffect(() => {
+    if (!gitlabConfig?.enabled || !gitlabConfig?.autoSync || !gitlabConfig?.token || !gitlabConfig?.projectId) return;
+
+    let isMounted = true;
+    const initialPull = async () => {
+      try {
+        setGitlabConfig(prev => ({ ...prev, syncStatus: "syncing", errorMessage: null }));
+        const res = await pullFromGitLab(gitlabConfig);
+        if (!isMounted) return;
+
+        if (res.success && res.data) {
+          const remoteData = res.data;
+          if (remoteData.topics && Array.isArray(remoteData.topics)) setTopics(remoteData.topics);
+          if (remoteData.settings) setSettings(prev => ({ ...prev, ...remoteData.settings, currentSimulatedDate: getLocalTodayDateStr() }));
+          if (remoteData.customDayCapacities) setCustomDayCapacities(remoteData.customDayCapacities);
+          if (remoteData.studySessions && Array.isArray(remoteData.studySessions)) setStudySessions(remoteData.studySessions);
+
+          setGitlabConfig(prev => ({
+            ...prev,
+            syncStatus: "success",
+            lastSynced: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+            lastCommitId: res.commitId || prev.lastCommitId,
+            errorMessage: null
+          }));
+        } else {
+          setGitlabConfig(prev => ({ ...prev, syncStatus: "idle" }));
+        }
+      } catch (err) {
+        if (isMounted) {
+          console.warn("GitLab auto-pull error:", err);
+          setGitlabConfig(prev => ({ ...prev, syncStatus: "error", errorMessage: err.message }));
+        }
+      }
+    };
+
+    initialPull();
+    return () => { isMounted = false; };
+  }, []);
+
+  // 2. GitLab Auto-Push on State Changes (Debounced to avoid rapid commit spam)
+  const isGitLabMountRef = useRef(true);
+  useEffect(() => {
+    if (isGitLabMountRef.current) {
+      isGitLabMountRef.current = false;
+      return;
+    }
+    if (!gitlabConfig?.enabled || !gitlabConfig?.autoSync || !gitlabConfig?.token || !gitlabConfig?.projectId) return;
+
+    setGitlabConfig(prev => ({ ...prev, syncStatus: "syncing" }));
+
+    const timer = setTimeout(async () => {
+      try {
+        const payload = {
+          exportDate: new Date().toISOString(),
+          settings,
+          topics,
+          customDayCapacities,
+          studySessions
+        };
+        const res = await pushToGitLab(gitlabConfig, payload);
+        setGitlabConfig(prev => ({
+          ...prev,
+          syncStatus: "success",
+          lastSynced: res.timestamp || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+          lastCommitId: res.commitId || prev.lastCommitId,
+          errorMessage: null
+        }));
+      } catch (err) {
+        console.warn("GitLab auto-push error:", err);
+        setGitlabConfig(prev => ({ ...prev, syncStatus: "error", errorMessage: err.message }));
+      }
+    }, 2500);
+
+    return () => clearTimeout(timer);
+  }, [topics, settings, customDayCapacities, studySessions, gitlabConfig?.enabled, gitlabConfig?.autoSync]);
+
+  // 3. Manual GitLab Pull & Push Handlers
+  const handleGitLabPull = async () => {
+    setGitlabConfig(prev => ({ ...prev, syncStatus: "syncing", errorMessage: null }));
+    try {
+      const res = await pullFromGitLab(gitlabConfig);
+      if (res.success && res.data) {
+        const remoteData = res.data;
+        if (remoteData.topics && Array.isArray(remoteData.topics)) setTopics(remoteData.topics);
+        if (remoteData.settings) setSettings(prev => ({ ...prev, ...remoteData.settings, currentSimulatedDate: getLocalTodayDateStr() }));
+        if (remoteData.customDayCapacities) setCustomDayCapacities(remoteData.customDayCapacities);
+        if (remoteData.studySessions && Array.isArray(remoteData.studySessions)) setStudySessions(remoteData.studySessions);
+
+        setGitlabConfig(prev => ({
+          ...prev,
+          syncStatus: "success",
+          lastSynced: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+          lastCommitId: res.commitId || prev.lastCommitId,
+          errorMessage: null
+        }));
+        return { success: true, message: "Dati scaricati e sincronizzati con successo da GitLab!" };
+      }
+      return { success: false, message: res.message || "Nessun file trovato nel repo." };
+    } catch (err) {
+      setGitlabConfig(prev => ({ ...prev, syncStatus: "error", errorMessage: err.message }));
+      throw err;
+    }
+  };
+
+  const handleGitLabPush = async (customMsg) => {
+    setGitlabConfig(prev => ({ ...prev, syncStatus: "syncing", errorMessage: null }));
+    try {
+      const payload = {
+        exportDate: new Date().toISOString(),
+        settings,
+        topics,
+        customDayCapacities,
+        studySessions
+      };
+      const res = await pushToGitLab(gitlabConfig, payload, customMsg);
+      setGitlabConfig(prev => ({
+        ...prev,
+        syncStatus: "success",
+        lastSynced: res.timestamp || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        lastCommitId: res.commitId || prev.lastCommitId,
+        errorMessage: null
+      }));
+      return { success: true, message: "Nuovo commit inviato con successo su GitLab!" };
+    } catch (err) {
+      setGitlabConfig(prev => ({ ...prev, syncStatus: "error", errorMessage: err.message }));
+      throw err;
     }
   };
 
@@ -6341,10 +8708,100 @@ function App() {
 
   // Reactive Rebalancing calculation
   const rebalancedPlan = useMemo(() => {
-    return rebalanceStudyPlan(topics, settings, customDayCapacities);
-  }, [topics, settings, customDayCapacities]);
+    return rebalanceStudyPlan(topics, settings, customDayCapacities, studySessions);
+  }, [topics, settings, customDayCapacities, studySessions]);
 
   const { metrics, weeklyPlans, progress, historyDays } = rebalancedPlan;
+
+  // Open / Close Log Study Modal
+  const handleOpenLogModal = (initialData = {}) => {
+    setLogModalInitialData(initialData || {});
+    setIsLogModalOpen(true);
+  };
+
+  const handleCloseLogModal = () => {
+    setIsLogModalOpen(false);
+    setLogModalInitialData({});
+  };
+
+  // Open / Close Topic Detail Sheet Modal
+  const handleOpenTopicDetail = (topicOrId) => {
+    if (!topicOrId) return;
+    const found = typeof topicOrId === "string"
+      ? topics.find(t => t.id === topicOrId)
+      : (topics.find(t => t.id === topicOrId.id) || topicOrId);
+    setSelectedTopicDetail(found || null);
+  };
+
+  const handleCloseTopicDetail = () => {
+    setSelectedTopicDetail(null);
+  };
+
+  // Keep selectedTopicDetail in sync with updated topics state
+  useEffect(() => {
+    if (selectedTopicDetail) {
+      const fresh = topics.find(t => t.id === selectedTopicDetail.id);
+      if (fresh) setSelectedTopicDetail(fresh);
+    }
+  }, [topics]);
+
+  // Add recorded study session and update topic state
+  const handleLogStudySession = ({ topicId, date, hours, completed, note }) => {
+    const numHours = Number(hours) || 0;
+    const sessionDate = date || settings.currentSimulatedDate;
+    const newSession = {
+      id: "sess_" + Date.now() + "_" + Math.random().toString(36).substr(2, 6),
+      topicId,
+      date: sessionDate,
+      hours: numHours,
+      completed: Boolean(completed),
+      note: note || "",
+      timestamp: new Date().toISOString()
+    };
+
+    setTopics(prev => prev.map(t => {
+      if (t.id === topicId) {
+        const currentEff = Number(t.oreEffettive || 0);
+        const newEff = Number((currentEff + numHours).toFixed(2));
+        const isDone = completed !== undefined ? Boolean(completed) : (t.completato || newEff >= Number(t.oreStimate || 2.0));
+        return {
+          ...t,
+          oreEffettive: newEff,
+          completato: isDone,
+          isCompleted: isDone,
+          completedDate: isDone ? (t.completedDate || sessionDate) : null
+        };
+      }
+      return t;
+    }));
+
+    setStudySessions(prev => [newSession, ...prev]);
+  };
+
+  // Delete a recorded study session and revert topic hours/completion
+  const handleDeleteStudySession = (sessionId) => {
+    const session = studySessions.find(s => s.id === sessionId);
+    if (!session) return;
+
+    setTopics(prev => prev.map(t => {
+      if (t.id === session.topicId) {
+        const currentEff = Number(t.oreEffettive || 0);
+        const revertedEff = Math.max(0, Number((currentEff - session.hours).toFixed(2)));
+        const otherCompletedSession = studySessions.some(s => s.id !== sessionId && s.topicId === session.topicId && s.completed);
+        const stillDone = otherCompletedSession;
+        return {
+          ...t,
+          oreEffettive: revertedEff,
+          completato: stillDone,
+          isCompleted: stillDone,
+          completedDate: stillDone ? t.completedDate : null
+        };
+      }
+      return t;
+    }));
+
+    setStudySessions(prev => prev.filter(s => s.id !== sessionId));
+  };
 
   // Toggle completion of a single topic with automatic timestamp
   const handleToggleComplete = (topicId) => {
@@ -6420,8 +8877,8 @@ function App() {
   return (
     <div className="min-h-screen bg-[#070b14] text-slate-100 flex flex-col font-sans selection:bg-cyan-500/30 selection:text-cyan-200">
       {/* Top Header */}
-      <header className="sticky top-0 z-40 bg-[#070b14]/90 backdrop-blur-xl border-b border-slate-800/80 px-4 md:px-8 py-3.5 shadow-md">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+      <header className="sticky top-0 z-40 bg-[#070b14]/90 backdrop-blur-xl border-b border-slate-800/80 px-4 md:px-6 lg:px-8 2xl:px-12 py-3.5 shadow-md">
+        <div className="w-full max-w-[1920px] mx-auto flex items-center justify-between gap-4">
           {/* Logo & Subtitle */}
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500 via-indigo-500 to-purple-600 p-0.5 shadow-lg shadow-cyan-500/20">
@@ -6510,6 +8967,17 @@ function App() {
 
           {/* Right Action: Date Simulation Controls & Settings */}
           <div className="flex items-center space-x-2.5">
+            {/* Quick Log Studio Action (+) */}
+            <button
+              type="button"
+              onClick={() => handleOpenLogModal({ date: settings.currentSimulatedDate })}
+              className="flex items-center space-x-1.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold px-3 py-1.5 rounded-xl text-xs shadow-md shadow-emerald-500/20 border border-emerald-400/40 transition transform active:scale-95 flex-shrink-0"
+              title="Registra ore di studio svolte (+)"
+            >
+              <span className="text-base font-black leading-none">+</span>
+              <span className="hidden sm:inline">Registra Studio</span>
+            </button>
+
             {/* Auto-Sync status badge if connected */}
             {fsSyncStatus.active && (
               <button
@@ -6520,6 +8988,27 @@ function App() {
               >
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                 <span className="truncate max-w-[120px] font-bold">{fsSyncStatus.fileName}</span>
+              </button>
+            )}
+
+            {/* GitLab Cloud Sync status badge if configured */}
+            {gitlabConfig?.enabled && (
+              <button
+                type="button"
+                onClick={() => setActiveTab("import")}
+                className={`hidden lg:flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl text-xs font-mono border transition ${
+                  gitlabConfig.syncStatus === "syncing"
+                    ? "bg-orange-950/80 border-orange-500/40 text-orange-300"
+                    : gitlabConfig.syncStatus === "error"
+                    ? "bg-rose-950/80 border-rose-500/40 text-rose-300"
+                    : "bg-orange-950/50 hover:bg-orange-900/60 border-orange-500/30 text-orange-200"
+                }`}
+                title={`GitLab Cloud Sync: ${gitlabConfig.syncStatus === 'syncing' ? 'Sincronizzazione in corso...' : gitlabConfig.lastSynced ? 'Ultimo sync: ' + gitlabConfig.lastSynced : 'Attiva'}. Clicca per gestire.`}
+              >
+                <IconGitLab className={`w-3.5 h-3.5 text-orange-400 ${gitlabConfig.syncStatus === "syncing" ? "animate-spin" : ""}`} />
+                <span className="truncate max-w-[120px] font-bold">
+                  {gitlabConfig.syncStatus === "syncing" ? "GitLab..." : gitlabConfig.lastSynced ? `GitLab: ${gitlabConfig.lastSynced}` : "GitLab"}
+                </span>
               </button>
             )}
 
@@ -6542,6 +9031,17 @@ function App() {
               >
                 ▶
               </button>
+
+              {settings.currentSimulatedDate !== getLocalTodayDateStr() && (
+                <button
+                  type="button"
+                  onClick={() => setSettings(prev => ({ ...prev, currentSimulatedDate: getLocalTodayDateStr() }))}
+                  className="ml-1 px-1.5 py-0.5 rounded bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 text-[10px] font-sans font-bold border border-cyan-500/40 transition"
+                  title={`Reimposta sulla data reale odierna (${formatDateDisplay(getLocalTodayDateStr())})`}
+                >
+                  Oggi Reale
+                </button>
+              )}
             </div>
 
             {/* Countdown pill */}
@@ -6577,7 +9077,7 @@ function App() {
       </header>
 
       {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-8 space-y-6 pb-24 md:pb-12">
+      <main className="flex-1 w-full max-w-[1920px] mx-auto p-4 md:p-6 lg:p-8 2xl:px-12 space-y-6 pb-24 md:pb-12">
         {/* Rolling Catch-Up Banner (if days were skipped) */}
         {metrics.pastDaysSkipped > 0 && (
           <div className="bg-gradient-to-r from-cyan-950/60 to-indigo-950/50 border border-cyan-500/30 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs backdrop-blur-md">
@@ -6620,6 +9120,7 @@ function App() {
             onTabChange={setActiveTab}
             topics={topics}
             settings={settings}
+            onOpenLogModal={handleOpenLogModal}
           />
         )}
 
@@ -6631,6 +9132,8 @@ function App() {
             settings={settings}
             customDayCapacities={customDayCapacities}
             onUpdateDayCapacity={handleUpdateDayCapacity}
+            onOpenLogModal={handleOpenLogModal}
+            onOpenTopicDetail={handleOpenTopicDetail}
           />
         )}
 
@@ -6642,6 +9145,9 @@ function App() {
             onAdvanceDate={handleAdvanceDate}
             onRetrocedeDate={handleRetrocedeDate}
             onSetDate={(newDate) => setSettings(prev => ({ ...prev, currentSimulatedDate: newDate }))}
+            onOpenLogModal={handleOpenLogModal}
+            onDeleteSession={handleDeleteStudySession}
+            onOpenTopicDetail={handleOpenTopicDetail}
           />
         )}
 
@@ -6651,6 +9157,7 @@ function App() {
             onToggleComplete={handleToggleComplete}
             onUpdateTopicHours={handleUpdateTopicHours}
             onBatchUpdate={handleTopicsUpdated}
+            onOpenTopicDetail={handleOpenTopicDetail}
           />
         )}
 
@@ -6662,10 +9169,16 @@ function App() {
             onCustomCapacitiesUpdated={(newCapacities) => setCustomDayCapacities(newCapacities)}
             onTopicsUpdated={handleTopicsUpdated}
             onSettingsUpdated={(newSettings) => setSettings(newSettings)}
+            studySessions={studySessions}
+            onStudySessionsUpdated={(newSessions) => setStudySessions(newSessions)}
             fsSyncStatus={fsSyncStatus}
             onConnectFileSystem={handleConnectFileSystem}
             onDisconnectFileSystem={handleDisconnectFileSystem}
             onTriggerManualSave={handleTriggerManualSave}
+            gitlabConfig={gitlabConfig}
+            onUpdateGitLabConfig={(newConfig) => setGitlabConfig(newConfig)}
+            onGitLabPull={handleGitLabPull}
+            onGitLabPush={handleGitLabPush}
           />
         )}
       </main>
@@ -6690,6 +9203,19 @@ function App() {
         >
           <IconCalendar className="w-5 h-5" />
           <span className="text-[10px] mt-1">Settimanale</span>
+        </button>
+
+        {/* Center Mobile Quick Log Button (+) */}
+        <button
+          type="button"
+          onClick={() => handleOpenLogModal({ date: settings.currentSimulatedDate })}
+          className="flex flex-col items-center py-0.5 px-2 rounded-xl transition text-emerald-400 -mt-3"
+          title="Registra Sessione di Studio (+)"
+        >
+          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/30 border-2 border-[#070b14] active:scale-95 transition">
+            <span className="text-xl font-black leading-none">+</span>
+          </div>
+          <span className="text-[10px] mt-0.5 font-bold">Studio</span>
         </button>
 
         <button
@@ -6731,6 +9257,28 @@ function App() {
         onSaveSettings={(newSettings) => setSettings(newSettings)}
         customDayCapacities={customDayCapacities}
         onResetDayCapacities={handleResetDayCapacities}
+      />
+
+      {/* Log Study Modal (+) */}
+      <LogStudyModal
+        isOpen={isLogModalOpen}
+        onClose={handleCloseLogModal}
+        topics={topics}
+        settings={settings}
+        initialData={logModalInitialData}
+        onSaveSession={handleLogStudySession}
+        studySessions={studySessions}
+        onDeleteSession={handleDeleteStudySession}
+      />
+
+      {/* Topic Detail Sheet Modal */}
+      <TopicDetailModal
+        isOpen={Boolean(selectedTopicDetail)}
+        onClose={handleCloseTopicDetail}
+        topic={selectedTopicDetail}
+        onToggleComplete={handleToggleComplete}
+        onOpenLogModal={handleOpenLogModal}
+        studySessions={studySessions}
       />
 
       {/* CLARKE-9000 Isolated Side Companion */}

@@ -9,10 +9,22 @@
  * - Full historical tracking of past dates (completed vs skipped days).
  */
 
+export function getLocalTodayDateStr() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  const dateStr = `${year}-${month}-${day}`;
+  // Clamp within session bounds if outside
+  if (dateStr < "2026-11-16") return "2026-11-16";
+  if (dateStr > "2027-01-10") return "2027-01-10";
+  return dateStr;
+}
+
 export const DEFAULT_SETTINGS = {
   roadmapStartDate: "2026-11-16", // Start of winter session roadmap
   targetExamDate: "2027-01-10",
-  currentSimulatedDate: "2026-11-17", // Active date (today)
+  currentSimulatedDate: getLocalTodayDateStr(), // Active date: synchronized with real today!
   criticalWeeklyHoursThreshold: 25.0, // Base lavoratore full-time
   eveningStudyHours: 2.5, // 19:30 - 22:00 (2.5h)
   weekdayStudyHours: 2.5, // Standard feriale base
@@ -139,11 +151,14 @@ function sortBySequentialId(a, b) {
  * 3. Shifts topics forward automatically if days were missed.
  * 4. Pulls topics forward automatically if ahead of schedule.
  */
-export function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacities = {}) {
+export function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacities = {}, studySessions = []) {
   const settings = { ...DEFAULT_SETTINGS, ...customSettings };
   const dayCapacities = (customDayCapacities && typeof customDayCapacities === "object" && Object.keys(customDayCapacities).length > 0)
     ? customDayCapacities
     : (customSettings && customSettings.customDayCapacities ? customSettings.customDayCapacities : {});
+  const sessions = Array.isArray(studySessions) && studySessions.length > 0
+    ? studySessions
+    : (customSettings && Array.isArray(customSettings.studySessions) ? customSettings.studySessions : []);
 
   const { remainingDays, remainingWeeks } = getCalendarMetrics(settings.currentSimulatedDate, settings.targetExamDate);
 
@@ -279,27 +294,58 @@ export function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacit
     dayOffset++;
   }
 
-  // 3. Populate COMPLETED TOPICS on their completion dates (Past + Today + Future if completed ahead)
+  // 3. Populate COMPLETED TOPICS & REGISTERED STUDY SESSIONS on their dates (Past + Today + Future if completed ahead)
   let pastDaysStudied = 0;
   let pastDaysSkipped = 0;
   let totalPastHours = 0;
 
   allCalendarDays.forEach(day => {
-    // Find topics completed on this exact date
+    // 1. Check for explicitly logged study sessions on this date
+    const sessionsOnThisDay = sessions.filter(s => s.date === day.date);
+
+    // 2. Check for topics completed on this exact date (direct checkbox / legacy)
     const completedOnThisDay = processedTopics.filter(t => t.completato && t.completedDate === day.date);
 
-    if (completedOnThisDay.length > 0) {
-      if (day.isPast || day.isToday) {
-        day.dayStatus = "completed";
-      }
-      day.topics = completedOnThisDay.map(t => ({
-        ...t,
-        effectiveHours: Number(t.oreEffettive || t.oreStimate || 0),
+    const dayTopics = [];
+    const seenTopicIds = new Set();
+
+    // First add logged study sessions for this date
+    sessionsOnThisDay.forEach(sess => {
+      const topicRef = processedTopics.find(t => t.id === sess.topicId);
+      seenTopicIds.add(sess.topicId);
+      dayTopics.push({
+        ...(topicRef || { id: sess.topicId, materia: "Studio", argomento: "Sessione di Studio", capitolo: "" }),
+        effectiveHours: Number(sess.hours || 0),
+        isSessionLog: true,
+        sessionId: sess.id,
+        sessionCompleted: Boolean(sess.completed),
+        sessionNote: sess.note || "",
         assignedDate: day.date,
         assignedWeek: day.weekIndex,
         assignedDayName: day.dayName
-      }));
-      day.allocatedHours = Number(completedOnThisDay.reduce((acc, t) => acc + (Number(t.oreEffettive || t.oreStimate || 0)), 0).toFixed(1));
+      });
+    });
+
+    // Then add any completed topics on this date not already represented in sessions
+    completedOnThisDay.forEach(t => {
+      if (!seenTopicIds.has(t.id)) {
+        seenTopicIds.add(t.id);
+        dayTopics.push({
+          ...t,
+          effectiveHours: Number(t.oreEffettive || t.oreStimate || 0),
+          assignedDate: day.date,
+          assignedWeek: day.weekIndex,
+          assignedDayName: day.dayName
+        });
+      }
+    });
+
+    if (dayTopics.length > 0) {
+      if (day.isPast || day.isToday) {
+        day.dayStatus = "completed";
+      }
+      day.topics = dayTopics;
+      day.allocatedHours = Number(dayTopics.reduce((acc, t) => acc + (Number(t.effectiveHours || 0)), 0).toFixed(1));
       if (day.isPast || day.isToday) {
         pastDaysStudied++;
         totalPastHours += day.allocatedHours;
@@ -330,7 +376,12 @@ export function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacit
   activeAndFutureDays.forEach(day => {
     let capacityLeft = Math.max(0, Number((day.maxHours - day.allocatedHours).toFixed(2)));
 
-    while (capacityLeft > 0.4) {
+    // An empty day always gets at least one topic (if queue has topics).
+    // A day that already has topics/sessions only gets an extra topic if there is at least 1.0h of capacity left AND it hasn't reached maxHours.
+    while (
+      (day.topics.length === 0 && capacityLeft > 0.4) ||
+      (day.topics.length > 0 && capacityLeft >= 1.0 && day.allocatedHours < day.maxHours)
+    ) {
       let chosenTopic = null;
       let chosenQueue = null;
 
@@ -482,6 +533,7 @@ export function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacit
     currentWeekPlan,
     calendarDays: allCalendarDays,
     historyDays,
+    studySessions: sessions,
     progress: calculateSubjectProgress(topics)
   };
 }

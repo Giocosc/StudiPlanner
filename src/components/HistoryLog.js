@@ -1,8 +1,18 @@
 import React, { useState } from "react";
-import { IconHistory, IconCheckCircle, IconClock, IconFlame, IconCheck, IconCalendar } from "./Icons.js";
+import { IconHistory, IconCheckCircle, IconClock, IconFlame, IconCheck, IconCalendar, IconTrash } from "./Icons.js";
 import { ActivityHeatmap } from "./ActivityHeatmap.js";
 
-export function HistoryLog({ historyDays, calendarDays = [], metrics, onAdvanceDate, onRetrocedeDate, onSetDate }) {
+export function HistoryLog({
+  historyDays,
+  calendarDays = [],
+  metrics,
+  onAdvanceDate,
+  onRetrocedeDate,
+  onSetDate,
+  onOpenLogModal,
+  onDeleteSession,
+  onOpenTopicDetail
+}) {
   const [filterType, setFilterType] = useState("all"); // "all" | "completed" | "skipped"
 
   const filteredHistory = historyDays.filter(day => {
@@ -103,36 +113,48 @@ export function HistoryLog({ historyDays, calendarDays = [], metrics, onAdvanceD
           </p>
         </div>
 
-        <div className="flex bg-slate-950/80 p-1 rounded-xl border border-slate-800 text-xs font-medium">
+        <div className="flex flex-wrap items-center gap-3">
           <button
-            onClick={() => setFilterType("all")}
-            className={`px-3 py-1 rounded-lg transition ${
-              filterType === "all" ? "bg-slate-800 text-white shadow" : "text-slate-400 hover:text-slate-200"
-            }`}
+            type="button"
+            onClick={() => onOpenLogModal && onOpenLogModal({ date: metrics.currentSimulatedDate })}
+            className="flex items-center space-x-1.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold px-3 py-1.5 rounded-xl text-xs shadow-md shadow-emerald-500/20 border border-emerald-400/40 transition active:scale-95"
+            title="Registra ore di studio svolte (+)"
           >
-            Tutti i Giorni
+            <span className="text-sm font-black leading-none">+</span>
+            <span>Registra Studio</span>
           </button>
-          <button
-            onClick={() => setFilterType("completed")}
-            className={`px-3 py-1 rounded-lg transition ${
-              filterType === "completed" ? "bg-emerald-600/30 text-emerald-300 shadow" : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            Solo Studiati
-          </button>
-          <button
-            onClick={() => setFilterType("skipped")}
-            className={`px-3 py-1 rounded-lg transition ${
-              filterType === "skipped" ? "bg-amber-600/30 text-amber-300 shadow" : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            Solo Saltati
-          </button>
+
+          <div className="flex bg-slate-950/80 p-1 rounded-xl border border-slate-800 text-xs font-medium">
+            <button
+              onClick={() => setFilterType("all")}
+              className={`px-3 py-1 rounded-lg transition ${
+                filterType === "all" ? "bg-slate-800 text-white shadow" : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              Tutti i Giorni
+            </button>
+            <button
+              onClick={() => setFilterType("completed")}
+              className={`px-3 py-1 rounded-lg transition ${
+                filterType === "completed" ? "bg-emerald-600/30 text-emerald-300 shadow" : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              Solo Studiati
+            </button>
+            <button
+              onClick={() => setFilterType("skipped")}
+              className={`px-3 py-1 rounded-lg transition ${
+                filterType === "skipped" ? "bg-amber-600/30 text-amber-300 shadow" : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              Solo Saltati
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Timeline of Days */}
-      <div className="space-y-3">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         {filteredHistory.map(day => {
           const isToday = day.isToday;
           const isSkipped = day.dayStatus === "skipped";
@@ -141,7 +163,7 @@ export function HistoryLog({ historyDays, calendarDays = [], metrics, onAdvanceD
           return (
             <div
               key={day.date}
-              className={`p-4 md:p-5 rounded-2xl border transition backdrop-blur-md ${
+              className={`p-4 md:p-5 rounded-2xl border transition backdrop-blur-md flex flex-col justify-between ${
                 isToday
                   ? "bg-slate-900/95 border-cyan-500/50 shadow-lg shadow-cyan-950/40 ring-1 ring-cyan-500/30"
                   : isCompleted
@@ -184,8 +206,19 @@ export function HistoryLog({ historyDays, calendarDays = [], metrics, onAdvanceD
                   )}
                 </div>
 
-                <div className="text-xs text-slate-500 font-mono">
-                  {day.timeSlot}
+                <div className="flex items-center space-x-2">
+                  <span className="text-xs text-slate-500 font-mono">
+                    {day.timeSlot}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onOpenLogModal && onOpenLogModal({ date: day.date })}
+                    className="px-2 py-0.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-500/30 text-emerald-300 text-xs font-mono font-bold border border-emerald-500/30 transition active:scale-95 flex items-center gap-1"
+                    title={`Aggiungi o registra sessione per ${day.dayName} ${formatDateDisplay(day.date)} (+)`}
+                  >
+                    <span className="font-black">+</span>
+                    <span>Studio</span>
+                  </button>
                 </div>
               </div>
 
@@ -194,20 +227,59 @@ export function HistoryLog({ historyDays, calendarDays = [], metrics, onAdvanceD
                 <div className="mt-3 pt-3 border-t border-slate-800/70 space-y-2">
                   {day.topics.map(t => (
                     <div
-                      key={t.id}
+                      key={t.sessionId || (t.id + '_' + (t.isSessionLog ? 'log' : 'topic'))}
                       className="flex items-center justify-between text-xs bg-black/30 p-2.5 rounded-xl border border-slate-800/60"
                     >
-                      <div className="flex items-center space-x-2">
-                        <span className="font-mono font-bold text-slate-200">
-                          {t.id}
-                        </span>
-                        <span className="text-slate-300">
+                      <div className="flex items-center space-x-2 min-w-0 flex-1 pr-2">
+                        <button
+                          type="button"
+                          onClick={() => onOpenTopicDetail && onOpenTopicDetail(t.id)}
+                          className="font-mono font-bold text-slate-200 hover:text-cyan-300 transition text-left cursor-pointer flex items-center gap-1 group/btn"
+                          title="Apri scheda dettagli argomento"
+                        >
+                          <span>{t.id}</span>
+                          <span className="text-[9px] font-sans px-1 py-0.2 rounded bg-cyan-500/10 text-cyan-400 group-hover/btn:bg-cyan-500/20 border border-cyan-500/30">
+                            ℹ
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onOpenTopicDetail && onOpenTopicDetail(t.id)}
+                          className="text-slate-300 hover:text-cyan-200 truncate text-left transition cursor-pointer"
+                          title="Apri scheda dettagli argomento"
+                        >
                           {t.argomento}
-                        </span>
+                        </button>
+                        {t.isSessionLog && (
+                          <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.2 rounded font-bold flex-shrink-0">
+                            Sessione
+                          </span>
+                        )}
+                        {t.sessionNote && (
+                          <span className="text-[11px] text-slate-400 italic truncate max-w-xs">
+                            "{t.sessionNote}"
+                          </span>
+                        )}
                       </div>
-                      <span className="font-mono text-emerald-400 font-bold">
-                        {t.effectiveHours}h
-                      </span>
+                      <div className="flex items-center space-x-2 flex-shrink-0">
+                        <span className="font-mono text-emerald-400 font-bold">
+                          {t.effectiveHours}h
+                        </span>
+                        {t.sessionId && onDeleteSession && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (window.confirm(`Eliminare la sessione di ${t.effectiveHours}h su ${t.id}?`)) {
+                                onDeleteSession(t.sessionId);
+                              }
+                            }}
+                            className="p-1 text-slate-500 hover:text-rose-400 rounded transition"
+                            title="Elimina sessione"
+                          >
+                            <IconTrash className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>

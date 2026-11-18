@@ -12,15 +12,44 @@ import {
 import { NeuraDeckPromptGenerator } from "./NeuraDeckPromptGenerator.js";
 import { ExamSimulator } from "./ExamSimulator.js";
 
-export function Dashboard({ progress, metrics, onTabChange, topics = [], settings = {} }) {
+export function Dashboard({ progress, metrics, onTabChange, topics = [], settings = {}, onOpenLogModal }) {
   const { analisi, geometria, global } = progress;
   const [isFlashcardsOpen, setIsFlashcardsOpen] = useState(false);
   const [isExamSimulatorOpen, setIsExamSimulatorOpen] = useState(false);
 
   return (
     <div className="space-y-6">
+      {/* Quick Action Banner for Logging Study */}
+      <div className="bg-gradient-to-r from-emerald-950/40 via-slate-900/80 to-teal-950/40 border border-emerald-500/30 rounded-3xl p-4 md:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 backdrop-blur-md shadow-lg">
+        <div className="flex items-center space-x-3.5">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-500 flex items-center justify-center text-white font-black text-xl shadow-md shadow-emerald-500/20">
+            +
+          </div>
+          <div>
+            <h3 className="text-sm md:text-base font-bold text-white flex items-center gap-2">
+              <span>Registra Sessione di Studio</span>
+              <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-mono">
+                Adattamento Dinamico
+              </span>
+            </h3>
+            <p className="text-xs text-slate-300 mt-0.5">
+              Hai svolto ore di studio oggi o in una data passata? Clicca qui per indicare data, ore e argomento: il resto si adatterà in tempo reale!
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => onOpenLogModal && onOpenLogModal({ date: settings.currentSimulatedDate })}
+          className="w-full sm:w-auto flex items-center justify-center space-x-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold px-4 py-2.5 rounded-2xl text-xs shadow-lg shadow-emerald-500/20 border border-emerald-400/30 transition transform active:scale-95 flex-shrink-0"
+        >
+          <span className="text-base font-black leading-none">+</span>
+          <span>Registra Ore di Studio</span>
+        </button>
+      </div>
+
       {/* KPI Cards Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 2xl:gap-6">
         {/* Days Left */}
         <div className="bg-slate-900/80 border border-slate-800/80 p-4 rounded-2xl backdrop-blur-md relative overflow-hidden group hover:border-slate-700 transition">
           <div className="flex items-center justify-between text-slate-400 mb-2">

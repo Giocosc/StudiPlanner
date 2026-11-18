@@ -1,7 +1,20 @@
 import React, { useState } from "react";
-import { IconUpload, IconDownload, IconCheckCircle, IconRefresh, IconLayers, IconBookOpen, IconSave, IconFileCheck } from "./Icons.js";
+import {
+  IconUpload,
+  IconDownload,
+  IconCheckCircle,
+  IconRefresh,
+  IconLayers,
+  IconBookOpen,
+  IconSave,
+  IconFileCheck,
+  IconGitLab,
+  IconCloud,
+  IconExternalLink
+} from "./Icons.js";
 import { parseCSVString, parseExcelData, mergeTopicsWithExcelData } from "../services/parserService.js";
 import { INITIAL_TOPICS } from "../data/defaultData.js";
+import { testGitLabConnection } from "../services/gitlabSyncService.js";
 
 export function FileImporter({
   topics,
@@ -10,16 +23,122 @@ export function FileImporter({
   onCustomCapacitiesUpdated,
   onTopicsUpdated,
   onSettingsUpdated,
+  studySessions = [],
+  onStudySessionsUpdated,
   fsSyncStatus,
   onConnectFileSystem,
   onDisconnectFileSystem,
-  onTriggerManualSave
+  onTriggerManualSave,
+  gitlabConfig = {},
+  onUpdateGitLabConfig,
+  onGitLabPull,
+  onGitLabPush
 }) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [notification, setNotification] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
 
   const isFsAccessSupported = typeof window !== "undefined" && "showOpenFilePicker" in window;
+
+  // GitLab Cloud Sync Form State
+  const [glInstanceUrl, setGlInstanceUrl] = useState(gitlabConfig?.instanceUrl || "https://gitlab.com");
+  const [glProjectId, setGlProjectId] = useState(gitlabConfig?.projectId || "");
+  const [glBranch, setGlBranch] = useState(gitlabConfig?.branch || "main");
+  const [glFilePath, setGlFilePath] = useState(gitlabConfig?.filePath || "data/studiplanner-state.json");
+  const [glToken, setGlToken] = useState(gitlabConfig?.token || "");
+  const [glAutoSync, setGlAutoSync] = useState(gitlabConfig?.autoSync !== undefined ? gitlabConfig.autoSync : true);
+  const [glTesting, setGlTesting] = useState(false);
+  const [glTestResult, setGlTestResult] = useState(null);
+  const [glPulling, setGlPulling] = useState(false);
+  const [glPushing, setGlPushing] = useState(false);
+
+  const handleSaveGitLabConfig = (enabledState = null) => {
+    const isEnabled = enabledState !== null ? enabledState : (gitlabConfig?.enabled || false);
+    const updated = {
+      ...gitlabConfig,
+      enabled: isEnabled,
+      instanceUrl: glInstanceUrl,
+      projectId: glProjectId,
+      branch: glBranch,
+      filePath: glFilePath,
+      token: glToken,
+      autoSync: glAutoSync
+    };
+    if (onUpdateGitLabConfig) onUpdateGitLabConfig(updated);
+    setNotification({
+      type: "success",
+      message: isEnabled
+        ? "Configurazione GitLab salvata! Sincronizzazione automatica attiva."
+        : "Configurazione GitLab aggiornata."
+    });
+  };
+
+  const handleTestConnection = async () => {
+    setGlTesting(true);
+    setGlTestResult(null);
+    try {
+      const res = await testGitLabConnection({
+        instanceUrl: glInstanceUrl,
+        projectId: glProjectId,
+        token: glToken
+      });
+      setGlTestResult({
+        success: true,
+        message: `✓ Connesso con successo a "${res.projectName}"! Ramo: ${res.defaultBranch}`
+      });
+      // Save configuration on successful test
+      handleSaveGitLabConfig(true);
+    } catch (err) {
+      setGlTestResult({
+        success: false,
+        message: `Errore: ${err.message}`
+      });
+    } finally {
+      setGlTesting(false);
+    }
+  };
+
+  const handleManualPull = async () => {
+    setGlPulling(true);
+    setNotification(null);
+    try {
+      if (onGitLabPull) {
+        const res = await onGitLabPull();
+        setNotification({
+          type: "success",
+          message: res?.message || "Stato scaricato e applicato con successo da GitLab!"
+        });
+      }
+    } catch (err) {
+      setNotification({
+        type: "error",
+        message: `Errore durante il download da GitLab: ${err.message}`
+      });
+    } finally {
+      setGlPulling(false);
+    }
+  };
+
+  const handleManualPush = async () => {
+    setGlPushing(true);
+    setNotification(null);
+    try {
+      if (onGitLabPush) {
+        const res = await onGitLabPush("Salvataggio manuale da StudiPlanner");
+        setNotification({
+          type: "success",
+          message: res?.message || "Stato inviato su GitLab con successo!"
+        });
+      }
+    } catch (err) {
+      setNotification({
+        type: "error",
+        message: `Errore durante l'invio su GitLab: ${err.message}`
+      });
+    } finally {
+      setGlPushing(false);
+    }
+  };
 
   // Handle transparent File System Access connection
   const handleConnectFileClick = async () => {
@@ -73,6 +192,9 @@ export function FileImporter({
           }
           if (backup.customDayCapacities && onCustomCapacitiesUpdated) {
             onCustomCapacitiesUpdated(backup.customDayCapacities);
+          }
+          if (backup.studySessions && Array.isArray(backup.studySessions) && onStudySessionsUpdated) {
+            onStudySessionsUpdated(backup.studySessions);
           }
           setNotification({
             type: "success",
@@ -202,7 +324,8 @@ export function FileImporter({
       exportDate: new Date().toISOString(),
       settings,
       topics,
-      customDayCapacities
+      customDayCapacities,
+      studySessions
     };
 
     const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: "application/json" });
@@ -305,6 +428,224 @@ export function FileImporter({
                 La File System Access API non è supportata da questo browser (usa Chrome, Edge o Opera per l'auto-sync trasparente).
               </div>
             )}
+          </div>
+        </div>
+      </div>
+
+      {/* GitLab Cloud Synchronization Card */}
+      <div className="bg-gradient-to-r from-slate-900/90 via-orange-950/20 to-slate-900/90 border border-orange-500/30 rounded-3xl p-5 md:p-6 shadow-xl backdrop-blur-md space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-start space-x-3.5">
+            <div className={`p-3 rounded-2xl flex-shrink-0 border ${
+              gitlabConfig?.enabled
+                ? "bg-orange-500/20 text-orange-400 border-orange-500/40 shadow-lg shadow-orange-500/20"
+                : "bg-slate-800/60 text-slate-400 border-slate-700"
+            }`}>
+              <IconGitLab className="w-6 h-6 text-orange-400" />
+            </div>
+            <div>
+              <div className="flex items-center space-x-2">
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <span>Sincronizzazione Cloud GitLab (Multi-Dispositivo)</span>
+                  <span className="text-[10px] bg-orange-500/20 text-orange-300 border border-orange-500/30 px-2 py-0.5 rounded-full font-mono font-bold">
+                    REST API v4
+                  </span>
+                </h3>
+                {gitlabConfig?.enabled ? (
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-pulse"></span>
+                    ATTIVA
+                  </span>
+                ) : (
+                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
+                    Disattivata
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
+                Sincronizza in automatico tutto il piano di studi (sessioni, ore e date) su un tuo repository privato GitLab. I dati saranno sempre allineati tra computer di casa, portatile, tablet e smartphone con <strong>zero server intermedi</strong>.
+              </p>
+
+              {gitlabConfig?.enabled && (
+                <div className="mt-2.5 flex flex-wrap items-center gap-2 text-xs">
+                  <span className="bg-slate-950/80 px-2.5 py-1 rounded-xl border border-slate-800 font-mono text-orange-300">
+                    🦊 Repo: <strong>{gitlabConfig.projectId}</strong>
+                  </span>
+                  <span className="bg-slate-950/80 px-2.5 py-1 rounded-xl border border-slate-800 font-mono text-cyan-300">
+                    🌿 Ramo: <strong>{gitlabConfig.branch || "main"}</strong>
+                  </span>
+                  <span className="bg-slate-950/80 px-2.5 py-1 rounded-xl border border-slate-800 font-mono text-emerald-400">
+                    ✓ Ultimo Sync: {gitlabConfig.lastSynced || "In attesa..."}
+                  </span>
+                  {gitlabConfig.syncStatus === "syncing" && (
+                    <span className="text-orange-400 animate-pulse text-[11px] font-mono">
+                      Sincronizzazione in corso...
+                    </span>
+                  )}
+                  {gitlabConfig.errorMessage && (
+                    <span className="text-rose-400 text-[11px] font-mono">
+                      ⚠️ {gitlabConfig.errorMessage}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 self-start md:self-center">
+            <button
+              type="button"
+              onClick={() => handleSaveGitLabConfig(!gitlabConfig?.enabled)}
+              className={`px-4 py-2.5 rounded-xl text-xs font-bold border transition ${
+                gitlabConfig?.enabled
+                  ? "bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border-rose-500/30"
+                  : "bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-400 hover:to-amber-500 text-white border-orange-400/30 shadow-lg shadow-orange-950/30"
+              }`}
+            >
+              {gitlabConfig?.enabled ? "Disattiva GitLab Sync" : "Abilita GitLab Sync"}
+            </button>
+          </div>
+        </div>
+
+        {/* Configuration inputs & controls */}
+        <div className="pt-3 border-t border-slate-800/80 space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+            <div>
+              <label className="block text-slate-400 font-medium mb-1">
+                Istanza GitLab:
+              </label>
+              <input
+                type="text"
+                value={glInstanceUrl}
+                onChange={(e) => setGlInstanceUrl(e.target.value)}
+                placeholder="https://gitlab.com"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-white font-mono text-xs focus:outline-none focus:border-orange-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-slate-400 font-medium mb-1">
+                Project Path o ID numerico:
+              </label>
+              <input
+                type="text"
+                value={glProjectId}
+                onChange={(e) => setGlProjectId(e.target.value)}
+                placeholder="username/studiplanner-data"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-white font-mono text-xs focus:outline-none focus:border-orange-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-slate-400 font-medium mb-1">
+                Ramo (Branch):
+              </label>
+              <input
+                type="text"
+                value={glBranch}
+                onChange={(e) => setGlBranch(e.target.value)}
+                placeholder="main"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-white font-mono text-xs focus:outline-none focus:border-orange-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-slate-400 font-medium mb-1">
+                Percorso File nel Repo:
+              </label>
+              <input
+                type="text"
+                value={glFilePath}
+                onChange={(e) => setGlFilePath(e.target.value)}
+                placeholder="data/studiplanner-state.json"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-white font-mono text-xs focus:outline-none focus:border-orange-500"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs items-end">
+            <div className="sm:col-span-2">
+              <label className="block text-slate-400 font-medium mb-1 flex items-center justify-between">
+                <span>Personal Access Token (GitLab):</span>
+                <span className="text-[10px] text-slate-500 font-normal">
+                  Permessi richiesti: <code>api</code> oppure <code>read_repository, write_repository</code>
+                </span>
+              </label>
+              <input
+                type="password"
+                value={glToken}
+                onChange={(e) => setGlToken(e.target.value)}
+                placeholder="glpat-xxxxxxxxxxxxxxxxxxxx"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-white font-mono text-xs focus:outline-none focus:border-orange-500"
+              />
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <button
+                type="button"
+                onClick={handleTestConnection}
+                disabled={glTesting || !glProjectId || !glToken}
+                className="flex-1 py-2 px-3 rounded-xl bg-orange-600/20 hover:bg-orange-600/30 text-orange-300 border border-orange-500/40 text-xs font-bold transition flex items-center justify-center gap-1.5 disabled:opacity-40"
+              >
+                {glTesting ? "Verifica in corso..." : "🧪 Testa Connessione"}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSaveGitLabConfig()}
+                className="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold transition"
+              >
+                Salva
+              </button>
+            </div>
+          </div>
+
+          {glTestResult && (
+            <div className={`p-2.5 rounded-xl text-xs font-mono flex items-center gap-2 ${
+              glTestResult.success
+                ? "bg-emerald-500/10 text-emerald-300 border border-emerald-500/30"
+                : "bg-rose-500/10 text-rose-300 border border-rose-500/30"
+            }`}>
+              <span>{glTestResult.message}</span>
+            </div>
+          )}
+
+          {/* Manual Pull & Push Actions */}
+          <div className="pt-2 flex flex-wrap items-center justify-between gap-3 text-xs bg-slate-950/40 p-3 rounded-2xl border border-slate-800/60">
+            <label className="flex items-center space-x-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={glAutoSync}
+                onChange={(e) => {
+                  setGlAutoSync(e.target.checked);
+                  handleSaveGitLabConfig();
+                }}
+                className="w-4 h-4 accent-orange-500 rounded cursor-pointer"
+              />
+              <span className="text-slate-300 font-medium">
+                Sincronizzazione Automatica Continua (Auto-Pull all'apertura + Auto-Commit ad ogni sessione/modifica)
+              </span>
+            </label>
+
+            <div className="flex items-center space-x-2">
+              <button
+                type="button"
+                onClick={handleManualPull}
+                disabled={glPulling || !gitlabConfig?.token}
+                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 rounded-xl font-bold transition flex items-center gap-1 disabled:opacity-40"
+                title="Scarica i dati più recenti dal repository GitLab"
+              >
+                <span>{glPulling ? "Scaricamento..." : "⬇ Pull da GitLab"}</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleManualPush}
+                disabled={glPushing || !gitlabConfig?.token}
+                className="px-3 py-1.5 bg-orange-600/30 hover:bg-orange-600/40 text-orange-200 border border-orange-500/40 rounded-xl font-bold transition flex items-center gap-1 disabled:opacity-40"
+                title="Invia lo stato attuale come nuovo commit su GitLab"
+              >
+                <span>{glPushing ? "Invio in corso..." : "⬆ Push su GitLab"}</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>

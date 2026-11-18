@@ -81,10 +81,39 @@ L'applicazione in esecuzione in `index.html` consuma `bundle.js`.
 - `start-app.bat`: Script di avvio rapido con doppio clic su Windows.
 - `src/services/rebalancerEngine.js`: Motore matematico di ribilanciamento e calendario.
 - `src/services/parserService.js`: Parser client-side per CSV ed Excel con fuzzy matching.
-- `src/components/WeeklyTodo.js`: Vista operativa to-do giorno per giorno.
-- `src/components/HistoryLog.js`: Timeline e diario storico delle date passate.
-- `src/components/Dashboard.js`: Progress bar Analisi/Geometria e metriche KPI.
+- `src/services/gitlabSyncService.js`: Servizio di sincronizzazione REST API v4 con GitLab Cloud (Auto-Pull & Auto-Push continuo).
+- `src/components/WeeklyTodo.js`: Vista operativa to-do giorno per giorno con Time Shifter.
+- `src/components/HistoryLog.js`: Timeline e diario storico delle date passate con rollback delle sessioni.
+- `src/components/Dashboard.js`: Progress bar Analisi/Geometria, metriche KPI, telemetria e countdown esame.
+- `src/components/LogStudyModal.js`: Modal per registrazione sessioni con Topic Picker filtrabile per materia.
+- `src/components/TopicDetailModal.js`: Scheda informativa immersiva con Programma didattico, Teoremi/Dimostrazioni d'esame UNIMORE e Diario sessioni.
+- `src/components/FileImporter.js`: Centro import/export (Excel, CSV, backup JSON, File System API e GitLab).
+- `src/components/SettingsModal.js`: Configurazione parametri di studio e simulazione data.
 - `src/data/defaultData.js`: Dataset precaricato dei 63 argomenti ufficiali UNIMORE.
 - `Analisi/Analisi.csv` e `Geometria/Geometria.txt`: Dataset CSV canonici.
 - `GUIDA_APPLICAZIONE.md`: Manuale utente completo ed esaustivo.
 - `README.md`: Documentazione pubblica del repository GitHub.
+
+---
+
+### 6. Schema Dati e Chiavi di Persistenza (LocalStorage & Cloud JSON)
+
+Tutti i dati dell'applicazione persistono in parallelo su **HTML5 LocalStorage** e su **GitLab Cloud** (`data/studiplanner-state.json`):
+
+| Chiave LocalStorage | Tipo | Descrizione |
+| :--- | :--- | :--- |
+| `unimore_rebalancer_topics_v2` | `Array<Topic>` | 63 argomenti (`id`, `materia`, `capitolo`, `argomento`, `oreStimate`, `oreEffettive`, `prioritaEsame`, `difficolta`, `completato`, `completedDate`, note) |
+| `unimore_rebalancer_settings_v2` | `Object` | Parametri globali (`targetExamDate: '2027-01-10'`, `currentSimulatedDate`, `weekdayHours: 2.5`, `weekendHours: 4.5`, `criticalWeeklyHours: 25`, `bufferMultiplier: 1.2`) |
+| `unimore_rebalancer_custom_capacities_v2` | `Object<string, number>` | Override giornalieri Time Shifter (`{"2026-11-18": 3.0, "2026-11-19": 1.5}`) |
+| `unimore_rebalancer_sessions_v2` | `Array<StudySession>` | Registro storico cronologico sessioni (`id`, `date`, `topicId`, `hours`, `completed`, `notes`, `timestamp`) |
+| `unimore_rebalancer_gitlab_config_v1` | `GitLabConfig` | Configurazione sincronizzazione GitLab (`enabled`, `autoSync`, `instanceUrl`, `projectId`, `branch`, `filePath`, `token`, `lastSynced`, `syncStatus`) |
+
+---
+
+### 7. Architettura di Sincronizzazione GitLab Cloud (REST API v4)
+
+L'applicazione comunica direttamente dal browser client con GitLab senza alcun server middleware proprietario:
+1. **Endpoint Progetto:** `GET {instanceUrl}/api/v4/projects/{projectId}` con header `PRIVATE-TOKEN: {token}` per verificare i permessi (`api` o `read/write_repository`).
+2. **Auto-Pull all'Avvio:** All'apertura dell'applicazione, viene eseguita una `GET {instanceUrl}/api/v4/projects/{projectId}/repository/files/{filePath}?ref={branch}`. Il contenuto Base64 viene decodificato tramite `TextDecoder("utf-8")` per preservare i caratteri accentati e applicato allo stato React.
+3. **Auto-Push Debounced (2.5s):** Ad ogni modifica dello stato (registrazione sessione, completamento argomento, variazione orari), scatta un timer debounced che serializza lo snapshot globale e invia una `PUT` (o `POST` se il file è nuovo) all'endpoint GitLab.
+4. **Resilienza Offline:** In assenza di connettività, l'app opera al 100% su LocalStorage e sincronizza il cloud appena la rete ritorna disponibile.

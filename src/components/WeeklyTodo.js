@@ -21,7 +21,9 @@ export function WeeklyTodo({
   onUpdateTopicHours,
   settings,
   customDayCapacities = {},
-  onUpdateDayCapacity
+  onUpdateDayCapacity,
+  onOpenLogModal,
+  onOpenTopicDetail
 }) {
   // Default to the week containing Today
   const [selectedWeekIndex, setSelectedWeekIndex] = useState(() => {
@@ -428,6 +430,17 @@ export function WeeklyTodo({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2.5">
+                  {/* Quick Log Studio Button for this day */}
+                  <button
+                    type="button"
+                    onClick={() => onOpenLogModal && onOpenLogModal({ date: day.date })}
+                    className="px-2.5 py-1 rounded-xl bg-gradient-to-r from-emerald-600/30 to-teal-600/30 hover:from-emerald-500/40 hover:to-teal-500/40 text-emerald-300 hover:text-emerald-200 text-xs font-mono font-bold border border-emerald-500/40 transition active:scale-95 flex items-center gap-1.5 shadow-sm"
+                    title={`Registra ore di studio svolte per ${day.dayName} ${formatDateDisplay(day.date)} (+)`}
+                  >
+                    <span className="text-sm font-black leading-none">+</span>
+                    <span>Registra Studio</span>
+                  </button>
+
                   {/* Time Shifter: Stepper Controls */}
                   <div className="flex items-center space-x-1 bg-slate-950/80 border border-slate-800 p-1 rounded-xl shadow-inner">
                     <button
@@ -496,7 +509,13 @@ export function WeeklyTodo({
                   Nessun argomento previsto in questo slot (riposo o filtro attivo).
                 </div>
               ) : (
-                <div className="space-y-2.5">
+                <div className={`grid gap-3.5 ${
+                  visibleTopics.length >= 3
+                    ? "grid-cols-1 md:grid-cols-2 2xl:grid-cols-3"
+                    : visibleTopics.length === 2
+                    ? "grid-cols-1 xl:grid-cols-2"
+                    : "grid-cols-1"
+                }`}>
                   {visibleTopics.map(topic => {
                     const isAnalisi = topic.materia.toLowerCase().includes("analisi");
                     const isDone = Boolean(topic.completato !== undefined ? topic.completato : topic.isCompleted);
@@ -513,10 +532,12 @@ export function WeeklyTodo({
 
                     return (
                       <div
-                        key={topic.id}
-                        className={`flex flex-col p-3.5 rounded-2xl border transition-all ${
+                        key={topic.sessionId || (topic.id + '_' + (topic.isSessionLog ? 'log' : 'sched'))}
+                        className={`flex flex-col justify-between p-3.5 md:p-4 rounded-2xl border transition-all h-full ${
                           isDone
                             ? "bg-slate-950/60 border-slate-800/50 opacity-60"
+                            : topic.isSessionLog
+                            ? "bg-slate-950/90 border-emerald-500/40 shadow-sm shadow-emerald-950/20"
                             : isAnalisi
                             ? "bg-slate-950/80 hover:bg-slate-900 border-emerald-500/20 hover:border-emerald-500/40"
                             : "bg-slate-950/80 hover:bg-slate-900 border-indigo-500/20 hover:border-indigo-500/40"
@@ -535,15 +556,30 @@ export function WeeklyTodo({
                                 {topic.materia}
                               </span>
 
-                              {/* Topic ID */}
-                              <span className="text-[11px] font-mono font-bold text-slate-300">
-                                {topic.id}
-                              </span>
+                              {/* Topic ID & Info Trigger */}
+                              <button
+                                type="button"
+                                onClick={() => onOpenTopicDetail && onOpenTopicDetail(topic)}
+                                className="text-[11px] font-mono font-bold text-slate-300 hover:text-cyan-300 transition flex items-center gap-1 group/btn"
+                                title="Apri scheda informativa dettagliata"
+                              >
+                                <span>{topic.id}</span>
+                                <span className="text-[9px] font-sans px-1.5 py-0.2 rounded bg-cyan-500/10 text-cyan-400 group-hover/btn:bg-cyan-500/20 border border-cyan-500/30">
+                                  ℹ Info
+                                </span>
+                              </button>
 
                               {/* Chapter */}
                               <span className="text-[11px] text-slate-400 truncate max-w-[200px]">
                                 • {topic.capitolo}
                               </span>
+
+                              {/* Session Log Badge */}
+                              {topic.isSessionLog && (
+                                <span className="text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded-full">
+                                  ✓ Sessione Svolta ({topic.effectiveHours}h){isDone ? ` • Completato il ${formatDateDisplay(topic.completedDate || topic.assignedDate)}` : ""}
+                                </span>
+                              )}
 
                               {/* Buffer +20% badge */}
                               {topic.hasBuffer && (
@@ -552,30 +588,41 @@ export function WeeklyTodo({
                                 </span>
                               )}
 
-                              {isDone && (
+                              {isDone && !topic.isSessionLog && (
                                 <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
                                   ✓ Completato {topic.completedDate ? `il ${formatDateDisplay(topic.completedDate)}` : ""}
                                 </span>
                               )}
 
-                              {!isDone && (topic.oreEffettive || 0) > 0 && (
+                              {!isDone && (topic.oreEffettive || 0) > 0 && !topic.isSessionLog && (
                                 <span className="text-[10px] font-mono text-cyan-300 bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 rounded-full">
                                   ⏳ In Corso ({Number(topic.oreEffettive).toFixed(1)}h svolte)
                                 </span>
                               )}
                             </div>
 
-                            <p className={`text-xs md:text-sm font-medium ${
-                              isDone ? "line-through text-slate-500" : "text-slate-200"
-                            }`}>
-                              {topic.argomento}
-                            </p>
+                            <button
+                              type="button"
+                              onClick={() => onOpenTopicDetail && onOpenTopicDetail(topic)}
+                              className="text-left group/title block cursor-pointer w-full"
+                              title="Clicca per aprire la scheda dell'argomento"
+                            >
+                              <p className={`text-xs md:text-sm font-semibold transition ${
+                                isDone ? "line-through text-slate-500" : "text-slate-200 group-hover/title:text-cyan-300"
+                              }`}>
+                                {topic.argomento}
+                              </p>
+                            </button>
 
-                            {topic.note && (
+                            {topic.sessionNote ? (
+                              <p className="text-[11px] text-emerald-300/90 italic mt-0.5">
+                                Nota di studio: "{topic.sessionNote}"
+                              </p>
+                            ) : topic.note ? (
                               <p className="text-[11px] text-slate-500 mt-0.5 truncate">
                                 Obiettivo: {topic.note}
                               </p>
-                            )}
+                            ) : null}
                           </div>
 
                           {/* Allocation info on this day */}
@@ -642,6 +689,16 @@ export function WeeklyTodo({
                                 title="Aggiungi 1 ora al tempo speso (+1.0h)"
                               >
                                 + 1h
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => onOpenLogModal && onOpenLogModal({ date: day.date, topicId: topic.id })}
+                                className="px-2.5 py-1 rounded-lg bg-emerald-600/25 hover:bg-emerald-500/35 text-emerald-300 hover:text-emerald-200 border border-emerald-500/40 text-[11px] font-mono font-bold transition active:scale-95 shadow-sm flex items-center gap-1"
+                                title="Registra sessione personalizzata (+)"
+                              >
+                                <span className="font-black">+</span>
+                                <span>Log</span>
                               </button>
                             </div>
                           </div>

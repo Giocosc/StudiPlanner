@@ -80,9 +80,9 @@ StudiPlanner introduce un paradigma di **allocazione rolling dinamica**. Il pian
 - 🔥 **Activity Heatmap & Diario Storico:**
   - Matrice grafica delle sessioni retrospettive (stile GitHub Contributions).
   - Monitoraggio analitico del rapporto tra giorni effettivi di studio e giorni saltati dall'avvio della sessione (16 Novembre 2026).
-- 🔒 **Architettura Local-First & File System Access API:**
-  - Nessun server cloud proprietario: integrità e riservatezza totale dei dati sul client.
-  - Supporto alla File System Access API del browser per il salvataggio automatico bidirezionale trasparente su un file `.json` su disco.
+- 🔒 **Sincronizzazione Multi-Tier (GitLab Cloud Sync & File System Access API):**
+  - **Sincronizzazione Cloud GitLab Automatica:** Integrazione REST API v4 nativa senza server intermedi. Auto-Pull all'avvio e Auto-Commit continuo su repository GitLab privato per allineare all'istante PC, portatile, tablet e smartphone.
+  - **File System Access API & Local-First:** Salvataggio automatico bidirezionale trasparente su file `.json` su disco o cloud folder (iCloud, OneDrive, Google Drive) e persistenza istantanea in HTML5 `localStorage`.
 - 🌙 **Interfaccia High-Contrast Dark Mode:**
   - Palette cromatica deep space (`#070b14`), smeraldo per Analisi 1 (`#10b981`), indaco per Geometria (`#6366f1`) e ambra/rosa per avvisi di sovraccarico.
 

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { IconSettings, IconClock, IconCalendar, IconBriefcase, IconFlame, IconSun, IconMoon } from "./Icons.js";
+import { getLocalTodayDateStr } from "../services/rebalancerEngine.js";
 
 export function SettingsModal({
   isOpen,
@@ -53,7 +54,7 @@ export function SettingsModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-      <div className="bg-slate-900 border border-slate-700/80 rounded-3xl w-full max-w-lg p-6 shadow-2xl shadow-cyan-950/40 relative">
+      <div className="bg-slate-900 border border-slate-700/80 rounded-3xl w-full max-w-xl p-6 shadow-2xl shadow-cyan-950/40 relative">
         <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-800">
           <div className="flex items-center space-x-2.5">
             <div className="p-2 bg-cyan-500/10 rounded-xl text-cyan-400 border border-cyan-500/20">
@@ -87,9 +88,19 @@ export function SettingsModal({
               />
             </div>
             <div>
-              <label className="block text-slate-300 font-semibold mb-1">
-                Data Odierna (Simulata)
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-slate-300 font-semibold">
+                  Data Odierna (Simulata)
+                </label>
+                <button
+                  type="button"
+                  onClick={() => handleChange("currentSimulatedDate", getLocalTodayDateStr())}
+                  className="text-[10px] text-cyan-400 hover:text-cyan-300 underline font-mono"
+                  title="Reimposta sulla data reale odierna del computer"
+                >
+                  Usa Oggi Reale
+                </button>
+              </div>
               <input
                 type="date"
                 value={formData.currentSimulatedDate}
