@@ -7,7 +7,8 @@ import {
   IconCheckCircle,
   IconFlame,
   IconSparkles,
-  IconDice
+  IconDice,
+  IconBug
 } from "./Icons.js";
 import { NeuraDeckPromptGenerator } from "./NeuraDeckPromptGenerator.js";
 import { ExamSimulator } from "./ExamSimulator.js";
@@ -20,7 +21,9 @@ export function Dashboard({
   settings = {},
   onOpenLogModal,
   onOpenTopicDetail,
-  onToggleSpacedReview
+  onToggleSpacedReview,
+  mathBugs = [],
+  onOpenBugTracker
 }) {
   const { analisi, geometria, global } = progress;
   const [isFlashcardsOpen, setIsFlashcardsOpen] = useState(false);
@@ -410,7 +413,7 @@ export function Dashboard({
       </div>
 
       {/* AI Study Tools Row (Phase 2 Refactoring) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         {/* Tool 1: NeuraDeck Flashcards (NotebookLM) */}
         <div className="bg-gradient-to-br from-slate-900/90 via-slate-900/70 to-cyan-950/40 border border-cyan-500/30 p-5 md:p-6 rounded-3xl shadow-xl shadow-cyan-950/20 relative overflow-hidden flex flex-col justify-between group hover:border-cyan-500/50 transition">
           <div>
@@ -453,7 +456,7 @@ export function Dashboard({
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center space-x-2">
                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                  UNIMORE Scritto • Claude/GPT
+                  UNIMORE Scritto • 120m/90m
                 </span>
                 <span className="text-[10px] text-slate-400 font-mono">Priorità ≥ 3</span>
               </div>
@@ -462,9 +465,9 @@ export function Dashboard({
               </div>
             </div>
 
-            <h4 className="text-lg font-bold text-white">Simulatore d'Esame Dinamico</h4>
+            <h4 className="text-lg font-bold text-white">Simulatore d'Esame Live</h4>
             <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-              Estrae casualmente 6 argomenti per Analisi 1 o 11 per Geometria tra quelli completati con Priorità ≥ 3 e compone il prompt d'esame in Markdown per Claude o ChatGPT con spazio di svolgimento.
+              Estrae compiti ufficiali cronometrati (120m per Analisi, 90m per Geometria), fornisce autovalutazione passaggio per passaggio e stima il voto d'esame in trentesimi (/30).
             </p>
           </div>
 
@@ -479,6 +482,44 @@ export function Dashboard({
             >
               <IconDice className="w-4 h-4 text-white" />
               <span>Avvia Simulazione</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Tool 3: Math Bug Tracker (Registro Errori) */}
+        <div className="bg-gradient-to-br from-slate-900/90 via-slate-900/70 to-rose-950/40 border border-rose-500/30 p-5 md:p-6 rounded-3xl shadow-xl shadow-rose-950/20 relative overflow-hidden flex flex-col justify-between group hover:border-rose-500/50 transition">
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center space-x-2">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                  Anti-Trabocchetto
+                </span>
+                <span className="text-[10px] text-rose-300 font-mono">
+                  {mathBugs.filter(b => !b.isResolved).length} aperti
+                </span>
+              </div>
+              <div className="p-2 bg-rose-500/10 text-rose-400 rounded-xl group-hover:scale-110 transition">
+                <IconBug className="w-5 h-5" />
+              </div>
+            </div>
+
+            <h4 className="text-lg font-bold text-white">Bug Tracker Matematico</h4>
+            <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+              Traccia e debella gli errori ricorrenti commessi durante gli esercizi (segni nei determinanti, o-piccolo di Taylor, ipotesi di De L'Hôpital) prima dell'appello d'esame.
+            </p>
+          </div>
+
+          <div className="mt-5 pt-4 border-t border-slate-800/80 flex items-center justify-between">
+            <span className="text-[11px] text-emerald-400 font-mono">
+              {mathBugs.filter(b => b.isResolved).length} padroneggiati
+            </span>
+            <button
+              type="button"
+              onClick={onOpenBugTracker}
+              className="px-4 py-2 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold rounded-xl text-xs flex items-center space-x-1.5 shadow-lg shadow-rose-600/20 transition active:scale-95"
+            >
+              <IconBug className="w-4 h-4 text-white" />
+              <span>Apri Bug Tracker</span>
             </button>
           </div>
         </div>

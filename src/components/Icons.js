@@ -306,6 +306,14 @@ export function IconCloud({ className = "w-5 h-5" }) {
   );
 }
 
+export function IconBug({ className = "w-5 h-5" }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v1m6 11h2m-6 0h-4m0 0H4m16-4h-2m-8 0H4m4-4l-2-2m10 0l-2 2M9 16a3 3 0 006 0v-4a3 3 0 00-6 0v4z" />
+    </svg>
+  );
+}
+
 
 
 

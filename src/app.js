@@ -122,7 +122,27 @@ export function App() {
 
   const [activeTab, setActiveTab] = useState("dashboard"); // "dashboard" | "weekly" | "history" | "topics" | "import"
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isBugTrackerOpen, setIsBugTrackerOpen] = useState(false);
   const [lastSavedTime, setLastSavedTime] = useState("");
+
+  // Mathematical recurring error tracker (Bug Tracker)
+  const [mathBugs, setMathBugs] = useState(() => {
+    try {
+      const saved = localStorage.getItem("unimore_rebalancer_math_bugs_v1");
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.warn("Could not load mathBugs from localStorage", e);
+    }
+    return typeof DEFAULT_MATH_BUGS !== "undefined" ? DEFAULT_MATH_BUGS : [];
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("unimore_rebalancer_math_bugs_v1", JSON.stringify(mathBugs));
+    } catch (e) {
+      console.warn("Failed to persist mathBugs", e);
+    }
+  }, [mathBugs]);
 
   // GitLab Cloud Sync state
   const [gitlabConfig, setGitlabConfig] = useState(() => {
@@ -986,6 +1006,8 @@ export function App() {
             onOpenLogModal={handleOpenLogModal}
             onOpenTopicDetail={handleOpenTopicDetail}
             onToggleSpacedReview={handleToggleSpacedReview}
+            mathBugs={mathBugs}
+            onOpenBugTracker={() => setIsBugTrackerOpen(true)}
           />
         )}
 
@@ -1146,6 +1168,16 @@ export function App() {
         onOpenLogModal={handleOpenLogModal}
         onUpdateTopic={handleTopicUpdate}
         studySessions={studySessions}
+      />
+
+      {/* Math Bug Tracker Modal (Punto 5) */}
+      <MathBugTracker
+        isOpen={isBugTrackerOpen}
+        onClose={() => setIsBugTrackerOpen(false)}
+        bugs={mathBugs}
+        onSaveBugs={setMathBugs}
+        topics={topics}
+        onOpenTopicDetail={handleOpenTopicDetail}
       />
 
       {/* CLARKE-9000 Isolated Side Companion */}
