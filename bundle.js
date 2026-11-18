@@ -1898,7 +1898,9 @@ function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacities = {
         criticalWeeklyHoursThreshold: dynamicCriticalThreshold
       }),
       // Streak Counter & Resilience Indicators (Punto 17)
-      studyStreak: calculateStudyStreak(historyDays, settings.currentSimulatedDate, sessions)
+      studyStreak: calculateStudyStreak(historyDays, settings.currentSimulatedDate, sessions),
+      // Pre-Exam Express Review Window (Punto 20: 7 days prior to target exam date)
+      isPreExamWindow: settings.currentSimulatedDate >= "2027-01-03" && settings.currentSimulatedDate <= settings.targetExamDate
     },
     weeklyPlans,
     currentWeekPlan,
@@ -6243,6 +6245,9 @@ function WeeklyTodo({
 
   const [filterSubject, setFilterSubject] = useState("all");
   const [pomodoroAlert, setPomodoroAlert] = useState(null);
+  const [isExpressReviewActive, setIsExpressReviewActive] = useState(() => {
+    return Boolean(settings && settings.currentSimulatedDate >= "2027-01-03");
+  });
 
   // Pomodoro timer state for topic cards
   // { [topicId]: { accumulatedSeconds: number, isRunning: boolean, cycleRemaining: number, isBreak: boolean, completedByTimer: boolean } }
@@ -6561,6 +6566,37 @@ function WeeklyTodo({
         </div>
       )}
 
+      {/* Pre-Exam Sprint Triage Banner (Punto 20) */}
+      {isExpressReviewActive && (
+        <div className="bg-gradient-to-r from-rose-950/80 via-red-950/60 to-slate-900 border border-rose-500/40 rounded-3xl p-4 md:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-xl">
+          <div className="flex items-center space-x-3.5">
+            <div className="w-10 h-10 rounded-2xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400 text-lg font-black flex-shrink-0">
+              🎯
+            </div>
+            <div>
+              <div className="flex items-center space-x-2">
+                <h4 className="text-sm font-black text-white uppercase tracking-wider">
+                  Modalità Ripasso Sprint Pre-Esame (Triage Attivo)
+                </h4>
+                <span className="text-[10px] bg-rose-500 text-slate-950 font-black px-2 py-0.5 rounded-full uppercase">
+                  Solo Priorità 4 & 5
+                </span>
+              </div>
+              <p className="text-xs text-rose-200/90 mt-0.5">
+                Filtrati esclusivamente i pilastri d'esame UNIMORE (Taylor, integrali, sistemi lineari, autovalori/diagonalizzazione) e le prove generali (A-32). Tutti gli argomenti secondari sono esclusi per massimizzare il voto nel tempo rimasto.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsExpressReviewActive(false)}
+            className="text-xs bg-rose-900/60 hover:bg-rose-800 text-rose-200 px-3 py-1.5 rounded-xl border border-rose-500/30 transition flex-shrink-0"
+          >
+            Disattiva Triage
+          </button>
+        </div>
+      )}
+
       {/* Week Selector Bar */}
       <div className="bg-slate-900/90 border border-slate-800/90 rounded-3xl p-4 md:p-5 backdrop-blur-md shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
         {/* Navigation buttons and title */}
@@ -6682,6 +6718,20 @@ function WeeklyTodo({
             </button>
           )}
 
+          {/* Pre-Exam Express Review Toggle (Punto 20) */}
+          <button
+            type="button"
+            onClick={() => setIsExpressReviewActive(prev => !prev)}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border shadow-sm ${
+              isExpressReviewActive
+                ? "bg-rose-500/25 text-rose-200 border-rose-500/50 shadow-rose-950/40 animate-pulse"
+                : "bg-slate-950/80 hover:bg-slate-800 text-slate-300 border-slate-800"
+            }`}
+            title="Modalità Sprint Pre-Esame (Triage 7gg): concentra lo studio solo su argomenti a Priorità 4 e 5 e temi d'esame"
+          >
+            <span>🎯 {isExpressReviewActive ? "Sprint Pre-Esame Attivo" : "Sprint Pre-Esame"}</span>
+          </button>
+
           {/* Filter subject */}
           <div className="flex bg-slate-950/80 p-1 rounded-xl border border-slate-800 text-xs font-medium">
             <button
@@ -6721,8 +6771,13 @@ function WeeklyTodo({
           const isCompletedPast = isPast && day.dayStatus === "completed";
 
           const visibleTopics = day.topics.filter(t => {
-            if (filterSubject === "analisi") return t.materia.toLowerCase().includes("analisi");
-            if (filterSubject === "geometria") return t.materia.toLowerCase().includes("geometria");
+            if (filterSubject === "analisi" && !t.materia.toLowerCase().includes("analisi")) return false;
+            if (filterSubject === "geometria" && !t.materia.toLowerCase().includes("geometria")) return false;
+            if (isExpressReviewActive) {
+              const isHighPrio = (t.prioritaEsame >= 4 || t.difficolta >= 4);
+              const isExamTrial = t.id === "A-32" || t.id === "G-31";
+              return isHighPrio || isExamTrial;
+            }
             return true;
           });
 

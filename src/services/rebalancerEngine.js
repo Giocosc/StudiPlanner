@@ -744,7 +744,9 @@ export function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacit
         criticalWeeklyHoursThreshold: dynamicCriticalThreshold
       }),
       // Streak Counter & Resilience Indicators (Punto 17)
-      studyStreak: calculateStudyStreak(historyDays, settings.currentSimulatedDate, sessions)
+      studyStreak: calculateStudyStreak(historyDays, settings.currentSimulatedDate, sessions),
+      // Pre-Exam Express Review Window (Punto 20: 7 days prior to target exam date)
+      isPreExamWindow: settings.currentSimulatedDate >= "2027-01-03" && settings.currentSimulatedDate <= settings.targetExamDate
     },
     weeklyPlans,
     currentWeekPlan,
