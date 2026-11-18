@@ -171,34 +171,42 @@ La funzionalità **`+ Registra Studio`** è accessibile da qualsiasi punto dell'
 
 ---
 
-### Banner di Notifica e Allerta
+### Ottimizzazione Spazio Schermo: Rimozione Banner Invasivi
 
-1. **Allerta Sovraccarico Critico (Rosso/Ambra):**
-   - Appare solo quando il ritmo settimanale supera la soglia di sicurezza.
-   - Mostra il monte ore richiesto (es. `28.3 h / sett.`), il surplus rispetto alla soglia e un pulsante *"Strategia di Recupero"* con 3 consigli concreti:
-     1. Espansione dei blocchi del weekend (es. portare il sabato a 6h).
-     2. Anticipo della sessione serale alle 19:00.
-     3. Scaletta di concentrazione sui soli argomenti a Priorità 5.
-
-2. **Banner Ribilanciamento Dinamico Attivo (Ciano/Indaco):**
-   - Appare non appena il sistema rileva giorni passati senza studio svolto.
-   - Conferma che nessun argomento è andato perduto e che tutti i compiti sono stati spalmati da oggi in avanti.
+Per massimizzare lo spazio utile su qualsiasi display (desktop, laptop e mobile) ed evitare distrazioni visive:
+- **Banner "Ribilanciamento Dinamico Attivo":** Nascosto di default, poiché il ribilanciamento automatico continuo e lo slittamento da "Oggi" in avanti rappresentano il comportamento nativo e immutabile del motore di calcolo.
+- **Banner "Allerta Sovraccarico Critico":** Rimosso dalla parte superiore della vista per non occupare spazio prezioso. Le indicazioni sul ritmo e sul carico orario sono ora integrate direttamente all'interno delle schede di materia della Dashboard tramite i nuovi **Indicatori di Passo**.
 
 ---
 
 ### 1. Dashboard
-La Dashboard offre una panoramica d'impatto sullo stato di avanzamento:
+
+La Dashboard offre una panoramica d'impatto sullo stato di avanzamento e sulla motivazione quotidiana:
+
 - **4 Carte KPI Superiori:**
   - *Target Esame:* 10 Gennaio 2027 con conteggio giorni e settimane rimanenti.
   - *Fabbisogno Settimanale:* Ore/settimana necessarie con etichetta di sostenibilità o allerta.
   - *Ore Residue:* Monte ore effettivo rimanente con indicazione del buffer (+20%).
   - *Completamento:* Percentuale globale complessiva ($0\% - 100\%$).
-- **Progress Bar Analisi Matematica 1:**
-  - Barra graduata color Smeraldo/Teal basata su `Ore_Completate / Ore_Stimate`.
-  - Contatore argomenti svolti (`X / 32`), ore residue e promemoria della struttura d'esame scritto (5-6 esercizi da svolgere).
-- **Progress Bar Geometria e Algebra:**
-  - Barra graduata color Indaco/Viola basata su `Ore_Completate / Ore_Stimate`.
-  - Contatore argomenti svolti (`X / 31`), ore residue e promemoria della struttura d'esame scritto (test a 11 quesiti a risposta multipla).
+
+- **Indicatori di Passo in Tempo Reale (Analisi 1 e Geometria):**
+  Ciascuna sezione di materia monitora il ritmo di studio rispetto alla roadmap ideale (16 Nov 2026 $\rightarrow$ 10 Gen 2027) e mostra un badge dedicato:
+  - 🚀 **`In Vantaggio (+X.Xh)` (Verde Smeraldo):** Hai completato più ore rispetto al fabbisogno teorico alla data odierna; visualizza il tempo guadagnato per il ripasso finale.
+  - 🎯 **`Al Passo` (Blu Ciano):** Sei perfettamente allineato con la tabella di marcia dell'esame.
+  - ⚠️ **`In Ritardo (-X.Xh)` (Ambra / Rosso):** Segnala il ritardo orario accumulato rispetto al programma ideale con consigli per il recupero graduale.
+  - **Marker Obiettivo sulla Progress Bar:** Una linea verticale tratteggiata indica l'obiettivo ideale alla data odierna, permettendo di verificare visivamente con un colpo d'occhio se la barra reale ha superato o meno il target.
+
+- **🔥 Centrale della Costanza & Streak Lavoratore (Hub Motivazionale):**
+  Progettato specificamente per lo studente lavoratore che affronta lo studio dopo 8 ore di ufficio:
+  - **Fiamma della Streak:** Contatore dei giorni consecutivi di studio completati (`X Giorni Consecutivi`) e record personale (`Record: Y gg`).
+  - **Badge di Resilienza Dinamici:** Titoli sbloccabili in base alla costanza (es. *Ingegnere Notturno*, *Fiamma di Costanza*, *Titanio UNIMORE*, *Macchina da Guerra*).
+  - **Barra di Progresso al Prossimo Livello:** Mostra quanti giorni mancano per conquistare il livello successivo.
+  - **Citazione Motivazionale del Lavoratore:** Frasi quotidiane a rotazione pensate per chi studia la sera e nel weekend.
+  - **Medaglie Traguardo (Achievements):**
+    - 🎯 *Primo Passo:* Prima sessione registrata.
+    - ⚡ *Doppio Motore:* Studio registrato sia in Analisi sia in Geometria.
+    - 🧠 *Focus Master:* Almeno 10 ore complessive di studio dedicate.
+    - 🔥 *Costanza:* Raggiungimento di almeno 3 giorni consecutivi di studio.
 - **Strumenti AI & Metodo di Studio (Fase 2):**
   - **Generatore Flashcard NeuraDeck (NotebookLM):**
     - Filtra in automatico gli argomenti completati nell'ultima settimana (ultimi 7 giorni rispetto alla data odierna).
