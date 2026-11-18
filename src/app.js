@@ -1030,6 +1030,7 @@ export function App() {
             weeklyPlans={weeklyPlans}
             onToggleComplete={handleToggleComplete}
             onUpdateTopicHours={handleUpdateTopicHours}
+            onLogStudySession={handleLogStudySession}
             settings={settings}
             customDayCapacities={customDayCapacities}
             onUpdateDayCapacity={handleUpdateDayCapacity}

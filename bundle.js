@@ -5300,6 +5300,7 @@ function WeeklyTodo({
   weeklyPlans,
   onToggleComplete,
   onUpdateTopicHours,
+  onLogStudySession,
   settings,
   customDayCapacities = {},
   onUpdateDayCapacity,
@@ -5315,6 +5316,7 @@ function WeeklyTodo({
   });
 
   const [filterSubject, setFilterSubject] = useState("all");
+  const [pomodoroAlert, setPomodoroAlert] = useState(null);
 
   // Pomodoro timer state for topic cards
   // { [topicId]: { accumulatedSeconds: number, isRunning: boolean, cycleRemaining: number, isBreak: boolean, completedByTimer: boolean } }
@@ -5359,9 +5361,22 @@ function WeeklyTodo({
             // Switch between 50 min study and 10 min break
             newIsBreak = !isBreak;
             cycleRemaining = newIsBreak ? 10 * 60 : 50 * 60;
-            // When completing a 50m focus phase, add focus hours to topic oreEffettive
-            if (newIsBreak && onUpdateTopicHours) {
-              onUpdateTopicHours(topicId, 50 / 60, true);
+            // When completing a 50m focus phase, add focus hours to topic oreEffettive and auto-log session
+            if (newIsBreak) {
+              if (onUpdateTopicHours) {
+                onUpdateTopicHours(topicId, 50 / 60, true);
+              }
+              if (onLogStudySession) {
+                onLogStudySession({
+                  topicId,
+                  date: settings.currentSimulatedDate,
+                  hours: Number((50 / 60).toFixed(2)),
+                  completed: false,
+                  note: "Ciclo Pomodoro 50m completato automaticamente"
+                });
+                setPomodoroAlert(`🍅 Ottimo lavoro! 50m di focus completati e registrati nel diario per ${topicId}!`);
+                setTimeout(() => setPomodoroAlert(null), 4000);
+              }
             }
           }
 
@@ -5393,6 +5408,20 @@ function WeeklyTodo({
   }, [pomodoroMap, onToggleComplete]);
 
   // Pomodoro Actions
+  const handleQuickLogPomodoro = (topicId) => {
+    if (onLogStudySession) {
+      onLogStudySession({
+        topicId,
+        date: settings.currentSimulatedDate,
+        hours: 0.8,
+        completed: false,
+        note: "Sessione Pomodoro (50 minuti di focus intenso)"
+      });
+      setPomodoroAlert(`🍅 Sessione Pomodoro da 50m (0.8h) registrata con successo nel diario per ${topicId}!`);
+      setTimeout(() => setPomodoroAlert(null), 4000);
+    }
+  };
+
   const togglePomodoro = (topicId, targetHours) => {
     setPomodoroMap(prev => {
       const current = prev[topicId] || {
@@ -5590,6 +5619,22 @@ function WeeklyTodo({
 
   return (
     <div className="space-y-6">
+      {pomodoroAlert && (
+        <div className="bg-gradient-to-r from-rose-950/80 to-amber-950/60 border border-rose-500/50 rounded-2xl p-3.5 px-5 flex items-center justify-between text-rose-200 text-sm shadow-xl animate-fade-in">
+          <div className="flex items-center space-x-3">
+            <span className="text-xl">🍅</span>
+            <span className="font-semibold">{pomodoroAlert}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setPomodoroAlert(null)}
+            className="text-rose-400 hover:text-white text-xs font-mono px-2 py-1 rounded-lg bg-rose-900/50"
+          >
+            Chiudi
+          </button>
+        </div>
+      )}
+
       {/* Week Selector Bar */}
       <div className="bg-slate-900/90 border border-slate-800/90 rounded-3xl p-4 md:p-5 backdrop-blur-md shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
         {/* Navigation buttons and title */}
@@ -6262,6 +6307,15 @@ function WeeklyTodo({
                               title="Aggiungi 30 minuti di studio completati"
                             >
                               +30m
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleQuickLogPomodoro(topic.id)}
+                              className="px-2 py-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 rounded-lg text-[10px] font-bold transition flex items-center gap-1"
+                              title="Registra istantaneamente una sessione Pomodoro da 50 minuti (0.8h) nel diario di studio"
+                            >
+                              <span>🍅 +50m Log</span>
                             </button>
 
                             <button
@@ -10361,6 +10415,7 @@ function App() {
             weeklyPlans={weeklyPlans}
             onToggleComplete={handleToggleComplete}
             onUpdateTopicHours={handleUpdateTopicHours}
+            onLogStudySession={handleLogStudySession}
             settings={settings}
             customDayCapacities={customDayCapacities}
             onUpdateDayCapacity={handleUpdateDayCapacity}
