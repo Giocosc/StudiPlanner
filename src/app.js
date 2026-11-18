@@ -699,6 +699,14 @@ export function App() {
     );
   };
 
+  // Granular Topic Field Update (e.g. Feynman checklist, notes, bug logs)
+  const handleTopicUpdate = (topicId, updates) => {
+    setTopics(prev => prev.map(t => (t.id === topicId ? { ...t, ...updates } : t)));
+    if (selectedTopicDetail && selectedTopicDetail.id === topicId) {
+      setSelectedTopicDetail(prev => (prev ? { ...prev, ...updates } : null));
+    }
+  };
+
   // Batch update of topics (e.g. from FileImporter or reset)
   const handleTopicsUpdated = (newTopics) => {
     setTopics(newTopics);
@@ -1136,6 +1144,7 @@ export function App() {
         topic={selectedTopicDetail}
         onToggleComplete={handleToggleComplete}
         onOpenLogModal={handleOpenLogModal}
+        onUpdateTopic={handleTopicUpdate}
         studySessions={studySessions}
       />
 

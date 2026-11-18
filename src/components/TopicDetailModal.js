@@ -18,11 +18,26 @@ export function TopicDetailModal({
   topic,
   onToggleComplete,
   onOpenLogModal,
+  onUpdateTopic,
   studySessions = []
 }) {
   if (!isOpen || !topic) return null;
 
   const [activeTab, setActiveTab] = useState("overview"); // "overview" | "theorems" | "sessions"
+
+  const feynman = topic.feynmanChecklist || { intuitive: false, formal: false, proof: false };
+  const feynmanCount = (feynman.intuitive ? 1 : 0) + (feynman.formal ? 1 : 0) + (feynman.proof ? 1 : 0);
+
+  const handleToggleFeynmanStage = (stage, val) => {
+    if (onUpdateTopic) {
+      onUpdateTopic(topic.id, {
+        feynmanChecklist: {
+          ...feynman,
+          [stage]: val
+        }
+      });
+    }
+  };
 
   const isAnalisi = topic.materia ? topic.materia.toLowerCase().includes("analisi") : true;
   const isDone = Boolean(topic.completato !== undefined ? topic.completato : topic.isCompleted);
@@ -349,6 +364,91 @@ export function TopicDetailModal({
                       ? "Regola aurea della commissione: nello scritto ogni passaggio deve essere rigorosamente giustificato (sviluppi di Taylor all'ordine corretto, limiti notevoli, criteri di convergenza). All'orale vengono chiesti enunciati e dimostrazioni integrali."
                       : "Regola d'esame Geometria: il test scritto contiene 11 domande con penalità (-1 risposta errata). All'orale è determinante la perfetta esposizione delle dimostrazioni numerate del testo Casali-Gagliardi-Grasselli."}
                   </p>
+                </div>
+              </div>
+
+              {/* Checklist Feynman a 3 Livelli (Dimostrazioni & Orale) */}
+              <div className="p-4 bg-slate-950/80 border border-indigo-500/30 rounded-2xl space-y-3 text-xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <span className="p-1 rounded-lg bg-indigo-500/20 text-indigo-300">🎓</span>
+                    <h4 className="font-bold text-white text-xs sm:text-sm">
+                      Checklist Orale & Dimostrazioni (Metodo Feynman)
+                    </h4>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold border ${
+                    feynmanCount === 3
+                      ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                      : feynmanCount === 2
+                      ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/40"
+                      : feynmanCount === 1
+                      ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
+                      : "bg-slate-800 text-slate-400 border-slate-700"
+                  }`}>
+                    {feynmanCount === 3
+                      ? "Pronto per l'Orale (3/3) ✓"
+                      : `${feynmanCount}/3 Padronanza`}
+                  </span>
+                </div>
+
+                <p className="text-[11px] text-slate-400">
+                  Per superare l'esame orale con il massimo dei voti, assicurati di completare i tre stadi di padronanza concettuale:
+                </p>
+
+                <div className="space-y-2 pt-1">
+                  {/* Livello 1 */}
+                  <label className="flex items-start space-x-3 p-2.5 rounded-xl bg-slate-900/90 border border-slate-800/80 hover:border-slate-700 cursor-pointer transition select-none">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(feynman.intuitive)}
+                      onChange={(e) => handleToggleFeynmanStage("intuitive", e.target.checked)}
+                      className="mt-0.5 w-4 h-4 rounded border-slate-700 text-emerald-500 focus:ring-emerald-400 bg-slate-950"
+                    />
+                    <div>
+                      <span className="font-bold text-slate-200">
+                        1. Comprensione Intuitiva & Geometrica
+                      </span>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        So spiegare il concetto con parole semplici, disegnando un grafico qualitativo e fornendo un esempio pratico.
+                      </p>
+                    </div>
+                  </label>
+
+                  {/* Livello 2 */}
+                  <label className="flex items-start space-x-3 p-2.5 rounded-xl bg-slate-900/90 border border-slate-800/80 hover:border-slate-700 cursor-pointer transition select-none">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(feynman.formal)}
+                      onChange={(e) => handleToggleFeynmanStage("formal", e.target.checked)}
+                      className="mt-0.5 w-4 h-4 rounded border-slate-700 text-emerald-500 focus:ring-emerald-400 bg-slate-950"
+                    />
+                    <div>
+                      <span className="font-bold text-slate-200">
+                        2. Enunciato Formale & Ipotesi Necessarie
+                      </span>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        Conosco l'enunciato rigoroso (ipotesi, tesi, quantificatori) e so spiegare perché ciascuna ipotesi è indispensabile (controesempi).
+                      </p>
+                    </div>
+                  </label>
+
+                  {/* Livello 3 */}
+                  <label className="flex items-start space-x-3 p-2.5 rounded-xl bg-slate-900/90 border border-slate-800/80 hover:border-slate-700 cursor-pointer transition select-none">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(feynman.proof)}
+                      onChange={(e) => handleToggleFeynmanStage("proof", e.target.checked)}
+                      className="mt-0.5 w-4 h-4 rounded border-slate-700 text-emerald-500 focus:ring-emerald-400 bg-slate-950"
+                    />
+                    <div>
+                      <span className="font-bold text-slate-200">
+                        3. Dimostrazione su Foglio Bianco (Feynman Test)
+                      </span>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        Riesco a scrivere l'intera dimostrazione passaggio per passaggio su un foglio bianco senza consultare dispense o appunti.
+                      </p>
+                    </div>
+                  </label>
                 </div>
               </div>
 
