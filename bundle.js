@@ -2694,6 +2694,49 @@ function NeuraDeckPromptGenerator({ isOpen, onClose, topics = [], settings = {} 
     }
   };
 
+  // Download Direct Anki TSV Flashcard File (Punto 13)
+  const handleDownloadAnkiTsv = () => {
+    if (activeSelectedTopics.length === 0) return;
+
+    const lines = [
+      "#separator:tab",
+      "#html:true",
+      "#tags column:3"
+    ];
+
+    activeSelectedTopics.forEach(t => {
+      const materiaTag = t.materia.toLowerCase().includes("analisi") ? "Analisi1" : "Geometria";
+      const cleanTopic = (t.argomento || "").replace(/\t/g, " ").replace(/\r?\n/g, "<br>");
+      const cleanNote = (t.note || "Nessuna nota aggiuntiva").replace(/\t/g, " ").replace(/\r?\n/g, "<br>");
+      const cleanFonti = (t.fonti || "Dispense ufficiali UNIMORE").replace(/\t/g, " ").replace(/\r?\n/g, "<br>");
+
+      // Card 1: Concetto & Definizione
+      const front1 = `<strong>[${t.id}] ${t.materia}</strong><br>Definire ed enunciare:<br><em>${cleanTopic}</em>`;
+      const back1 = `<strong>Capitolo:</strong> ${t.capitolo}<br><strong>Note Chiave:</strong> ${cleanNote}<br><strong>Fonti:</strong> ${cleanFonti}`;
+      const tag1 = `UNIMORE ${materiaTag} ${t.id}`;
+      lines.push(`${front1}\t${back1}\t${tag1}`);
+
+      // Card 2: Teorema o Prova (se Priorità >= 4 o menzione dimostrazione)
+      if (t.prioritaEsame >= 4 || cleanTopic.toLowerCase().includes("dim") || cleanTopic.toLowerCase().includes("teorema")) {
+        const front2 = `<strong>[${t.id}] Prova d'Esame / Dimostrazione</strong><br>Quali sono i passaggi della dimostrazione o le condizioni necessarie e sufficienti per:<br><em>${cleanTopic}</em>?`;
+        const back2 = `<strong>Priorità Esame:</strong> ${t.prioritaEsame}/5 (Sbarramento scritto/orale)<br><strong>Punti critici:</strong> ${cleanNote}<br><strong>Verifica Feynman:</strong> Intuitiva ➔ Formale ➔ Foglio bianco.`;
+        const tag2 = `UNIMORE ${materiaTag} Dimostrazione ${t.id}`;
+        lines.push(`${front2}\t${back2}\t${tag2}`);
+      }
+    });
+
+    const tsvContent = lines.join("\n");
+    const blob = new Blob([tsvContent], { type: "text/tab-separated-values;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `StudiPlanner_Anki_${new Date().toISOString().split("T")[0]}.tsv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   // Chiusura con tasto ESC
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -3000,39 +3043,57 @@ function NeuraDeckPromptGenerator({ isOpen, onClose, topics = [], settings = {} 
         </div>
 
         {/* Modal Footer */}
-        <div className="px-6 py-4 bg-slate-900 border-t border-slate-800 flex items-center justify-between">
+        <div className="px-6 py-4 bg-slate-900 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-xs font-semibold transition"
+            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-xs font-semibold transition w-full sm:w-auto"
           >
             Chiudi
           </button>
 
-          <button
-            type="button"
-            disabled={!generatedPrompt}
-            onClick={handleCopyPrompt}
-            className={`px-5 py-2.5 rounded-xl text-xs font-bold flex items-center space-x-2 transition ${
-              !generatedPrompt
-                ? "bg-slate-800 text-slate-500 cursor-not-allowed"
-                : copied
-                ? "bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/25"
-                : "bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white shadow-lg shadow-cyan-500/25"
-            }`}
-          >
-            {copied ? (
-              <>
-                <IconCheck className="w-4 h-4" />
-                <span>Prompt Copiato negli Appunti!</span>
-              </>
-            ) : (
-              <>
-                <IconCopy className="w-4 h-4" />
-                <span>Copia Prompt per NotebookLM</span>
-              </>
-            )}
-          </button>
+          <div className="flex items-center space-x-2.5 w-full sm:w-auto justify-end">
+            {/* Download Anki TSV (Punto 13) */}
+            <button
+              type="button"
+              disabled={activeSelectedTopics.length === 0}
+              onClick={handleDownloadAnkiTsv}
+              className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition border ${
+                activeSelectedTopics.length === 0
+                  ? "bg-slate-900 text-slate-600 border-slate-800 cursor-not-allowed"
+                  : "bg-slate-800 hover:bg-slate-700 text-emerald-300 border-emerald-500/40 shadow-sm"
+              }`}
+              title="Scarica direttamente il file .tsv formattato pronto per l'importazione in Anki o AnkiMobile"
+            >
+              <IconDownload className="w-4 h-4 text-emerald-400" />
+              <span>Scarica Anki (.tsv)</span>
+            </button>
+
+            <button
+              type="button"
+              disabled={!generatedPrompt}
+              onClick={handleCopyPrompt}
+              className={`px-5 py-2.5 rounded-xl text-xs font-bold flex items-center space-x-2 transition ${
+                !generatedPrompt
+                  ? "bg-slate-800 text-slate-500 cursor-not-allowed"
+                  : copied
+                  ? "bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/25"
+                  : "bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white shadow-lg shadow-cyan-500/25"
+              }`}
+            >
+              {copied ? (
+                <>
+                  <IconCheck className="w-4 h-4" />
+                  <span>Prompt Copiato!</span>
+                </>
+              ) : (
+                <>
+                  <IconCopy className="w-4 h-4" />
+                  <span>Copia Prompt NotebookLM</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>
