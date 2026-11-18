@@ -1174,6 +1174,74 @@ function addDaysToDateStr(dateStr, days) {
   return dt.toISOString().split("T")[0];
 }
 
+/**
+ * Heuristic Predictor for Exam Pass Probability & Expected Grade Range
+ */
+function calculateExamReadinessAndGrade(topics, metrics) {
+  const totalTopics = topics.length;
+  const completedTopics = topics.filter(t => Boolean(t.completato !== undefined ? t.completato : t.isCompleted)).length;
+  const completionRate = totalTopics > 0 ? completedTopics / totalTopics : 0;
+
+  const pastDaysTotal = (metrics.pastDaysStudied || 0) + (metrics.pastDaysSkipped || 0);
+  const consistencyRate = pastDaysTotal > 0 ? (metrics.pastDaysStudied || 0) / pastDaysTotal : 1.0;
+
+  const requiredHours = metrics.requiredWeeklyHours || 20;
+
+  let readinessScore = 55; // baseline
+
+  // 1. Weekly workload pace factor
+  if (requiredHours <= 18) readinessScore += 25;
+  else if (requiredHours <= 22) readinessScore += 15;
+  else if (requiredHours <= 25) readinessScore += 5;
+  else if (requiredHours <= 28) readinessScore -= 12;
+  else if (requiredHours <= 32) readinessScore -= 25;
+  else readinessScore -= 35;
+
+  // 2. Consistency factor
+  if (consistencyRate >= 0.85) readinessScore += 20;
+  else if (consistencyRate >= 0.7) readinessScore += 10;
+  else if (consistencyRate >= 0.5) readinessScore -= 5;
+  else readinessScore -= 20;
+
+  // 3. Completion progress bonus
+  readinessScore += Math.round(completionRate * 25);
+
+  readinessScore = Math.max(10, Math.min(98, readinessScore));
+
+  let gradeLabel, riskLevel, riskColor;
+
+  if (readinessScore >= 80) {
+    gradeLabel = "28 - 30 e Lode";
+    riskLevel = "Basso (Fascia Eccellenza)";
+    riskColor = "emerald";
+  } else if (readinessScore >= 65) {
+    gradeLabel = "24 - 27 / 30";
+    riskLevel = "Moderato (Fascia Sicurezza)";
+    riskColor = "cyan";
+  } else if (readinessScore >= 48) {
+    gradeLabel = "18 - 23 / 30";
+    riskLevel = "Attenzione (Fascia Minima)";
+    riskColor = "amber";
+  } else {
+    gradeLabel = "< 18 (Rischio Insufficienza)";
+    riskLevel = "Critico (Rischio Bocciatura)";
+    riskColor = "rose";
+  }
+
+  const passProbability = Math.round(Math.min(99, Math.max(15, readinessScore * 1.05)));
+
+  return {
+    readinessScore,
+    passProbability,
+    gradeLabel,
+    riskLevel,
+    riskColor,
+    consistencyRate: Math.round(consistencyRate * 100),
+    requiredWeeklyHours: requiredHours,
+    completionPercent: Math.round(completionRate * 100)
+  };
+}
+
 const DEFAULT_SETTINGS = {
   roadmapStartDate: "2026-11-16", // Start of winter session roadmap
   targetExamDate: "2027-01-10",
@@ -1731,7 +1799,14 @@ function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacities = {
         completed: allSpacedReviews.filter(r => r.isDone).length,
         totalPlanned: allSpacedReviews.length,
         activeReviews: allSpacedReviews.filter(r => !r.isDone && (r.isDueToday || r.isOverdue))
-      }
+      },
+      // Heuristic Exam Readiness & Expected Grade
+      examPrediction: calculateExamReadinessAndGrade(topics, {
+        pastDaysStudied,
+        pastDaysSkipped,
+        requiredWeeklyHours,
+        criticalWeeklyHoursThreshold: dynamicCriticalThreshold
+      })
     },
     weeklyPlans,
     currentWeekPlan,
@@ -4043,6 +4118,95 @@ function Dashboard({
           </div>
         </div>
       </div>
+
+      {/* Heuristic Exam Prediction & Grade Forecast (Punto 4) */}
+      {metrics?.examPrediction && (
+        <div className={`p-5 rounded-3xl border backdrop-blur-md shadow-xl transition ${
+          metrics.examPrediction.riskColor === "emerald"
+            ? "bg-gradient-to-r from-emerald-950/40 via-slate-900/90 to-teal-950/40 border-emerald-500/30 shadow-emerald-950/20"
+            : metrics.examPrediction.riskColor === "cyan"
+            ? "bg-gradient-to-r from-cyan-950/40 via-slate-900/90 to-indigo-950/40 border-cyan-500/30 shadow-cyan-950/20"
+            : metrics.examPrediction.riskColor === "amber"
+            ? "bg-gradient-to-r from-amber-950/40 via-slate-900/90 to-orange-950/40 border-amber-500/30 shadow-amber-950/20"
+            : "bg-gradient-to-r from-rose-950/50 via-slate-900/90 to-red-950/40 border-rose-500/40 shadow-rose-950/30"
+        }`}>
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+            <div className="flex items-center space-x-3.5">
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-xl border flex-shrink-0 ${
+                metrics.examPrediction.riskColor === "emerald"
+                  ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-300"
+                  : metrics.examPrediction.riskColor === "cyan"
+                  ? "bg-cyan-500/20 border-cyan-500/40 text-cyan-300"
+                  : metrics.examPrediction.riskColor === "amber"
+                  ? "bg-amber-500/20 border-amber-500/40 text-amber-300"
+                  : "bg-rose-500/20 border-rose-500/40 text-rose-300"
+              }`}>
+                🎯
+              </div>
+              <div>
+                <div className="flex items-center space-x-2">
+                  <h3 className="text-base font-extrabold text-white">
+                    Previsione Esame & Voto Atteso
+                  </h3>
+                  <span className={`text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full border ${
+                    metrics.examPrediction.riskColor === "emerald"
+                      ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                      : metrics.examPrediction.riskColor === "cyan"
+                      ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/40"
+                      : metrics.examPrediction.riskColor === "amber"
+                      ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
+                      : "bg-rose-500/20 text-rose-300 border-rose-500/40 animate-pulse"
+                  }`}>
+                    {metrics.examPrediction.riskLevel}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-300 mt-0.5">
+                  Algoritmo euristico predittivo basato su ritmo orario, costanza serale e completamento temi propedeutici.
+                </p>
+              </div>
+            </div>
+
+            {/* Score & Probability Badges */}
+            <div className="flex items-center gap-3 w-full lg:w-auto justify-between lg:justify-end">
+              <div className="bg-slate-950/80 border border-slate-800 p-2.5 px-3.5 rounded-2xl text-center">
+                <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">
+                  Probabilità Superamento
+                </span>
+                <span className={`text-xl font-black font-mono ${
+                  metrics.examPrediction.passProbability >= 70 ? "text-emerald-400" : "text-amber-400"
+                }`}>
+                  {metrics.examPrediction.passProbability}%
+                </span>
+              </div>
+
+              <div className="bg-slate-950/80 border border-slate-800 p-2.5 px-3.5 rounded-2xl text-center">
+                <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">
+                  Voto Stimato
+                </span>
+                <span className="text-xl font-black text-cyan-300 font-mono">
+                  {metrics.examPrediction.gradeLabel}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Sub-metrics breakdown */}
+          <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-slate-800/80 text-xs">
+            <div className="p-2 bg-slate-950/60 rounded-xl border border-slate-800/60 text-center">
+              <span className="text-slate-400 text-[10px] block">Passo Richiesto</span>
+              <strong className="text-slate-200 font-mono">{metrics.examPrediction.requiredWeeklyHours}h / sett.</strong>
+            </div>
+            <div className="p-2 bg-slate-950/60 rounded-xl border border-slate-800/60 text-center">
+              <span className="text-slate-400 text-[10px] block">Indice di Costanza</span>
+              <strong className="text-slate-200 font-mono">{metrics.examPrediction.consistencyRate}% sere attive</strong>
+            </div>
+            <div className="p-2 bg-slate-950/60 rounded-xl border border-slate-800/60 text-center">
+              <span className="text-slate-400 text-[10px] block">Completamento Didattico</span>
+              <strong className="text-slate-200 font-mono">{metrics.examPrediction.completionPercent}% argomenti</strong>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Two Progress Bars (Analisi 1 & Geometria) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">

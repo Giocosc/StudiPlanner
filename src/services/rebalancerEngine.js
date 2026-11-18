@@ -28,6 +28,74 @@ export function addDaysToDateStr(dateStr, days) {
   return dt.toISOString().split("T")[0];
 }
 
+/**
+ * Heuristic Predictor for Exam Pass Probability & Expected Grade Range
+ */
+export function calculateExamReadinessAndGrade(topics, metrics) {
+  const totalTopics = topics.length;
+  const completedTopics = topics.filter(t => Boolean(t.completato !== undefined ? t.completato : t.isCompleted)).length;
+  const completionRate = totalTopics > 0 ? completedTopics / totalTopics : 0;
+
+  const pastDaysTotal = (metrics.pastDaysStudied || 0) + (metrics.pastDaysSkipped || 0);
+  const consistencyRate = pastDaysTotal > 0 ? (metrics.pastDaysStudied || 0) / pastDaysTotal : 1.0;
+
+  const requiredHours = metrics.requiredWeeklyHours || 20;
+
+  let readinessScore = 55; // baseline
+
+  // 1. Weekly workload pace factor
+  if (requiredHours <= 18) readinessScore += 25;
+  else if (requiredHours <= 22) readinessScore += 15;
+  else if (requiredHours <= 25) readinessScore += 5;
+  else if (requiredHours <= 28) readinessScore -= 12;
+  else if (requiredHours <= 32) readinessScore -= 25;
+  else readinessScore -= 35;
+
+  // 2. Consistency factor
+  if (consistencyRate >= 0.85) readinessScore += 20;
+  else if (consistencyRate >= 0.7) readinessScore += 10;
+  else if (consistencyRate >= 0.5) readinessScore -= 5;
+  else readinessScore -= 20;
+
+  // 3. Completion progress bonus
+  readinessScore += Math.round(completionRate * 25);
+
+  readinessScore = Math.max(10, Math.min(98, readinessScore));
+
+  let gradeLabel, riskLevel, riskColor;
+
+  if (readinessScore >= 80) {
+    gradeLabel = "28 - 30 e Lode";
+    riskLevel = "Basso (Fascia Eccellenza)";
+    riskColor = "emerald";
+  } else if (readinessScore >= 65) {
+    gradeLabel = "24 - 27 / 30";
+    riskLevel = "Moderato (Fascia Sicurezza)";
+    riskColor = "cyan";
+  } else if (readinessScore >= 48) {
+    gradeLabel = "18 - 23 / 30";
+    riskLevel = "Attenzione (Fascia Minima)";
+    riskColor = "amber";
+  } else {
+    gradeLabel = "< 18 (Rischio Insufficienza)";
+    riskLevel = "Critico (Rischio Bocciatura)";
+    riskColor = "rose";
+  }
+
+  const passProbability = Math.round(Math.min(99, Math.max(15, readinessScore * 1.05)));
+
+  return {
+    readinessScore,
+    passProbability,
+    gradeLabel,
+    riskLevel,
+    riskColor,
+    consistencyRate: Math.round(consistencyRate * 100),
+    requiredWeeklyHours: requiredHours,
+    completionPercent: Math.round(completionRate * 100)
+  };
+}
+
 export const DEFAULT_SETTINGS = {
   roadmapStartDate: "2026-11-16", // Start of winter session roadmap
   targetExamDate: "2027-01-10",
@@ -585,7 +653,14 @@ export function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacit
         completed: allSpacedReviews.filter(r => r.isDone).length,
         totalPlanned: allSpacedReviews.length,
         activeReviews: allSpacedReviews.filter(r => !r.isDone && (r.isDueToday || r.isOverdue))
-      }
+      },
+      // Heuristic Exam Readiness & Expected Grade
+      examPrediction: calculateExamReadinessAndGrade(topics, {
+        pastDaysStudied,
+        pastDaysSkipped,
+        requiredWeeklyHours,
+        criticalWeeklyHoursThreshold: dynamicCriticalThreshold
+      })
     },
     weeklyPlans,
     currentWeekPlan,
