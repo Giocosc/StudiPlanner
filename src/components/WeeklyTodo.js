@@ -29,7 +29,8 @@ export function WeeklyTodo({
   onBatchUpdateDayCapacities,
   onOpenLogModal,
   onOpenTopicDetail,
-  onToggleSpacedReview
+  onToggleSpacedReview,
+  onOpenRetrospective
 }) {
   // Default to the week containing Today
   const [selectedWeekIndex, setSelectedWeekIndex] = useState(() => {
@@ -465,6 +466,18 @@ export function WeeklyTodo({
             <IconCalendar className="w-3.5 h-3.5 text-sky-400" />
             <span>Esporta .ics</span>
           </button>
+
+          {/* Sunday Weekly Retrospective (Punto 19) */}
+          {onOpenRetrospective && (
+            <button
+              type="button"
+              onClick={onOpenRetrospective}
+              className="px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border shadow-sm bg-indigo-950/60 hover:bg-indigo-900/60 text-indigo-300 border-indigo-500/40"
+              title="Apri la retrospezione settimanale della domenica sera con diagnostica lavoratore"
+            >
+              <span>📊 Review Domenica</span>
+            </button>
+          )}
 
           {/* Filter subject */}
           <div className="flex bg-slate-950/80 p-1 rounded-xl border border-slate-800 text-xs font-medium">

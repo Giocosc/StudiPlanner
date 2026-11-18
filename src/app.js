@@ -13,6 +13,7 @@ import { LogStudyModal } from "./components/LogStudyModal.js";
 import { TopicDetailModal } from "./components/TopicDetailModal.js";
 import { MathFormulaDrawer } from "./components/MathFormulaDrawer.js";
 import { PdfSplitView } from "./components/PdfSplitView.js";
+import { WeeklyRetrospectiveModal } from "./components/WeeklyRetrospectiveModal.js";
 import {
   LOCAL_STORAGE_KEY_GITLAB_CONFIG,
   DEFAULT_GITLAB_CONFIG,
@@ -128,6 +129,7 @@ export function App() {
   const [isBugTrackerOpen, setIsBugTrackerOpen] = useState(false);
   const [isFormulaDrawerOpen, setIsFormulaDrawerOpen] = useState(false);
   const [isPdfSplitOpen, setIsPdfSplitOpen] = useState(false);
+  const [isRetroModalOpen, setIsRetroModalOpen] = useState(false);
   const [lastSavedTime, setLastSavedTime] = useState("");
 
   // Global keyboard shortcuts (e.g. F2 for Math Formula Drawer)
@@ -1094,6 +1096,7 @@ export function App() {
                 onOpenLogModal={handleOpenLogModal}
                 onOpenTopicDetail={handleOpenTopicDetail}
                 onToggleSpacedReview={handleToggleSpacedReview}
+                onOpenRetrospective={() => setIsRetroModalOpen(true)}
               />
             )}
 
@@ -1265,6 +1268,17 @@ export function App() {
       <MathFormulaDrawer
         isOpen={isFormulaDrawerOpen}
         onClose={() => setIsFormulaDrawerOpen(false)}
+      />
+
+      {/* Weekly Retrospective Modal (Punto 19) */}
+      <WeeklyRetrospectiveModal
+        isOpen={isRetroModalOpen}
+        onClose={() => setIsRetroModalOpen(false)}
+        weeklyPlans={weeklyPlans}
+        settings={settings}
+        metrics={metrics}
+        customDayCapacities={customDayCapacities}
+        onBatchUpdateDayCapacities={handleBatchUpdateDayCapacities}
       />
 
       {/* CLARKE-9000 Isolated Side Companion */}

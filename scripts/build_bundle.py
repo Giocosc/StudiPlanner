@@ -25,6 +25,7 @@ files_order = [
     'src/components/LogStudyModal.js',
     'src/components/TopicDetailModal.js',
     'src/components/PdfSplitView.js',
+    'src/components/WeeklyRetrospectiveModal.js',
     'src/app.js'
 ]
 
