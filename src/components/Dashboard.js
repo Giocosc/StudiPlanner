@@ -12,6 +12,7 @@ import {
 } from "./Icons.js";
 import { NeuraDeckPromptGenerator } from "./NeuraDeckPromptGenerator.js";
 import { ExamSimulator } from "./ExamSimulator.js";
+import { BurndownChart } from "./BurndownChart.js";
 
 export function Dashboard({
   progress,
@@ -460,6 +461,13 @@ export function Dashboard({
           </div>
         </div>
       </div>
+
+      {/* Agile / Scrum Burndown Progress Chart (Punto 18) */}
+      <BurndownChart
+        metrics={metrics}
+        progress={progress}
+        settings={settings}
+      />
 
       {/* AI Study Tools Row (Phase 2 Refactoring) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
