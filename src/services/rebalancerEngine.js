@@ -220,6 +220,88 @@ function sortBySequentialId(a, b) {
 }
 
 /**
+ * Streak Counter & Resilience Indicators (Punto 17)
+ * Calculates consecutive evening study streaks and awards worker resilience badges.
+ */
+export function calculateStudyStreak(historyDays = [], currentSimulatedDate, studySessions = []) {
+  const dailyHoursMap = new Map();
+  historyDays.forEach(d => {
+    dailyHoursMap.set(d.date, Number(d.studiedHours || 0));
+  });
+  (studySessions || []).forEach(s => {
+    if (s.date) {
+      const cur = dailyHoursMap.get(s.date) || 0;
+      dailyHoursMap.set(s.date, cur + Number(s.hours || 0));
+    }
+  });
+
+  // Calculate current streak
+  let currentStreak = 0;
+  let checkDate = currentSimulatedDate;
+  // If today is not yet studied (e.g. daytime), check if yesterday was studied
+  if ((dailyHoursMap.get(checkDate) || 0) < 0.8) {
+    checkDate = addDaysToDateStr(currentSimulatedDate, -1);
+  }
+
+  while ((dailyHoursMap.get(checkDate) || 0) >= 0.8) {
+    currentStreak += 1;
+    checkDate = addDaysToDateStr(checkDate, -1);
+  }
+
+  // Calculate best streak across all recorded history
+  const datesSorted = Array.from(dailyHoursMap.keys()).sort();
+  let bestStreak = 0;
+  let tempStreak = 0;
+  let prevDate = null;
+  datesSorted.forEach(d => {
+    const hrs = dailyHoursMap.get(d) || 0;
+    if (hrs >= 0.8) {
+      if (prevDate && addDaysToDateStr(prevDate, 1) === d) {
+        tempStreak += 1;
+      } else {
+        tempStreak = 1;
+      }
+      bestStreak = Math.max(bestStreak, tempStreak);
+      prevDate = d;
+    } else {
+      tempStreak = 0;
+      prevDate = null;
+    }
+  });
+  bestStreak = Math.max(bestStreak, currentStreak);
+
+  // Resilience Badges calibrated for working students
+  let badgeName = "Innesco Serale";
+  let badgeIcon = "🌱";
+  let badgeDesc = "Primi passi di costanza serale dopo il lavoro.";
+  if (currentStreak >= 21) {
+    badgeName = "Maestro della Disciplina UNIMORE";
+    badgeIcon = "👑";
+    badgeDesc = "Costanza leggendaria! Oltre 3 settimane di studio continuativo senza mai cedere.";
+  } else if (currentStreak >= 14) {
+    badgeName = "Resilienza Lavoratore d'Acciaio";
+    badgeIcon = "🛡️";
+    badgeDesc = "Due settimane complete di sessioni serali. Abitudine consolidata!";
+  } else if (currentStreak >= 7) {
+    badgeName = "Fiamma di Costanza";
+    badgeIcon = "🔥";
+    badgeDesc = "Una settimana consecutiva di studio serale dopo 8 ore d'ufficio. Straordinario!";
+  } else if (currentStreak >= 3) {
+    badgeName = "Ingegnere Notturno";
+    badgeIcon = "⚡";
+    badgeDesc = "Ritmo avviato con successo nelle fasce serali 19:30 - 22:00.";
+  }
+
+  return {
+    currentStreak,
+    bestStreak,
+    badgeName,
+    badgeIcon,
+    badgeDesc
+  };
+}
+
+/**
  * Main rolling rebalancing function:
  * 1. Tracks history of past days from roadmapStartDate to currentSimulatedDate.
  * 2. Takes uncompleted topics and dynamically packs them starting from Today (currentSimulatedDate) onwards.
@@ -660,7 +742,9 @@ export function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacit
         pastDaysSkipped,
         requiredWeeklyHours,
         criticalWeeklyHoursThreshold: dynamicCriticalThreshold
-      })
+      }),
+      // Streak Counter & Resilience Indicators (Punto 17)
+      studyStreak: calculateStudyStreak(historyDays, settings.currentSimulatedDate, sessions)
     },
     weeklyPlans,
     currentWeekPlan,

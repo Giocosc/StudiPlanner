@@ -273,6 +273,55 @@ export function Dashboard({
         </div>
       )}
 
+      {/* Streak Counter & Psychological Resilience (Punto 17) */}
+      {metrics?.studyStreak && (
+        <div className="bg-gradient-to-r from-slate-900/90 via-amber-950/20 to-slate-900/90 border border-amber-500/30 p-5 rounded-3xl shadow-xl backdrop-blur-md">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center space-x-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-2xl flex-shrink-0 shadow-md shadow-amber-500/10">
+                {metrics.studyStreak.badgeIcon}
+              </div>
+              <div>
+                <div className="flex items-center space-x-2">
+                  <h3 className="text-base font-extrabold text-white flex items-center gap-1.5">
+                    <span>{metrics.studyStreak.badgeName}</span>
+                  </h3>
+                  <span className="text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full">
+                    Resilienza Lavoratore
+                  </span>
+                </div>
+                <p className="text-xs text-slate-300 mt-0.5">
+                  {metrics.studyStreak.badgeDesc}
+                </p>
+              </div>
+            </div>
+
+            {/* Streak Metrics Badges */}
+            <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+              <div className="bg-slate-950/80 border border-slate-800 p-2.5 px-4 rounded-2xl text-center">
+                <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">
+                  Streak Attuale
+                </span>
+                <span className="text-xl font-black font-mono text-amber-400 flex items-center justify-center gap-1">
+                  <span>🔥 {metrics.studyStreak.currentStreak}</span>
+                  <span className="text-xs font-normal text-slate-400">giorni</span>
+                </span>
+              </div>
+
+              <div className="bg-slate-950/80 border border-slate-800 p-2.5 px-4 rounded-2xl text-center">
+                <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">
+                  Record Personale
+                </span>
+                <span className="text-xl font-black font-mono text-cyan-400 flex items-center justify-center gap-1">
+                  <span>⭐ {metrics.studyStreak.bestStreak}</span>
+                  <span className="text-xs font-normal text-slate-400">giorni</span>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Two Progress Bars (Analisi 1 & Geometria) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {/* Analisi 1 Progress Card */}
