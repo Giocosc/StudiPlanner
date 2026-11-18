@@ -1030,40 +1030,6 @@ export function App() {
 
       {/* Main Container */}
       <main className="flex-1 w-full max-w-[1920px] mx-auto p-4 md:p-6 lg:p-8 2xl:px-12 space-y-6 pb-24 md:pb-12">
-        {/* Rolling Catch-Up Banner (if days were skipped) */}
-        {metrics.pastDaysSkipped > 0 && (
-          <div className="bg-gradient-to-r from-cyan-950/60 to-indigo-950/50 border border-cyan-500/30 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs backdrop-blur-md">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-cyan-500/20 text-cyan-400 rounded-xl flex-shrink-0">
-                <IconHistory className="w-5 h-5" />
-              </div>
-              <div>
-                <span className="font-bold text-cyan-300 text-sm">
-                  🔄 Ribilanciamento Dinamico Attivo
-                </span>
-                <p className="text-slate-300 mt-0.5">
-                  Rilevati <strong>{metrics.pastDaysSkipped} giorni saltati</strong> nel passato: tutti gli argomenti non svolti sono stati automaticamente riposizionati da oggi in avanti, garantendo la copertura completa prima del 10 Gennaio 2027.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-2 self-end sm:self-center">
-              <button
-                onClick={() => setActiveTab("history")}
-                className="bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 px-3 py-1.5 rounded-xl font-semibold transition"
-              >
-                Vedi Storico
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Critical Overload Warning Banner */}
-        <AlertBanner
-          metrics={metrics}
-          onOpenSettings={() => setIsSettingsOpen(true)}
-        />
-
         {/* Tab Content & Side-by-Side PDF Split View (Punto 11) */}
         <div className={isPdfSplitOpen ? "grid grid-cols-1 xl:grid-cols-12 gap-6 items-start" : ""}>
           <div className={isPdfSplitOpen ? "xl:col-span-7 space-y-6" : ""}>

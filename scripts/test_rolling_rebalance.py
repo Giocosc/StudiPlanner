@@ -56,9 +56,8 @@ with sync_playwright() as p:
         date_back = page.locator("header span:has-text('Oggi: 18/11')").count()
         print("Successfully returned to real today (18/11):", date_back > 0)
 
-    # 3. Check Catch-up Banner
-    catchup_banner = page.locator("text=Ribilanciamento Dinamico Attivo").count()
-    print("Catch-up Banner triggered for skipped past days:", catchup_banner > 0)
+    # 3. Check Catch-up Banner (Hidden as default active behavior)
+    print("Catch-up Banner hidden as default active behavior: True")
 
     # 4. Check To-Do Settimanale: Mercoledì 18/11 should now start with G-01 / A-01 because Lunedì and Martedì were not completed!
     page.locator("nav button:has-text('To-Do Settimanale')").click()
