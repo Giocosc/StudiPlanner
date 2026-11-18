@@ -11,6 +11,7 @@ import { SettingsModal } from "./components/SettingsModal.js";
 import { Clarke9000Companion } from "./components/Clarke9000Companion.js";
 import { LogStudyModal } from "./components/LogStudyModal.js";
 import { TopicDetailModal } from "./components/TopicDetailModal.js";
+import { MathFormulaDrawer } from "./components/MathFormulaDrawer.js";
 import {
   LOCAL_STORAGE_KEY_GITLAB_CONFIG,
   DEFAULT_GITLAB_CONFIG,
@@ -123,7 +124,20 @@ export function App() {
   const [activeTab, setActiveTab] = useState("dashboard"); // "dashboard" | "weekly" | "history" | "topics" | "import"
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isBugTrackerOpen, setIsBugTrackerOpen] = useState(false);
+  const [isFormulaDrawerOpen, setIsFormulaDrawerOpen] = useState(false);
   const [lastSavedTime, setLastSavedTime] = useState("");
+
+  // Global keyboard shortcuts (e.g. F2 for Math Formula Drawer)
+  useEffect(() => {
+    const handleGlobalShortcuts = (e) => {
+      if (e.key === "F2") {
+        e.preventDefault();
+        setIsFormulaDrawerOpen(prev => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleGlobalShortcuts);
+    return () => window.removeEventListener("keydown", handleGlobalShortcuts);
+  }, []);
 
   // Mathematical recurring error tracker (Bug Tracker)
   const [mathBugs, setMathBugs] = useState(() => {
@@ -875,6 +889,16 @@ export function App() {
               <span className="hidden sm:inline">Registra Studio</span>
             </button>
 
+            {/* Quick Math Formula Cheat-Sheet Drawer (Punto 10) */}
+            <button
+              type="button"
+              onClick={() => setIsFormulaDrawerOpen(true)}
+              className="flex items-center space-x-1.5 bg-slate-900/90 hover:bg-slate-800 text-cyan-300 border border-cyan-500/40 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm transition transform active:scale-95 flex-shrink-0"
+              title="Apri il Formulario Rapido (Tasto F2)"
+            >
+              <span>📐 Formulario [F2]</span>
+            </button>
+
             {/* Auto-Sync status badge if connected */}
             {fsSyncStatus.active && (
               <button
@@ -1196,6 +1220,12 @@ export function App() {
         onSaveBugs={setMathBugs}
         topics={topics}
         onOpenTopicDetail={handleOpenTopicDetail}
+      />
+
+      {/* Quick Math Formula Cheat-Sheet Drawer (Punto 10) */}
+      <MathFormulaDrawer
+        isOpen={isFormulaDrawerOpen}
+        onClose={() => setIsFormulaDrawerOpen(false)}
       />
 
       {/* CLARKE-9000 Isolated Side Companion */}
