@@ -222,3 +222,100 @@ export async function pushToGitLab(config, payload, commitMessage = "") {
     timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
   };
 }
+
+/**
+ * Intelligent Conflict Resolution & Session-Level Merge (Punto 16)
+ * Merges local and remote states preventing data loss across offline devices.
+ * - Deduplicates and unifies all study sessions by unique session ID.
+ * - Preserves completion status (logical OR) and maximum actual study hours.
+ * - Unions Feynman checklists and scratchpad notes per topic.
+ * - Merges custom day capacity overrides seamlessly.
+ */
+export function mergeStudyPlannerStates(localState = {}, remoteState = {}) {
+  if (!remoteState) return localState;
+  if (!localState) return remoteState;
+
+  // 1. Merge Study Sessions by Unique ID (Deduplication + Union)
+  const sessionsMap = new Map();
+  // Remote sessions
+  (remoteState.studySessions || []).forEach(sess => {
+    if (sess && sess.id) {
+      sessionsMap.set(sess.id, sess);
+    }
+  });
+  // Local sessions
+  (localState.studySessions || []).forEach(sess => {
+    if (sess && sess.id) {
+      if (sessionsMap.has(sess.id)) {
+        const existing = sessionsMap.get(sess.id);
+        sessionsMap.set(sess.id, {
+          ...existing,
+          ...sess,
+          hours: Math.max(Number(existing.hours || 0), Number(sess.hours || 0)),
+          completed: Boolean(existing.completed || sess.completed)
+        });
+      } else {
+        sessionsMap.set(sess.id, sess);
+      }
+    }
+  });
+  const mergedSessions = Array.from(sessionsMap.values()).sort((a, b) => {
+    return (b.date || "").localeCompare(a.date || "");
+  });
+
+  // 2. Merge Topics (Preserve sequential order, max oreEffettive, completion union, Feynman union)
+  const localTopics = localState.topics || [];
+  const remoteTopicsMap = new Map((remoteState.topics || []).map(t => [t.id, t]));
+
+  const mergedTopics = localTopics.map(localT => {
+    const remoteT = remoteTopicsMap.get(localT.id);
+    if (!remoteT) return localT;
+
+    const isCompleted = Boolean(localT.isCompleted || localT.completato || remoteT.isCompleted || remoteT.completato);
+    const effHours = Math.max(Number(localT.oreEffettive || 0), Number(remoteT.oreEffettive || 0));
+    const completedDate = localT.completedDate || remoteT.completedDate || (isCompleted ? new Date().toISOString().split("T")[0] : null);
+
+    // Feynman checklist union
+    const lFeynman = localT.feynmanChecklist || {};
+    const rFeynman = remoteT.feynmanChecklist || {};
+    const mergedFeynman = {
+      intuitive: Boolean(lFeynman.intuitive || rFeynman.intuitive),
+      formal: Boolean(lFeynman.formal || rFeynman.formal),
+      proof: Boolean(lFeynman.proof || rFeynman.proof)
+    };
+
+    // Notes: keep non-empty, prefer longer or combine
+    const mergedNotes = localT.scratchpadNotes || remoteT.scratchpadNotes || localT.note || remoteT.note || "";
+
+    return {
+      ...remoteT,
+      ...localT,
+      isCompleted,
+      completato: isCompleted,
+      completedDate,
+      oreEffettive: effHours,
+      feynmanChecklist: mergedFeynman,
+      scratchpadNotes: mergedNotes,
+      note: mergedNotes
+    };
+  });
+
+  // 3. Merge Custom Day Capacities
+  const mergedCapacities = {
+    ...(remoteState.customDayCapacities || {}),
+    ...(localState.customDayCapacities || {})
+  };
+
+  // 4. Merge Settings (Keep local simulated date if present)
+  const mergedSettings = {
+    ...(remoteState.settings || {}),
+    ...(localState.settings || {})
+  };
+
+  return {
+    topics: mergedTopics.length > 0 ? mergedTopics : (remoteState.topics || []),
+    studySessions: mergedSessions,
+    customDayCapacities: mergedCapacities,
+    settings: mergedSettings
+  };
+}

@@ -17,7 +17,8 @@ import {
   LOCAL_STORAGE_KEY_GITLAB_CONFIG,
   DEFAULT_GITLAB_CONFIG,
   pullFromGitLab,
-  pushToGitLab
+  pushToGitLab,
+  mergeStudyPlannerStates
 } from "./services/gitlabSyncService.js";
 import {
   IconBarChart,
@@ -444,10 +445,16 @@ export function App() {
 
         if (res.success && res.data) {
           const remoteData = res.data;
-          if (remoteData.topics && Array.isArray(remoteData.topics)) setTopics(remoteData.topics);
-          if (remoteData.settings) setSettings(prev => ({ ...prev, ...remoteData.settings, currentSimulatedDate: getLocalTodayDateStr() }));
-          if (remoteData.customDayCapacities) setCustomDayCapacities(remoteData.customDayCapacities);
-          if (remoteData.studySessions && Array.isArray(remoteData.studySessions)) setStudySessions(remoteData.studySessions);
+          const merged = mergeStudyPlannerStates(
+            { topics, settings, customDayCapacities, studySessions },
+            remoteData
+          );
+          if (merged.topics && merged.topics.length > 0) setTopics(merged.topics);
+          if (merged.studySessions) setStudySessions(merged.studySessions);
+          if (merged.customDayCapacities) setCustomDayCapacities(merged.customDayCapacities);
+          if (merged.settings) {
+            setSettings(prev => ({ ...prev, ...merged.settings, currentSimulatedDate: getLocalTodayDateStr() }));
+          }
 
           setGitlabConfig(prev => ({
             ...prev,
@@ -515,10 +522,16 @@ export function App() {
       const res = await pullFromGitLab(gitlabConfig);
       if (res.success && res.data) {
         const remoteData = res.data;
-        if (remoteData.topics && Array.isArray(remoteData.topics)) setTopics(remoteData.topics);
-        if (remoteData.settings) setSettings(prev => ({ ...prev, ...remoteData.settings, currentSimulatedDate: getLocalTodayDateStr() }));
-        if (remoteData.customDayCapacities) setCustomDayCapacities(remoteData.customDayCapacities);
-        if (remoteData.studySessions && Array.isArray(remoteData.studySessions)) setStudySessions(remoteData.studySessions);
+        const merged = mergeStudyPlannerStates(
+          { topics, settings, customDayCapacities, studySessions },
+          remoteData
+        );
+        if (merged.topics && merged.topics.length > 0) setTopics(merged.topics);
+        if (merged.studySessions) setStudySessions(merged.studySessions);
+        if (merged.customDayCapacities) setCustomDayCapacities(merged.customDayCapacities);
+        if (merged.settings) {
+          setSettings(prev => ({ ...prev, ...merged.settings, currentSimulatedDate: getLocalTodayDateStr() }));
+        }
 
         setGitlabConfig(prev => ({
           ...prev,
@@ -527,7 +540,7 @@ export function App() {
           lastCommitId: res.commitId || prev.lastCommitId,
           errorMessage: null
         }));
-        return { success: true, message: "Dati scaricati e sincronizzati con successo da GitLab!" };
+        return { success: true, message: "Dati scaricati e fusi intelligentemente con successo da GitLab!" };
       }
       return { success: false, message: res.message || "Nessun file trovato nel repo." };
     } catch (err) {
