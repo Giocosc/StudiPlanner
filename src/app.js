@@ -12,6 +12,7 @@ import { Clarke9000Companion } from "./components/Clarke9000Companion.js";
 import { LogStudyModal } from "./components/LogStudyModal.js";
 import { TopicDetailModal } from "./components/TopicDetailModal.js";
 import { MathFormulaDrawer } from "./components/MathFormulaDrawer.js";
+import { PdfSplitView } from "./components/PdfSplitView.js";
 import {
   LOCAL_STORAGE_KEY_GITLAB_CONFIG,
   DEFAULT_GITLAB_CONFIG,
@@ -125,6 +126,7 @@ export function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isBugTrackerOpen, setIsBugTrackerOpen] = useState(false);
   const [isFormulaDrawerOpen, setIsFormulaDrawerOpen] = useState(false);
+  const [isPdfSplitOpen, setIsPdfSplitOpen] = useState(false);
   const [lastSavedTime, setLastSavedTime] = useState("");
 
   // Global keyboard shortcuts (e.g. F2 for Math Formula Drawer)
@@ -899,6 +901,20 @@ export function App() {
               <span>📐 Formulario [F2]</span>
             </button>
 
+            {/* Side-by-side PDF Viewer Toggle (Punto 11) */}
+            <button
+              type="button"
+              onClick={() => setIsPdfSplitOpen(prev => !prev)}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition transform active:scale-95 flex-shrink-0 ${
+                isPdfSplitOpen
+                  ? "bg-purple-600/30 text-purple-200 border-purple-500/50 shadow-md shadow-purple-950/40"
+                  : "bg-slate-900/90 hover:bg-slate-800 text-purple-300 border-purple-500/30"
+              }`}
+              title="Attiva/disattiva il visualizzatore affiancato di dispense PDF ed eserciziari (Split View)"
+            >
+              <span>📖 Split PDF {isPdfSplitOpen ? "✓" : ""}</span>
+            </button>
+
             {/* Auto-Sync status badge if connected */}
             {fsSyncStatus.active && (
               <button
@@ -1033,84 +1049,94 @@ export function App() {
           onOpenSettings={() => setIsSettingsOpen(true)}
         />
 
-        {/* Tab Content */}
-        {activeTab === "dashboard" && (
-          <Dashboard
-            progress={progress}
-            metrics={metrics}
-            onTabChange={setActiveTab}
-            topics={topics}
-            settings={settings}
-            onOpenLogModal={handleOpenLogModal}
-            onOpenTopicDetail={handleOpenTopicDetail}
-            onToggleSpacedReview={handleToggleSpacedReview}
-            mathBugs={mathBugs}
-            onOpenBugTracker={() => setIsBugTrackerOpen(true)}
-          />
-        )}
+        {/* Tab Content & Side-by-Side PDF Split View (Punto 11) */}
+        <div className={isPdfSplitOpen ? "grid grid-cols-1 xl:grid-cols-12 gap-6 items-start" : ""}>
+          <div className={isPdfSplitOpen ? "xl:col-span-7 space-y-6" : ""}>
+            {activeTab === "dashboard" && (
+              <Dashboard
+                progress={progress}
+                metrics={metrics}
+                onTabChange={setActiveTab}
+                topics={topics}
+                settings={settings}
+                onOpenLogModal={handleOpenLogModal}
+                onOpenTopicDetail={handleOpenTopicDetail}
+                onToggleSpacedReview={handleToggleSpacedReview}
+                mathBugs={mathBugs}
+                onOpenBugTracker={() => setIsBugTrackerOpen(true)}
+              />
+            )}
 
-        {activeTab === "weekly" && (
-          <WeeklyTodo
-            weeklyPlans={weeklyPlans}
-            calendarDays={rebalancedPlan.calendarDays}
-            onToggleComplete={handleToggleComplete}
-            onUpdateTopicHours={handleUpdateTopicHours}
-            onLogStudySession={handleLogStudySession}
-            settings={settings}
-            customDayCapacities={customDayCapacities}
-            onUpdateDayCapacity={handleUpdateDayCapacity}
-            onBatchUpdateDayCapacities={handleBatchUpdateDayCapacities}
-            onOpenLogModal={handleOpenLogModal}
-            onOpenTopicDetail={handleOpenTopicDetail}
-            onToggleSpacedReview={handleToggleSpacedReview}
-          />
-        )}
+            {activeTab === "weekly" && (
+              <WeeklyTodo
+                weeklyPlans={weeklyPlans}
+                calendarDays={rebalancedPlan.calendarDays}
+                onToggleComplete={handleToggleComplete}
+                onUpdateTopicHours={handleUpdateTopicHours}
+                onLogStudySession={handleLogStudySession}
+                settings={settings}
+                customDayCapacities={customDayCapacities}
+                onUpdateDayCapacity={handleUpdateDayCapacity}
+                onBatchUpdateDayCapacities={handleBatchUpdateDayCapacities}
+                onOpenLogModal={handleOpenLogModal}
+                onOpenTopicDetail={handleOpenTopicDetail}
+                onToggleSpacedReview={handleToggleSpacedReview}
+              />
+            )}
 
-        {activeTab === "history" && (
-          <HistoryLog
-            historyDays={historyDays}
-            calendarDays={rebalancedPlan.calendarDays}
-            metrics={metrics}
-            onAdvanceDate={handleAdvanceDate}
-            onRetrocedeDate={handleRetrocedeDate}
-            onSetDate={(newDate) => setSettings(prev => ({ ...prev, currentSimulatedDate: newDate }))}
-            onOpenLogModal={handleOpenLogModal}
-            onDeleteSession={handleDeleteStudySession}
-            onOpenTopicDetail={handleOpenTopicDetail}
-          />
-        )}
+            {activeTab === "history" && (
+              <HistoryLog
+                historyDays={historyDays}
+                calendarDays={rebalancedPlan.calendarDays}
+                metrics={metrics}
+                onAdvanceDate={handleAdvanceDate}
+                onRetrocedeDate={handleRetrocedeDate}
+                onSetDate={(newDate) => setSettings(prev => ({ ...prev, currentSimulatedDate: newDate }))}
+                onOpenLogModal={handleOpenLogModal}
+                onDeleteSession={handleDeleteStudySession}
+                onOpenTopicDetail={handleOpenTopicDetail}
+              />
+            )}
 
-        {activeTab === "topics" && (
-          <TopicsTable
-            topics={topics}
-            onToggleComplete={handleToggleComplete}
-            onUpdateTopicHours={handleUpdateTopicHours}
-            onBatchUpdate={handleTopicsUpdated}
-            onOpenTopicDetail={handleOpenTopicDetail}
-          />
-        )}
+            {activeTab === "topics" && (
+              <TopicsTable
+                topics={topics}
+                onToggleComplete={handleToggleComplete}
+                onUpdateTopicHours={handleUpdateTopicHours}
+                onBatchUpdate={handleTopicsUpdated}
+                onOpenTopicDetail={handleOpenTopicDetail}
+              />
+            )}
 
-        {activeTab === "import" && (
-          <FileImporter
-            topics={topics}
-            settings={settings}
-            calendarDays={rebalancedPlan.calendarDays}
-            customDayCapacities={customDayCapacities}
-            onCustomCapacitiesUpdated={(newCapacities) => setCustomDayCapacities(newCapacities)}
-            onTopicsUpdated={handleTopicsUpdated}
-            onSettingsUpdated={(newSettings) => setSettings(newSettings)}
-            studySessions={studySessions}
-            onStudySessionsUpdated={(newSessions) => setStudySessions(newSessions)}
-            fsSyncStatus={fsSyncStatus}
-            onConnectFileSystem={handleConnectFileSystem}
-            onDisconnectFileSystem={handleDisconnectFileSystem}
-            onTriggerManualSave={handleTriggerManualSave}
-            gitlabConfig={gitlabConfig}
-            onUpdateGitLabConfig={(newConfig) => setGitlabConfig(newConfig)}
-            onGitLabPull={handleGitLabPull}
-            onGitLabPush={handleGitLabPush}
-          />
-        )}
+            {activeTab === "import" && (
+              <FileImporter
+                topics={topics}
+                settings={settings}
+                calendarDays={rebalancedPlan.calendarDays}
+                customDayCapacities={customDayCapacities}
+                onCustomCapacitiesUpdated={(newCapacities) => setCustomDayCapacities(newCapacities)}
+                onTopicsUpdated={handleTopicsUpdated}
+                onSettingsUpdated={(newSettings) => setSettings(newSettings)}
+                studySessions={studySessions}
+                onStudySessionsUpdated={(newSessions) => setStudySessions(newSessions)}
+                fsSyncStatus={fsSyncStatus}
+                onConnectFileSystem={handleConnectFileSystem}
+                onDisconnectFileSystem={handleDisconnectFileSystem}
+                onTriggerManualSave={handleTriggerManualSave}
+                gitlabConfig={gitlabConfig}
+                onUpdateGitLabConfig={(newConfig) => setGitlabConfig(newConfig)}
+                onGitLabPull={handleGitLabPull}
+                onGitLabPush={handleGitLabPush}
+              />
+            )}
+          </div>
+
+          {isPdfSplitOpen && (
+            <div className="xl:col-span-5 sticky top-24">
+              <PdfSplitView isOpen={isPdfSplitOpen} onClose={() => setIsPdfSplitOpen(false)} />
+            </div>
+          )}
+        </div>
       </main>
 
       {/* Mobile Bottom Navigation Bar */}
