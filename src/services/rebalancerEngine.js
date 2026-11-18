@@ -21,6 +21,13 @@ export function getLocalTodayDateStr() {
   return dateStr;
 }
 
+export function addDaysToDateStr(dateStr, days) {
+  if (!dateStr) return dateStr;
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + days));
+  return dt.toISOString().split("T")[0];
+}
+
 export const DEFAULT_SETTINGS = {
   roadmapStartDate: "2026-11-16", // Start of winter session roadmap
   targetExamDate: "2027-01-10",
@@ -287,7 +294,8 @@ export function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacit
       isToday,
       isFuture,
       dayStatus: isPast ? "pending" : "scheduled", // "completed", "skipped", "scheduled", "rest"
-      topics: []
+      topics: [],
+      spacedReviews: []
     });
 
     curDate.setDate(curDate.getDate() + 1);
@@ -450,6 +458,48 @@ export function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacit
     });
   }
 
+  // 4b. Spaced Repetition Cyclical Reviews Calculation (+3d, +7d, +21d)
+  const allSpacedReviews = [];
+  processedTopics.forEach(t => {
+    const isDone = Boolean(t.completato !== undefined ? t.completato : t.isCompleted);
+    if (isDone && t.completedDate) {
+      const srState = t.spacedReviews || {};
+      const intervals = [
+        { level: 1, label: "R1 (+3gg)", days: 3, key: "r1" },
+        { level: 2, label: "R2 (+7gg)", days: 7, key: "r2" },
+        { level: 3, label: "R3 (+21gg)", days: 21, key: "r3" }
+      ];
+      intervals.forEach(inv => {
+        const targetDate = addDaysToDateStr(t.completedDate, inv.days);
+        const isCompletedReview = Boolean(srState[inv.key]);
+        const isOverdue = !isCompletedReview && targetDate < settings.currentSimulatedDate;
+        const isDueToday = !isCompletedReview && targetDate === settings.currentSimulatedDate;
+        allSpacedReviews.push({
+          topicId: t.id,
+          materia: t.materia,
+          capitolo: t.capitolo || "",
+          argomento: t.argomento,
+          level: inv.level,
+          levelKey: inv.key,
+          levelLabel: inv.label,
+          targetDate,
+          isDone: isCompletedReview,
+          isOverdue,
+          isDueToday
+        });
+      });
+    }
+  });
+
+  // Attach spacedReviews to calendar days
+  allCalendarDays.forEach(day => {
+    if (day.isToday) {
+      day.spacedReviews = allSpacedReviews.filter(r => r.targetDate === day.date || (r.isOverdue && !r.isDone));
+    } else {
+      day.spacedReviews = allSpacedReviews.filter(r => r.targetDate === day.date);
+    }
+  });
+
   // 5. Group into Weekly Plans (including past, current, and future weeks)
   const weeksMap = new Map();
   allCalendarDays.forEach(day => {
@@ -527,7 +577,15 @@ export function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacit
       pastDaysStudied,
       pastDaysSkipped,
       totalPastHours: Number(totalPastHours.toFixed(1)),
-      historyCount: historyDays.length
+      historyCount: historyDays.length,
+      // Spaced Repetition stats
+      spacedRepetition: {
+        dueToday: allSpacedReviews.filter(r => r.isDueToday).length,
+        overdue: allSpacedReviews.filter(r => r.isOverdue).length,
+        completed: allSpacedReviews.filter(r => r.isDone).length,
+        totalPlanned: allSpacedReviews.length,
+        activeReviews: allSpacedReviews.filter(r => !r.isDone && (r.isDueToday || r.isOverdue))
+      }
     },
     weeklyPlans,
     currentWeekPlan,

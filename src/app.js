@@ -680,6 +680,25 @@ export function App() {
     );
   };
 
+  // Spaced Repetition: Toggle review level completion (r1, r2, r3)
+  const handleToggleSpacedReview = (topicId, levelKey, isDone) => {
+    setTopics(prev =>
+      prev.map(t => {
+        if (t.id === topicId) {
+          const curReviews = t.spacedReviews || {};
+          return {
+            ...t,
+            spacedReviews: {
+              ...curReviews,
+              [levelKey]: isDone
+            }
+          };
+        }
+        return t;
+      })
+    );
+  };
+
   // Batch update of topics (e.g. from FileImporter or reset)
   const handleTopicsUpdated = (newTopics) => {
     setTopics(newTopics);
@@ -957,6 +976,8 @@ export function App() {
             topics={topics}
             settings={settings}
             onOpenLogModal={handleOpenLogModal}
+            onOpenTopicDetail={handleOpenTopicDetail}
+            onToggleSpacedReview={handleToggleSpacedReview}
           />
         )}
 
@@ -970,6 +991,7 @@ export function App() {
             onUpdateDayCapacity={handleUpdateDayCapacity}
             onOpenLogModal={handleOpenLogModal}
             onOpenTopicDetail={handleOpenTopicDetail}
+            onToggleSpacedReview={handleToggleSpacedReview}
           />
         )}
 

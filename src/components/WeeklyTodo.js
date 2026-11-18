@@ -23,7 +23,8 @@ export function WeeklyTodo({
   customDayCapacities = {},
   onUpdateDayCapacity,
   onOpenLogModal,
-  onOpenTopicDetail
+  onOpenTopicDetail,
+  onToggleSpacedReview
 }) {
   // Default to the week containing Today
   const [selectedWeekIndex, setSelectedWeekIndex] = useState(() => {
@@ -497,6 +498,74 @@ export function WeeklyTodo({
                   </div>
                 </div>
               </div>
+
+              {/* Spaced Repetition Cyclical Reviews Banner */}
+              {day.spacedReviews && day.spacedReviews.length > 0 && (
+                <div className="mb-3.5 p-3 rounded-2xl bg-gradient-to-r from-purple-950/60 to-indigo-950/40 border border-purple-500/40 shadow-md">
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="p-1 rounded-lg bg-purple-500/20 text-purple-300">🧠</span>
+                      <span className="font-extrabold text-xs text-purple-200">
+                        Ripasso Spaced Repetition ({day.spacedReviews.length})
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-purple-300/80 font-mono">
+                      15-20m • Teoria & formule a memoria
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {day.spacedReviews.map(rev => (
+                      <div
+                        key={`${rev.topicId}-${rev.levelKey}`}
+                        className={`flex items-center justify-between gap-2 p-2 rounded-xl border text-xs transition ${
+                          rev.isDone
+                            ? "bg-emerald-950/40 border-emerald-500/30 text-emerald-200"
+                            : rev.isOverdue
+                            ? "bg-rose-950/50 border-rose-500/40 text-rose-200"
+                            : "bg-slate-900/90 border-slate-800 text-slate-200"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold ${
+                            rev.isDone
+                              ? "bg-emerald-500/20 text-emerald-300"
+                              : rev.isOverdue
+                              ? "bg-rose-500/20 text-rose-300 animate-pulse"
+                              : "bg-purple-500/20 text-purple-300"
+                          }`}>
+                            {rev.levelLabel}
+                          </span>
+                          <span className="font-mono font-bold text-slate-100">{rev.topicId}</span>
+                          <span className="truncate text-slate-300 text-[11px] max-w-[140px] sm:max-w-[200px]" title={rev.argomento}>
+                            {rev.argomento}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => onOpenTopicDetail && onOpenTopicDetail(rev.topicId)}
+                            className="p-1 px-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 text-[10px] font-bold border border-slate-700 transition"
+                            title="Apri scheda informativa per ripasso veloce"
+                          >
+                            📖 Scheda
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onToggleSpacedReview && onToggleSpacedReview(rev.topicId, rev.levelKey, !rev.isDone)}
+                            className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition ${
+                              rev.isDone
+                                ? "bg-emerald-500/30 border-emerald-500/50 text-emerald-200"
+                                : "bg-purple-600/40 hover:bg-purple-600/60 border-purple-500/50 text-purple-200 shadow-sm"
+                            }`}
+                          >
+                            {rev.isDone ? "Ripassato ✓" : "Segna Fatto"}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Topics list for the day */}
               {isSkipped ? (

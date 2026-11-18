@@ -12,7 +12,16 @@ import {
 import { NeuraDeckPromptGenerator } from "./NeuraDeckPromptGenerator.js";
 import { ExamSimulator } from "./ExamSimulator.js";
 
-export function Dashboard({ progress, metrics, onTabChange, topics = [], settings = {}, onOpenLogModal }) {
+export function Dashboard({
+  progress,
+  metrics,
+  onTabChange,
+  topics = [],
+  settings = {},
+  onOpenLogModal,
+  onOpenTopicDetail,
+  onToggleSpacedReview
+}) {
   const { analisi, geometria, global } = progress;
   const [isFlashcardsOpen, setIsFlashcardsOpen] = useState(false);
   const [isExamSimulatorOpen, setIsExamSimulatorOpen] = useState(false);
@@ -47,6 +56,36 @@ export function Dashboard({ progress, metrics, onTabChange, topics = [], setting
           <span>Registra Ore di Studio</span>
         </button>
       </div>
+
+      {/* Spaced Repetition Active Alert Banner if any due */}
+      {metrics?.spacedRepetition?.activeReviews?.length > 0 && (
+        <div className="bg-gradient-to-r from-purple-950/60 via-indigo-950/50 to-slate-900/80 border border-purple-500/40 rounded-3xl p-4 md:p-5 backdrop-blur-md shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-center space-x-3.5">
+            <div className="w-10 h-10 rounded-2xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-300 font-black text-xl shadow-md shadow-purple-500/20 flex-shrink-0">
+              🧠
+            </div>
+            <div>
+              <h3 className="text-sm md:text-base font-bold text-white flex items-center gap-2">
+                <span>Ripassi Spaced Repetition in Scadenza ({metrics.spacedRepetition.activeReviews.length})</span>
+                <span className="text-[10px] bg-purple-500/30 text-purple-200 border border-purple-500/40 px-2 py-0.5 rounded-full font-mono">
+                  Curva di Ebbinghaus
+                </span>
+              </h3>
+              <p className="text-xs text-slate-300 mt-0.5">
+                Hai {metrics.spacedRepetition.dueToday} ripassi previsti per oggi e {metrics.spacedRepetition.overdue} arretrati. Dedica 15 minuti a ripassare teoremi e formule prima di procedere!
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => onTabChange && onTabChange("weekly")}
+            className="w-full md:w-auto px-4 py-2 bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 border border-purple-500/50 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 flex-shrink-0"
+          >
+            <span>Vai al To-Do per Ripassare</span>
+            <span>→</span>
+          </button>
+        </div>
+      )}
 
       {/* KPI Cards Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 2xl:gap-6">

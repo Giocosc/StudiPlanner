@@ -1167,6 +1167,13 @@ function getLocalTodayDateStr() {
   return dateStr;
 }
 
+function addDaysToDateStr(dateStr, days) {
+  if (!dateStr) return dateStr;
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + days));
+  return dt.toISOString().split("T")[0];
+}
+
 const DEFAULT_SETTINGS = {
   roadmapStartDate: "2026-11-16", // Start of winter session roadmap
   targetExamDate: "2027-01-10",
@@ -1433,7 +1440,8 @@ function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacities = {
       isToday,
       isFuture,
       dayStatus: isPast ? "pending" : "scheduled", // "completed", "skipped", "scheduled", "rest"
-      topics: []
+      topics: [],
+      spacedReviews: []
     });
 
     curDate.setDate(curDate.getDate() + 1);
@@ -1596,6 +1604,48 @@ function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacities = {
     });
   }
 
+  // 4b. Spaced Repetition Cyclical Reviews Calculation (+3d, +7d, +21d)
+  const allSpacedReviews = [];
+  processedTopics.forEach(t => {
+    const isDone = Boolean(t.completato !== undefined ? t.completato : t.isCompleted);
+    if (isDone && t.completedDate) {
+      const srState = t.spacedReviews || {};
+      const intervals = [
+        { level: 1, label: "R1 (+3gg)", days: 3, key: "r1" },
+        { level: 2, label: "R2 (+7gg)", days: 7, key: "r2" },
+        { level: 3, label: "R3 (+21gg)", days: 21, key: "r3" }
+      ];
+      intervals.forEach(inv => {
+        const targetDate = addDaysToDateStr(t.completedDate, inv.days);
+        const isCompletedReview = Boolean(srState[inv.key]);
+        const isOverdue = !isCompletedReview && targetDate < settings.currentSimulatedDate;
+        const isDueToday = !isCompletedReview && targetDate === settings.currentSimulatedDate;
+        allSpacedReviews.push({
+          topicId: t.id,
+          materia: t.materia,
+          capitolo: t.capitolo || "",
+          argomento: t.argomento,
+          level: inv.level,
+          levelKey: inv.key,
+          levelLabel: inv.label,
+          targetDate,
+          isDone: isCompletedReview,
+          isOverdue,
+          isDueToday
+        });
+      });
+    }
+  });
+
+  // Attach spacedReviews to calendar days
+  allCalendarDays.forEach(day => {
+    if (day.isToday) {
+      day.spacedReviews = allSpacedReviews.filter(r => r.targetDate === day.date || (r.isOverdue && !r.isDone));
+    } else {
+      day.spacedReviews = allSpacedReviews.filter(r => r.targetDate === day.date);
+    }
+  });
+
   // 5. Group into Weekly Plans (including past, current, and future weeks)
   const weeksMap = new Map();
   allCalendarDays.forEach(day => {
@@ -1673,7 +1723,15 @@ function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacities = {
       pastDaysStudied,
       pastDaysSkipped,
       totalPastHours: Number(totalPastHours.toFixed(1)),
-      historyCount: historyDays.length
+      historyCount: historyDays.length,
+      // Spaced Repetition stats
+      spacedRepetition: {
+        dueToday: allSpacedReviews.filter(r => r.isDueToday).length,
+        overdue: allSpacedReviews.filter(r => r.isOverdue).length,
+        completed: allSpacedReviews.filter(r => r.isDone).length,
+        totalPlanned: allSpacedReviews.length,
+        activeReviews: allSpacedReviews.filter(r => !r.isDone && (r.isDueToday || r.isOverdue))
+      }
     },
     weeklyPlans,
     currentWeekPlan,
@@ -3688,7 +3746,16 @@ function Clarke9000Companion({ progress, metrics }) {
 
 
 
-function Dashboard({ progress, metrics, onTabChange, topics = [], settings = {}, onOpenLogModal }) {
+function Dashboard({
+  progress,
+  metrics,
+  onTabChange,
+  topics = [],
+  settings = {},
+  onOpenLogModal,
+  onOpenTopicDetail,
+  onToggleSpacedReview
+}) {
   const { analisi, geometria, global } = progress;
   const [isFlashcardsOpen, setIsFlashcardsOpen] = useState(false);
   const [isExamSimulatorOpen, setIsExamSimulatorOpen] = useState(false);
@@ -3723,6 +3790,36 @@ function Dashboard({ progress, metrics, onTabChange, topics = [], settings = {},
           <span>Registra Ore di Studio</span>
         </button>
       </div>
+
+      {/* Spaced Repetition Active Alert Banner if any due */}
+      {metrics?.spacedRepetition?.activeReviews?.length > 0 && (
+        <div className="bg-gradient-to-r from-purple-950/60 via-indigo-950/50 to-slate-900/80 border border-purple-500/40 rounded-3xl p-4 md:p-5 backdrop-blur-md shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-center space-x-3.5">
+            <div className="w-10 h-10 rounded-2xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-300 font-black text-xl shadow-md shadow-purple-500/20 flex-shrink-0">
+              🧠
+            </div>
+            <div>
+              <h3 className="text-sm md:text-base font-bold text-white flex items-center gap-2">
+                <span>Ripassi Spaced Repetition in Scadenza ({metrics.spacedRepetition.activeReviews.length})</span>
+                <span className="text-[10px] bg-purple-500/30 text-purple-200 border border-purple-500/40 px-2 py-0.5 rounded-full font-mono">
+                  Curva di Ebbinghaus
+                </span>
+              </h3>
+              <p className="text-xs text-slate-300 mt-0.5">
+                Hai {metrics.spacedRepetition.dueToday} ripassi previsti per oggi e {metrics.spacedRepetition.overdue} arretrati. Dedica 15 minuti a ripassare teoremi e formule prima di procedere!
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => onTabChange && onTabChange("weekly")}
+            className="w-full md:w-auto px-4 py-2 bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 border border-purple-500/50 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 flex-shrink-0"
+          >
+            <span>Vai al To-Do per Ripassare</span>
+            <span>→</span>
+          </button>
+        </div>
+      )}
 
       {/* KPI Cards Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 2xl:gap-6">
@@ -4393,7 +4490,8 @@ function WeeklyTodo({
   customDayCapacities = {},
   onUpdateDayCapacity,
   onOpenLogModal,
-  onOpenTopicDetail
+  onOpenTopicDetail,
+  onToggleSpacedReview
 }) {
   // Default to the week containing Today
   const [selectedWeekIndex, setSelectedWeekIndex] = useState(() => {
@@ -4867,6 +4965,74 @@ function WeeklyTodo({
                   </div>
                 </div>
               </div>
+
+              {/* Spaced Repetition Cyclical Reviews Banner */}
+              {day.spacedReviews && day.spacedReviews.length > 0 && (
+                <div className="mb-3.5 p-3 rounded-2xl bg-gradient-to-r from-purple-950/60 to-indigo-950/40 border border-purple-500/40 shadow-md">
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="p-1 rounded-lg bg-purple-500/20 text-purple-300">🧠</span>
+                      <span className="font-extrabold text-xs text-purple-200">
+                        Ripasso Spaced Repetition ({day.spacedReviews.length})
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-purple-300/80 font-mono">
+                      15-20m • Teoria & formule a memoria
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {day.spacedReviews.map(rev => (
+                      <div
+                        key={`${rev.topicId}-${rev.levelKey}`}
+                        className={`flex items-center justify-between gap-2 p-2 rounded-xl border text-xs transition ${
+                          rev.isDone
+                            ? "bg-emerald-950/40 border-emerald-500/30 text-emerald-200"
+                            : rev.isOverdue
+                            ? "bg-rose-950/50 border-rose-500/40 text-rose-200"
+                            : "bg-slate-900/90 border-slate-800 text-slate-200"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold ${
+                            rev.isDone
+                              ? "bg-emerald-500/20 text-emerald-300"
+                              : rev.isOverdue
+                              ? "bg-rose-500/20 text-rose-300 animate-pulse"
+                              : "bg-purple-500/20 text-purple-300"
+                          }`}>
+                            {rev.levelLabel}
+                          </span>
+                          <span className="font-mono font-bold text-slate-100">{rev.topicId}</span>
+                          <span className="truncate text-slate-300 text-[11px] max-w-[140px] sm:max-w-[200px]" title={rev.argomento}>
+                            {rev.argomento}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => onOpenTopicDetail && onOpenTopicDetail(rev.topicId)}
+                            className="p-1 px-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 text-[10px] font-bold border border-slate-700 transition"
+                            title="Apri scheda informativa per ripasso veloce"
+                          >
+                            📖 Scheda
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onToggleSpacedReview && onToggleSpacedReview(rev.topicId, rev.levelKey, !rev.isDone)}
+                            className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition ${
+                              rev.isDone
+                                ? "bg-emerald-500/30 border-emerald-500/50 text-emerald-200"
+                                : "bg-purple-600/40 hover:bg-purple-600/60 border-purple-500/50 text-purple-200 shadow-sm"
+                            }`}
+                          >
+                            {rev.isDone ? "Ripassato ✓" : "Segna Fatto"}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Topics list for the day */}
               {isSkipped ? (
@@ -8844,6 +9010,25 @@ function App() {
     );
   };
 
+  // Spaced Repetition: Toggle review level completion (r1, r2, r3)
+  const handleToggleSpacedReview = (topicId, levelKey, isDone) => {
+    setTopics(prev =>
+      prev.map(t => {
+        if (t.id === topicId) {
+          const curReviews = t.spacedReviews || {};
+          return {
+            ...t,
+            spacedReviews: {
+              ...curReviews,
+              [levelKey]: isDone
+            }
+          };
+        }
+        return t;
+      })
+    );
+  };
+
   // Batch update of topics (e.g. from FileImporter or reset)
   const handleTopicsUpdated = (newTopics) => {
     setTopics(newTopics);
@@ -9121,6 +9306,8 @@ function App() {
             topics={topics}
             settings={settings}
             onOpenLogModal={handleOpenLogModal}
+            onOpenTopicDetail={handleOpenTopicDetail}
+            onToggleSpacedReview={handleToggleSpacedReview}
           />
         )}
 
@@ -9134,6 +9321,7 @@ function App() {
             onUpdateDayCapacity={handleUpdateDayCapacity}
             onOpenLogModal={handleOpenLogModal}
             onOpenTopicDetail={handleOpenTopicDetail}
+            onToggleSpacedReview={handleToggleSpacedReview}
           />
         )}
 
