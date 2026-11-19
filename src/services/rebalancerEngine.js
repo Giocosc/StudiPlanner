@@ -266,13 +266,21 @@ function sortBySequentialId(a, b) {
  * Streak Counter & Resilience Indicators (Punto 17)
  * Calculates consecutive evening study streaks and awards worker resilience badges.
  */
+const STREAK_MIN_HOURS = 0.8;
+
 export function calculateStudyStreak(historyDays = [], currentSimulatedDate, studySessions = []) {
+  // I giorni dello storico contengono già le ore delle sessioni registrate e degli
+  // argomenti spuntati (allocatedHours). Le sessioni servono solo per le date fuori
+  // dallo storico (es. prima dell'inizio della roadmap), per non contarle due volte.
   const dailyHoursMap = new Map();
   historyDays.forEach(d => {
-    dailyHoursMap.set(d.date, Number(d.studiedHours || 0));
+    const studied = d.dayStatus === "completed" ? Number(d.allocatedHours || 0) : 0;
+    // Un argomento spuntato senza ore residue vale comunque come giorno di studio
+    const hasCompletion = d.dayStatus === "completed" && (d.topics || []).some(t => !t.isSessionLog);
+    dailyHoursMap.set(d.date, hasCompletion ? Math.max(studied, STREAK_MIN_HOURS) : studied);
   });
   (studySessions || []).forEach(s => {
-    if (s.date) {
+    if (s.date && !historyDays.some(d => d.date === s.date)) {
       const cur = dailyHoursMap.get(s.date) || 0;
       dailyHoursMap.set(s.date, cur + Number(s.hours || 0));
     }
@@ -282,11 +290,11 @@ export function calculateStudyStreak(historyDays = [], currentSimulatedDate, stu
   let currentStreak = 0;
   let checkDate = currentSimulatedDate;
   // If today is not yet studied (e.g. daytime), check if yesterday was studied
-  if ((dailyHoursMap.get(checkDate) || 0) < 0.8) {
+  if ((dailyHoursMap.get(checkDate) || 0) < STREAK_MIN_HOURS) {
     checkDate = addDaysToDateStr(currentSimulatedDate, -1);
   }
 
-  while ((dailyHoursMap.get(checkDate) || 0) >= 0.8) {
+  while ((dailyHoursMap.get(checkDate) || 0) >= STREAK_MIN_HOURS) {
     currentStreak += 1;
     checkDate = addDaysToDateStr(checkDate, -1);
   }
@@ -298,7 +306,7 @@ export function calculateStudyStreak(historyDays = [], currentSimulatedDate, stu
   let prevDate = null;
   datesSorted.forEach(d => {
     const hrs = dailyHoursMap.get(d) || 0;
-    if (hrs >= 0.8) {
+    if (hrs >= STREAK_MIN_HOURS) {
       if (prevDate && addDaysToDateStr(prevDate, 1) === d) {
         tempStreak += 1;
       } else {

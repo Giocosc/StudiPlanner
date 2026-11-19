@@ -124,3 +124,15 @@ test("date: finestra pre-esame e bootcamp seguono la data d'esame impostata", as
   const plan2 = rebalanceStudyPlan(freshTopics(), { currentSimulatedDate: "2027-01-14", targetExamDate: "2027-01-20" });
   assert.strictEqual(plan2.metrics.isPreExamWindow, true);
 });
+
+test("streak: conta sessioni e giorni con argomenti spuntati, senza doppi conteggi", () => {
+  const topics = freshTopics().map(t => t.id === "A-02"
+    ? { ...t, completato: true, isCompleted: true, completedDate: "2026-11-18", oreEffettive: 2.5 } : t);
+  const sessions = [
+    { id: "s1", date: "2026-11-16", topicId: "A-01", hours: 1 },
+    { id: "s2", date: "2026-11-17", topicId: "A-01", hours: 1 }
+  ];
+  const plan = rebalanceStudyPlan(topics, { currentSimulatedDate: "2026-11-19" }, {}, sessions);
+  // 16, 17 (sessioni) e 18 (spunta) consecutivi; il 19 non ancora studiato
+  assert.strictEqual(plan.metrics.studyStreak.currentStreak, 3);
+});
