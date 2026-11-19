@@ -32,6 +32,53 @@ files_order = [
     'src/app.js'
 ]
 
+# Il bundle mette tutti i file nello stesso scope: due dichiarazioni di primo livello
+# con lo stesso nome fanno fallire Babel nel browser e l'app non parte. Le cerchiamo
+# prima di scrivere il bundle, così l'errore indica subito i due file in conflitto.
+# Nei sorgenti le dichiarazioni di primo livello partono dalla colonna 0, quelle annidate
+# sono indentate: basta guardare l'inizio riga.
+TOP_LEVEL_DECL = re.compile(
+    r'^(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?|class|const|let|var)\s+([A-Za-z_$][\w$]*)',
+    re.MULTILINE,
+)
+TOP_LEVEL_DESTRUCTURE = re.compile(r'^(?:export\s+)?(?:const|let|var)\s*\{([^}]*)\}\s*=', re.MULTILINE)
+PRELUDE_NAMES = ['useState', 'useEffect', 'useMemo', 'useRef', 'useCallback', 'ErrorBoundary', 'mountStudiPlannerApp']
+
+
+def top_level_names(code):
+    names = TOP_LEVEL_DECL.findall(code)
+    for group in TOP_LEVEL_DESTRUCTURE.findall(code):
+        for part in group.split(','):
+            # "{ a: b }" dichiara b, "{ a = 1 }" dichiara a
+            part = part.split(':')[-1].split('=')[0].strip()
+            if re.fullmatch(r'[A-Za-z_$][\w$]*', part):
+                names.append(part)
+    return names
+
+
+def check_duplicate_top_level_names(paths):
+    seen = {name: 'il prologo di build_bundle.py' for name in PRELUDE_NAMES}
+    clashes = []
+    for path in paths:
+        with open(path, 'r', encoding='utf-8') as f:
+            names = top_level_names(f.read())
+        for name in names:
+            if name not in seen:
+                seen[name] = path
+            elif seen[name] == path:
+                clashes.append(f"  - '{name}' dichiarato due volte in {path}")
+            else:
+                clashes.append(f"  - '{name}' in {path} e in {seen[name]}")
+    if clashes:
+        raise SystemExit(
+            'Build interrotta: nomi di primo livello duplicati nello scope condiviso del bundle.\n'
+            + '\n'.join(clashes)
+            + '\nRinominare uno dei due, per esempio con il prefisso del componente.'
+        )
+
+
+check_duplicate_top_level_names(files_order)
+
 combined = []
 combined.append("""
 // In-browser globals from React
@@ -142,7 +189,8 @@ if (document.readyState === 'loading') {
 }
 """
 
-with open('bundle.js', 'w', encoding='utf-8') as f:
+# newline='\n': su Windows Python scriverebbe CRLF e git vedrebbe bundle.js sempre modificato
+with open('bundle.js', 'w', encoding='utf-8', newline='\n') as f:
     f.write(bundle_js)
 
 print("bundle.js successfully created. Total bytes:", len(bundle_js))
