@@ -1,6 +1,6 @@
 import assert from "assert";
 import { test } from "./harness.mjs";
-import { applySessionToTopic } from "../src/services/topicStateService.js";
+import { applySessionToTopic, revertSessionFromTopic } from "../src/services/topicStateService.js";
 
 const topic = (extra = {}) => ({ id: "A-01", oreStimate: 2, oreEffettive: 0, completato: false, isCompleted: false, ...extra });
 
@@ -28,4 +28,30 @@ test("sessione: completed:false su argomento aperto lo lascia aperto anche oltre
 test("sessione: senza flag si completa al raggiungimento della stima", () => {
   assert.strictEqual(applySessionToTopic(topic(), { hours: 1, date: "2026-11-19" }).completato, false);
   assert.strictEqual(applySessionToTopic(topic(), { hours: 2, date: "2026-11-19" }).completato, true);
+});
+
+test("cancellazione: una sessione parziale non scompleta un argomento spuntato a mano", () => {
+  const done = topic({ completato: true, isCompleted: true, completedDate: "2026-11-18", oreEffettive: 3 });
+  const sess = { id: "s1", topicId: "A-01", date: "2026-11-17", hours: 1, completed: false };
+  const after = revertSessionFromTopic(done, sess, [sess]);
+  assert.strictEqual(after.completato, true);
+  assert.strictEqual(after.completedDate, "2026-11-18");
+  assert.strictEqual(after.oreEffettive, 2);
+});
+
+test("cancellazione: la sessione che aveva completato l'argomento lo riapre", () => {
+  const done = topic({ completato: true, isCompleted: true, completedDate: "2026-11-18", oreEffettive: 2 });
+  const sess = { id: "s1", topicId: "A-01", date: "2026-11-18", hours: 2, completed: true };
+  const after = revertSessionFromTopic(done, sess, [sess]);
+  assert.strictEqual(after.completato, false);
+  assert.strictEqual(after.completedDate, null);
+});
+
+test("cancellazione: se un'altra sessione completata esiste resta completato con la sua data", () => {
+  const done = topic({ completato: true, isCompleted: true, completedDate: "2026-11-18", oreEffettive: 4 });
+  const s1 = { id: "s1", topicId: "A-01", date: "2026-11-18", hours: 2, completed: true };
+  const s2 = { id: "s2", topicId: "A-01", date: "2026-11-19", hours: 2, completed: true };
+  const after = revertSessionFromTopic(done, s1, [s1, s2]);
+  assert.strictEqual(after.completato, true);
+  assert.strictEqual(after.completedDate, "2026-11-19");
 });

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { INITIAL_TOPICS } from "./data/defaultData.js";
 import { rebalanceStudyPlan, DEFAULT_SETTINGS, getLocalTodayDateStr } from "./services/rebalancerEngine.js";
-import { applySessionToTopic } from "./services/topicStateService.js";
+import { applySessionToTopic, revertSessionFromTopic } from "./services/topicStateService.js";
 import { AlertBanner } from "./components/AlertBanner.js";
 import { Dashboard } from "./components/Dashboard.js";
 import { WeeklyTodo } from "./components/WeeklyTodo.js";
@@ -685,22 +685,9 @@ export function App() {
     const session = studySessions.find(s => s.id === sessionId);
     if (!session) return;
 
-    setTopics(prev => prev.map(t => {
-      if (t.id === session.topicId) {
-        const currentEff = Number(t.oreEffettive || 0);
-        const revertedEff = Math.max(0, Number((currentEff - session.hours).toFixed(2)));
-        const otherCompletedSession = studySessions.some(s => s.id !== sessionId && s.topicId === session.topicId && s.completed);
-        const stillDone = otherCompletedSession;
-        return {
-          ...t,
-          oreEffettive: revertedEff,
-          completato: stillDone,
-          isCompleted: stillDone,
-          completedDate: stillDone ? t.completedDate : null
-        };
-      }
-      return t;
-    }));
+    setTopics(prev => prev.map(t => (
+      t.id === session.topicId ? revertSessionFromTopic(t, session, studySessions) : t
+    )));
 
     setStudySessions(prev => prev.filter(s => s.id !== sessionId));
   };

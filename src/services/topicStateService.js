@@ -36,3 +36,38 @@ export function applySessionToTopic(topic, { hours, completed, date }) {
     completedDate: isDone ? (topic.completedDate || date) : null
   };
 }
+
+/**
+ * Annulla una sessione cancellata.
+ * - Le ore della sessione vengono sottratte.
+ * - Il completamento viene tolto SOLO se era stato prodotto da questa sessione
+ *   (sessione "completed" nella stessa data di completamento) e nessun'altra
+ *   sessione completata lo giustifica. Un argomento spuntato a mano resta completato.
+ */
+export function revertSessionFromTopic(topic, session, otherSessions = []) {
+  const currentEff = Number(topic.oreEffettive || 0);
+  const revertedEff = Math.max(0, Number((currentEff - Number(session.hours || 0)).toFixed(2)));
+  const wasDone = isTopicDone(topic);
+
+  const otherCompleted = otherSessions
+    .filter(s => s.id !== session.id && s.topicId === session.topicId && s.completed)
+    .sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")));
+
+  const completionCameFromThisSession = Boolean(session.completed) &&
+    (!topic.completedDate || topic.completedDate === session.date);
+
+  let stillDone = wasDone;
+  let completedDate = topic.completedDate || null;
+  if (wasDone && completionCameFromThisSession) {
+    stillDone = otherCompleted.length > 0;
+    completedDate = stillDone ? otherCompleted[0].date : null;
+  }
+
+  return {
+    ...topic,
+    oreEffettive: revertedEff,
+    completato: stillDone,
+    isCompleted: stillDone,
+    completedDate: stillDone ? completedDate : null
+  };
+}
