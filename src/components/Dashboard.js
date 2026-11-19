@@ -79,6 +79,8 @@ function getSubjectPacing(subjectData, currentSimulatedDate, roadmapStartDate = 
   }
 }
 
+const DASHBOARD_DETAILS_KEY = "studiplanner_dashboard_details_open_v1";
+
 export function Dashboard({
   progress,
   metrics,
@@ -102,6 +104,24 @@ export function Dashboard({
   const { analisi, geometria, global } = progress;
   const [isFlashcardsOpen, setIsFlashcardsOpen] = useState(false);
   const [isExamSimulatorOpen, setIsExamSimulatorOpen] = useState(false);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(() => {
+    try {
+      return window.localStorage.getItem(DASHBOARD_DETAILS_KEY) === "1";
+    } catch (e) {
+      return false;
+    }
+  });
+  const toggleDetails = () => {
+    setIsDetailsOpen(prev => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem(DASHBOARD_DETAILS_KEY, next ? "1" : "0");
+      } catch (e) {
+        // Preferenza solo locale: se lo storage non è disponibile resta chiusa.
+      }
+      return next;
+    });
+  };
 
   // Subject Pacing Analysis (In vantaggio, Al passo, In ritardo)
   const pacingAnalisi = getSubjectPacing(analisi, settings.currentSimulatedDate, settings.roadmapStartDate, settings.targetExamDate);
@@ -232,6 +252,9 @@ export function Dashboard({
         onLogStudySession={onLogStudySession}
         onOpenTopicDetail={onOpenTopicDetail}
         onOpenLogModal={onOpenLogModal}
+        reviewsDue={metrics?.spacedRepetition?.activeReviews?.length || 0}
+        reviewsOverdue={metrics?.spacedRepetition?.overdue || 0}
+        onOpenReviews={onTabChange ? () => onTabChange("weekly") : undefined}
       />
 
       {/* Anelli, conto alla rovescia e ritmo richiesto */}
@@ -295,37 +318,6 @@ export function Dashboard({
           </div>
         </div>
       </div>
-
-      {/* Spaced Repetition Active Alert Banner if any due */}
-      {metrics?.spacedRepetition?.activeReviews?.length > 0 && (
-        <div className="bg-gradient-to-r from-purple-950/60 via-indigo-950/50 to-slate-900/80 border border-purple-500/40 rounded-3xl p-4 md:p-5 backdrop-blur-md shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="flex items-center space-x-3.5">
-            <div className="w-10 h-10 rounded-2xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-300 font-black text-xl shadow-md shadow-purple-500/20 flex-shrink-0">
-              🧠
-            </div>
-            <div>
-              <h3 className="text-sm md:text-base font-bold text-white flex items-center gap-2">
-                <span>Ripassi Spaced Repetition in Scadenza ({metrics.spacedRepetition.activeReviews.length})</span>
-                <span className="text-[10px] bg-purple-500/30 text-purple-200 border border-purple-500/40 px-2 py-0.5 rounded-full font-mono">
-                  Curva di Ebbinghaus
-                </span>
-              </h3>
-              <p className="text-xs text-slate-300 mt-0.5">
-                Hai {metrics.spacedRepetition.dueToday} ripassi previsti per oggi e {metrics.spacedRepetition.overdue} arretrati. Dedica 15 minuti a ripassare teoremi e formule prima di procedere!
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => onTabChange && onTabChange("weekly")}
-            className="w-full md:w-auto px-4 py-2 bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 border border-purple-500/50 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 flex-shrink-0"
-          >
-            <span>Vai al To-Do per Ripassare</span>
-            <span>→</span>
-          </button>
-        </div>
-      )}
-
 
       {/* Costanza e previsione d'esame */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -446,340 +438,360 @@ export function Dashboard({
         onDeleteMockExam={onDeleteMockExam}
       />
 
-      {/* Main Two Progress Bars with Real-Time Pacing Indicators (Analisi 1 & Geometria) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {/* Analisi 1 Progress Card with Pacing Indicator */}
-        <div className="bg-gradient-to-b from-slate-900/90 to-slate-950/90 border border-indigo-500/20 p-5 md:p-6 rounded-3xl shadow-xl shadow-indigo-950/10 relative overflow-hidden flex flex-col justify-between">
-          <div>
-            <div className="flex items-start justify-between mb-3">
-              <div>
-                <div className="flex items-center space-x-2">
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                    ANALISI MATEMATICA 1
+      {/* Dettagli e strumenti: chiusi di default per tenere la dashboard essenziale */}
+      <section className="flex flex-col gap-5">
+        <button
+          type="button"
+          onClick={toggleDetails}
+          aria-expanded={isDetailsOpen}
+          className="self-start h-9 px-4 rounded-full bg-fill text-ink-2 hover:text-ink text-[13px] font-semibold flex items-center gap-2 transition"
+        >
+          <span>{isDetailsOpen ? "Nascondi dettagli e strumenti" : "Dettagli e strumenti"}</span>
+          <span aria-hidden="true" className={`transition-transform ${isDetailsOpen ? "rotate-180" : ""}`}>⌄</span>
+        </button>
+        {!isDetailsOpen && (
+          <p className="text-[12px] text-ink-3 -mt-2">Avanzamento per materia, burndown, flashcard, simulatore e registro errori.</p>
+        )}
+        {isDetailsOpen && (
+          <div className="flex flex-col gap-5">
+            {/* Main Two Progress Bars with Real-Time Pacing Indicators (Analisi 1 & Geometria) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {/* Analisi 1 Progress Card with Pacing Indicator */}
+              <div className="bg-gradient-to-b from-slate-900/90 to-slate-950/90 border border-indigo-500/20 p-5 md:p-6 rounded-3xl shadow-xl shadow-indigo-950/10 relative overflow-hidden flex flex-col justify-between">
+                <div>
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <div className="flex items-center space-x-2">
+                        <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                          ANALISI MATEMATICA 1
+                        </span>
+                        <span className="text-xs text-slate-400">UNIMORE</span>
+                      </div>
+                      <h3 className="text-xl font-bold text-white mt-1">Stato Avanzamento Analisi</h3>
+                    </div>
+                    <div className="text-right flex flex-col items-end">
+                      <span className="text-3xl font-black text-indigo-400 font-mono leading-none">
+                        {analisi.percent}%
+                      </span>
+                      <span className={`text-[10px] font-bold font-mono px-2.5 py-0.5 rounded-full border mt-1.5 ${pacingAnalisi.badgeClass}`}>
+                        {pacingAnalisi.badge}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Pacing Feedback Banner for Analisi */}
+                  <div className={`p-3 rounded-2xl border text-xs leading-relaxed mb-4 bg-slate-950/80 ${pacingAnalisi.borderClass}`}>
+                    <div className="flex items-center justify-between mb-1 text-[11px] font-mono">
+                      <span className="text-slate-400">Target teorico a oggi: <strong>{pacingAnalisi.expectedHours}h</strong> ({pacingAnalisi.expectedPercent}%)</span>
+                      <span className={pacingAnalisi.textClass}>Svolte: <strong>{analisi.completedHours}h</strong></span>
+                    </div>
+                    <p className="text-slate-300 text-[11px]">
+                      {pacingAnalisi.message}
+                    </p>
+                  </div>
+
+                  {/* Progress Bar Analisi with Target Marker */}
+                  <div className="space-y-1.5 mb-4">
+                    <div className="relative w-full h-4 bg-slate-800/90 rounded-full overflow-hidden p-0.5 border border-slate-700/50">
+                      <div
+                        className="h-full bg-gradient-to-r from-indigo-500 to-indigo-400 rounded-full transition-all duration-700 ease-out shadow-sm shadow-indigo-500/50"
+                        style={{ width: `${Math.max(2, analisi.percent)}%` }}
+                      />
+                      {/* Expected Target Tick Marker */}
+                      {pacingAnalisi.expectedPercent > 0 && pacingAnalisi.expectedPercent < 100 && (
+                        <div
+                          className="absolute top-0 bottom-0 w-0.5 bg-amber-400 z-10 shadow-sm"
+                          style={{ left: `${pacingAnalisi.expectedPercent}%` }}
+                          title={`Target atteso a oggi: ${pacingAnalisi.expectedPercent}%`}
+                        />
+                      )}
+                    </div>
+                    <div className="flex justify-between text-xs text-slate-400 font-mono">
+                      <span>{analisi.completedHours}h completate ({analisi.completedCount} temi)</span>
+                      <span className="text-slate-300 font-semibold">{analisi.totalHours}h previste (32 temi)</span>
+                    </div>
+                  </div>
+
+                  {/* Detailed stats */}
+                  <div className="grid grid-cols-3 gap-2 pt-3 border-t border-slate-800/80 text-center">
+                    <div className="bg-slate-900/50 p-2.5 rounded-xl border border-slate-800">
+                      <div className="text-xs text-slate-400">Argomenti</div>
+                      <div className="text-sm font-bold text-white font-mono mt-0.5">
+                        {analisi.completedCount} / {analisi.totalCount}
+                      </div>
+                    </div>
+                    <div className="bg-slate-900/50 p-2.5 rounded-xl border border-slate-800">
+                      <div className="text-xs text-slate-400">Ore Residue</div>
+                      <div className="text-sm font-bold text-indigo-300 font-mono mt-0.5">
+                        {analisi.remainingHours}h
+                      </div>
+                    </div>
+                    <div className="bg-slate-900/50 p-2.5 rounded-xl border border-slate-800">
+                      <div className="text-xs text-slate-400">Esame Scritto</div>
+                      <div className="text-sm font-bold text-slate-200 mt-0.5">
+                        5-6 Esercizi
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 pt-3 border-t border-slate-800/60 flex items-center justify-between">
+                  <span className="text-xs text-slate-500">
+                    Focus: Taylor, Integrali, Studio Funzione, Serie
                   </span>
-                  <span className="text-xs text-slate-400">UNIMORE</span>
-                </div>
-                <h3 className="text-xl font-bold text-white mt-1">Stato Avanzamento Analisi</h3>
-              </div>
-              <div className="text-right flex flex-col items-end">
-                <span className="text-3xl font-black text-indigo-400 font-mono leading-none">
-                  {analisi.percent}%
-                </span>
-                <span className={`text-[10px] font-bold font-mono px-2.5 py-0.5 rounded-full border mt-1.5 ${pacingAnalisi.badgeClass}`}>
-                  {pacingAnalisi.badge}
-                </span>
-              </div>
-            </div>
-
-            {/* Pacing Feedback Banner for Analisi */}
-            <div className={`p-3 rounded-2xl border text-xs leading-relaxed mb-4 bg-slate-950/80 ${pacingAnalisi.borderClass}`}>
-              <div className="flex items-center justify-between mb-1 text-[11px] font-mono">
-                <span className="text-slate-400">Target teorico a oggi: <strong>{pacingAnalisi.expectedHours}h</strong> ({pacingAnalisi.expectedPercent}%)</span>
-                <span className={pacingAnalisi.textClass}>Svolte: <strong>{analisi.completedHours}h</strong></span>
-              </div>
-              <p className="text-slate-300 text-[11px]">
-                {pacingAnalisi.message}
-              </p>
-            </div>
-
-            {/* Progress Bar Analisi with Target Marker */}
-            <div className="space-y-1.5 mb-4">
-              <div className="relative w-full h-4 bg-slate-800/90 rounded-full overflow-hidden p-0.5 border border-slate-700/50">
-                <div
-                  className="h-full bg-gradient-to-r from-indigo-500 to-indigo-400 rounded-full transition-all duration-700 ease-out shadow-sm shadow-indigo-500/50"
-                  style={{ width: `${Math.max(2, analisi.percent)}%` }}
-                />
-                {/* Expected Target Tick Marker */}
-                {pacingAnalisi.expectedPercent > 0 && pacingAnalisi.expectedPercent < 100 && (
-                  <div
-                    className="absolute top-0 bottom-0 w-0.5 bg-amber-400 z-10 shadow-sm"
-                    style={{ left: `${pacingAnalisi.expectedPercent}%` }}
-                    title={`Target atteso a oggi: ${pacingAnalisi.expectedPercent}%`}
-                  />
-                )}
-              </div>
-              <div className="flex justify-between text-xs text-slate-400 font-mono">
-                <span>{analisi.completedHours}h completate ({analisi.completedCount} temi)</span>
-                <span className="text-slate-300 font-semibold">{analisi.totalHours}h previste (32 temi)</span>
-              </div>
-            </div>
-
-            {/* Detailed stats */}
-            <div className="grid grid-cols-3 gap-2 pt-3 border-t border-slate-800/80 text-center">
-              <div className="bg-slate-900/50 p-2.5 rounded-xl border border-slate-800">
-                <div className="text-xs text-slate-400">Argomenti</div>
-                <div className="text-sm font-bold text-white font-mono mt-0.5">
-                  {analisi.completedCount} / {analisi.totalCount}
+                  <button
+                    onClick={() => onTabChange("weekly")}
+                    className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition flex items-center gap-1"
+                  >
+                    Vedi orari Analisi →
+                  </button>
                 </div>
               </div>
-              <div className="bg-slate-900/50 p-2.5 rounded-xl border border-slate-800">
-                <div className="text-xs text-slate-400">Ore Residue</div>
-                <div className="text-sm font-bold text-indigo-300 font-mono mt-0.5">
-                  {analisi.remainingHours}h
-                </div>
-              </div>
-              <div className="bg-slate-900/50 p-2.5 rounded-xl border border-slate-800">
-                <div className="text-xs text-slate-400">Esame Scritto</div>
-                <div className="text-sm font-bold text-slate-200 mt-0.5">
-                  5-6 Esercizi
-                </div>
-              </div>
-            </div>
-          </div>
 
-          <div className="mt-4 pt-3 border-t border-slate-800/60 flex items-center justify-between">
-            <span className="text-xs text-slate-500">
-              Focus: Taylor, Integrali, Studio Funzione, Serie
-            </span>
-            <button
-              onClick={() => onTabChange("weekly")}
-              className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition flex items-center gap-1"
-            >
-              Vedi orari Analisi →
-            </button>
-          </div>
-        </div>
+              {/* Geometria Progress Card with Pacing Indicator */}
+              <div className="bg-gradient-to-b from-slate-900/90 to-slate-950/90 border border-teal-500/20 p-5 md:p-6 rounded-3xl shadow-xl shadow-teal-950/10 relative overflow-hidden flex flex-col justify-between">
+                <div>
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <div className="flex items-center space-x-2">
+                        <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-teal-500/20 text-teal-300 border border-teal-500/30">
+                          GEOMETRIA E ALGEBRA
+                        </span>
+                        <span className="text-xs text-slate-400">UNIMORE</span>
+                      </div>
+                      <h3 className="text-xl font-bold text-white mt-1">Stato Avanzamento Geometria</h3>
+                    </div>
+                    <div className="text-right flex flex-col items-end">
+                      <span className="text-3xl font-black text-teal-400 font-mono leading-none">
+                        {geometria.percent}%
+                      </span>
+                      <span className={`text-[10px] font-bold font-mono px-2.5 py-0.5 rounded-full border mt-1.5 ${pacingGeometria.badgeClass}`}>
+                        {pacingGeometria.badge}
+                      </span>
+                    </div>
+                  </div>
 
-        {/* Geometria Progress Card with Pacing Indicator */}
-        <div className="bg-gradient-to-b from-slate-900/90 to-slate-950/90 border border-teal-500/20 p-5 md:p-6 rounded-3xl shadow-xl shadow-teal-950/10 relative overflow-hidden flex flex-col justify-between">
-          <div>
-            <div className="flex items-start justify-between mb-3">
-              <div>
-                <div className="flex items-center space-x-2">
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-teal-500/20 text-teal-300 border border-teal-500/30">
-                    GEOMETRIA E ALGEBRA
+                  {/* Pacing Feedback Banner for Geometria */}
+                  <div className={`p-3 rounded-2xl border text-xs leading-relaxed mb-4 bg-slate-950/80 ${pacingGeometria.borderClass}`}>
+                    <div className="flex items-center justify-between mb-1 text-[11px] font-mono">
+                      <span className="text-slate-400">Target teorico a oggi: <strong>{pacingGeometria.expectedHours}h</strong> ({pacingGeometria.expectedPercent}%)</span>
+                      <span className={pacingGeometria.textClass}>Svolte: <strong>{geometria.completedHours}h</strong></span>
+                    </div>
+                    <p className="text-slate-300 text-[11px]">
+                      {pacingGeometria.message}
+                    </p>
+                  </div>
+
+                  {/* Progress Bar Geometria with Target Marker */}
+                  <div className="space-y-1.5 mb-4">
+                    <div className="relative w-full h-4 bg-slate-800/90 rounded-full overflow-hidden p-0.5 border border-slate-700/50">
+                      <div
+                        className="h-full bg-gradient-to-r from-teal-500 to-teal-400 rounded-full transition-all duration-700 ease-out shadow-sm shadow-teal-500/50"
+                        style={{ width: `${Math.max(2, geometria.percent)}%` }}
+                      />
+                      {/* Expected Target Tick Marker */}
+                      {pacingGeometria.expectedPercent > 0 && pacingGeometria.expectedPercent < 100 && (
+                        <div
+                          className="absolute top-0 bottom-0 w-0.5 bg-amber-400 z-10 shadow-sm"
+                          style={{ left: `${pacingGeometria.expectedPercent}%` }}
+                          title={`Target atteso a oggi: ${pacingGeometria.expectedPercent}%`}
+                        />
+                      )}
+                    </div>
+                    <div className="flex justify-between text-xs text-slate-400 font-mono">
+                      <span>{geometria.completedHours}h completate ({geometria.completedCount} temi)</span>
+                      <span className="text-slate-300 font-semibold">{geometria.totalHours}h previste (31 temi)</span>
+                    </div>
+                  </div>
+
+                  {/* Detailed stats */}
+                  <div className="grid grid-cols-3 gap-2 pt-3 border-t border-slate-800/80 text-center">
+                    <div className="bg-slate-900/50 p-2.5 rounded-xl border border-slate-800">
+                      <div className="text-xs text-slate-400">Argomenti</div>
+                      <div className="text-sm font-bold text-white font-mono mt-0.5">
+                        {geometria.completedCount} / {geometria.totalCount}
+                      </div>
+                    </div>
+                    <div className="bg-slate-900/50 p-2.5 rounded-xl border border-slate-800">
+                      <div className="text-xs text-slate-400">Ore Residue</div>
+                      <div className="text-sm font-bold text-teal-300 font-mono mt-0.5">
+                        {geometria.remainingHours}h
+                      </div>
+                    </div>
+                    <div className="bg-slate-900/50 p-2.5 rounded-xl border border-slate-800">
+                      <div className="text-xs text-slate-400">Test Scritto</div>
+                      <div className="text-sm font-bold text-slate-200 mt-0.5">
+                        11 Domande Quiz
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 pt-3 border-t border-slate-800/60 flex items-center justify-between">
+                  <span className="text-xs text-slate-500">
+                    Focus: Rouché-Capelli, Autovalori, Coniche, Spazi Vettoriali
                   </span>
-                  <span className="text-xs text-slate-400">UNIMORE</span>
-                </div>
-                <h3 className="text-xl font-bold text-white mt-1">Stato Avanzamento Geometria</h3>
-              </div>
-              <div className="text-right flex flex-col items-end">
-                <span className="text-3xl font-black text-teal-400 font-mono leading-none">
-                  {geometria.percent}%
-                </span>
-                <span className={`text-[10px] font-bold font-mono px-2.5 py-0.5 rounded-full border mt-1.5 ${pacingGeometria.badgeClass}`}>
-                  {pacingGeometria.badge}
-                </span>
-              </div>
-            </div>
-
-            {/* Pacing Feedback Banner for Geometria */}
-            <div className={`p-3 rounded-2xl border text-xs leading-relaxed mb-4 bg-slate-950/80 ${pacingGeometria.borderClass}`}>
-              <div className="flex items-center justify-between mb-1 text-[11px] font-mono">
-                <span className="text-slate-400">Target teorico a oggi: <strong>{pacingGeometria.expectedHours}h</strong> ({pacingGeometria.expectedPercent}%)</span>
-                <span className={pacingGeometria.textClass}>Svolte: <strong>{geometria.completedHours}h</strong></span>
-              </div>
-              <p className="text-slate-300 text-[11px]">
-                {pacingGeometria.message}
-              </p>
-            </div>
-
-            {/* Progress Bar Geometria with Target Marker */}
-            <div className="space-y-1.5 mb-4">
-              <div className="relative w-full h-4 bg-slate-800/90 rounded-full overflow-hidden p-0.5 border border-slate-700/50">
-                <div
-                  className="h-full bg-gradient-to-r from-teal-500 to-teal-400 rounded-full transition-all duration-700 ease-out shadow-sm shadow-teal-500/50"
-                  style={{ width: `${Math.max(2, geometria.percent)}%` }}
-                />
-                {/* Expected Target Tick Marker */}
-                {pacingGeometria.expectedPercent > 0 && pacingGeometria.expectedPercent < 100 && (
-                  <div
-                    className="absolute top-0 bottom-0 w-0.5 bg-amber-400 z-10 shadow-sm"
-                    style={{ left: `${pacingGeometria.expectedPercent}%` }}
-                    title={`Target atteso a oggi: ${pacingGeometria.expectedPercent}%`}
-                  />
-                )}
-              </div>
-              <div className="flex justify-between text-xs text-slate-400 font-mono">
-                <span>{geometria.completedHours}h completate ({geometria.completedCount} temi)</span>
-                <span className="text-slate-300 font-semibold">{geometria.totalHours}h previste (31 temi)</span>
-              </div>
-            </div>
-
-            {/* Detailed stats */}
-            <div className="grid grid-cols-3 gap-2 pt-3 border-t border-slate-800/80 text-center">
-              <div className="bg-slate-900/50 p-2.5 rounded-xl border border-slate-800">
-                <div className="text-xs text-slate-400">Argomenti</div>
-                <div className="text-sm font-bold text-white font-mono mt-0.5">
-                  {geometria.completedCount} / {geometria.totalCount}
-                </div>
-              </div>
-              <div className="bg-slate-900/50 p-2.5 rounded-xl border border-slate-800">
-                <div className="text-xs text-slate-400">Ore Residue</div>
-                <div className="text-sm font-bold text-teal-300 font-mono mt-0.5">
-                  {geometria.remainingHours}h
-                </div>
-              </div>
-              <div className="bg-slate-900/50 p-2.5 rounded-xl border border-slate-800">
-                <div className="text-xs text-slate-400">Test Scritto</div>
-                <div className="text-sm font-bold text-slate-200 mt-0.5">
-                  11 Domande Quiz
+                  <button
+                    onClick={() => onTabChange("weekly")}
+                    className="text-xs font-semibold text-teal-400 hover:text-teal-300 transition flex items-center gap-1"
+                  >
+                    Vedi orari Geometria →
+                  </button>
                 </div>
               </div>
             </div>
-          </div>
 
-          <div className="mt-4 pt-3 border-t border-slate-800/60 flex items-center justify-between">
-            <span className="text-xs text-slate-500">
-              Focus: Rouché-Capelli, Autovalori, Coniche, Spazi Vettoriali
-            </span>
-            <button
-              onClick={() => onTabChange("weekly")}
-              className="text-xs font-semibold text-teal-400 hover:text-teal-300 transition flex items-center gap-1"
-            >
-              Vedi orari Geometria →
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Agile / Scrum Burndown Progress Chart (Punto 18) */}
-      <BurndownChart
-        metrics={metrics}
-        progress={progress}
-        settings={settings}
-      />
-
-      {/* AI Study Tools Row (Phase 2 Refactoring) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        {/* Tool 1: NeuraDeck Flashcards (NotebookLM) */}
-        <div className="bg-gradient-to-br from-slate-900/90 via-slate-900/70 to-cyan-950/40 border border-cyan-500/30 p-5 md:p-6 rounded-3xl shadow-xl shadow-cyan-950/20 relative overflow-hidden flex flex-col justify-between group hover:border-cyan-500/50 transition">
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center space-x-2">
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-                  NotebookLM • CSV Raw
-                </span>
-                <span className="text-[10px] text-slate-400 font-mono">Fase 2 AI</span>
-              </div>
-              <div className="p-2 bg-cyan-500/10 text-cyan-400 rounded-xl group-hover:scale-110 transition">
-                <IconSparkles className="w-5 h-5" />
-              </div>
-            </div>
-
-            <h4 className="text-lg font-bold text-white">Generatore Flashcard NeuraDeck</h4>
-            <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-              Filtra in automatico gli argomenti completati nell'ultima settimana e compone il prompt ottimizzato per NotebookLM per estrarre le flashcard nel formato <code>Fronte,Retro</code> pronto all'import.
-            </p>
-          </div>
-
-          <div className="mt-5 pt-4 border-t border-slate-800/80 flex items-center justify-between">
-            <span className="text-[11px] text-cyan-400/80 font-mono">
-              Analisi 1 & Geometria
-            </span>
-            <button
-              type="button"
-              onClick={() => setIsFlashcardsOpen(true)}
-              className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-slate-950 font-bold rounded-xl text-xs flex items-center space-x-1.5 shadow-lg shadow-cyan-500/20 transition active:scale-95"
-            >
-              <IconSparkles className="w-4 h-4 text-slate-950" />
-              <span>Genera Flashcard</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Tool 2: Exam Simulator (Claude / ChatGPT) */}
-        <div className="bg-gradient-to-br from-slate-900/90 via-slate-900/70 to-indigo-950/40 border border-indigo-500/30 p-5 md:p-6 rounded-3xl shadow-xl shadow-indigo-950/20 relative overflow-hidden flex flex-col justify-between group hover:border-indigo-500/50 transition">
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center space-x-2">
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                  UNIMORE Scritto • 120m/90m
-                </span>
-                <span className="text-[10px] text-slate-400 font-mono">Priorità ≥ 3</span>
-              </div>
-              <div className="p-2 bg-indigo-500/10 text-indigo-400 rounded-xl group-hover:scale-110 transition">
-                <IconDice className="w-5 h-5" />
-              </div>
-            </div>
-
-            <h4 className="text-lg font-bold text-white">Simulatore d'Esame Live</h4>
-            <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-              Estrae compiti ufficiali cronometrati (120m per Analisi, 90m per Geometria), fornisce autovalutazione passaggio per passaggio e stima il voto d'esame in trentesimi (/30).
-            </p>
-          </div>
-
-          <div className="mt-5 pt-4 border-t border-slate-800/80 flex items-center justify-between">
-            <span className="text-[11px] text-indigo-400/80 font-mono">
-              6 Esercizi o 11 Quiz
-            </span>
-            <button
-              type="button"
-              onClick={() => setIsExamSimulatorOpen(true)}
-              className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-bold rounded-xl text-xs flex items-center space-x-1.5 shadow-lg shadow-indigo-500/20 transition active:scale-95"
-            >
-              <IconDice className="w-4 h-4 text-white" />
-              <span>Avvia Simulazione</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Tool 3: Math Bug Tracker (Registro Errori) */}
-        <div className="bg-gradient-to-br from-slate-900/90 via-slate-900/70 to-rose-950/40 border border-rose-500/30 p-5 md:p-6 rounded-3xl shadow-xl shadow-rose-950/20 relative overflow-hidden flex flex-col justify-between group hover:border-rose-500/50 transition">
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center space-x-2">
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-rose-500/20 text-rose-300 border border-rose-500/30">
-                  Anti-Trabocchetto
-                </span>
-                <span className="text-[10px] text-rose-300 font-mono">
-                  {mathBugs.filter(b => !b.isResolved).length} aperti
-                </span>
-              </div>
-              <div className="p-2 bg-rose-500/10 text-rose-400 rounded-xl group-hover:scale-110 transition">
-                <IconBug className="w-5 h-5" />
-              </div>
-            </div>
-
-            <h4 className="text-lg font-bold text-white">Bug Tracker Matematico</h4>
-            <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-              Traccia e debella gli errori ricorrenti commessi durante gli esercizi (segni nei determinanti, o-piccolo di Taylor, ipotesi di De L'Hôpital) prima dell'appello d'esame.
-            </p>
-          </div>
-
-          <div className="mt-5 pt-4 border-t border-slate-800/80 flex items-center justify-between">
-            <span className="text-[11px] text-emerald-400 font-mono">
-              {mathBugs.filter(b => b.isResolved).length} padroneggiati
-            </span>
-            <button
-              type="button"
-              onClick={onOpenBugTracker}
-              className="px-4 py-2 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold rounded-xl text-xs flex items-center space-x-1.5 shadow-lg shadow-rose-600/20 transition active:scale-95"
-            >
-              <IconBug className="w-4 h-4 text-white" />
-              <span>Apri Bug Tracker</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Global Progress Strip */}
-      <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 md:p-5 flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="flex items-center space-x-3.5 w-full md:w-auto">
-          <div className="p-3 bg-gradient-to-tr from-cyan-500 to-indigo-500 rounded-xl text-white shadow-md">
-            <IconBookOpen className="w-5 h-5" />
-          </div>
-          <div>
-            <h4 className="text-sm font-bold text-white">Riepilogo Globale del Piano di Studio</h4>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Totale {global.totalCount} argomenti ({global.completedCount} completati, {metrics.uncompletedCount} rimanenti).
-            </p>
-          </div>
-        </div>
-
-        <div className="w-full md:w-72 space-y-1.5">
-          <div className="flex justify-between text-xs text-slate-300 font-medium">
-            <span>Avanzamento Totale</span>
-            <span className="font-mono text-cyan-400">{global.percent}%</span>
-          </div>
-          <div className="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-emerald-400 via-cyan-400 to-indigo-500 rounded-full transition-all duration-500"
-              style={{ width: `${Math.max(2, global.percent)}%` }}
+            {/* Agile / Scrum Burndown Progress Chart (Punto 18) */}
+            <BurndownChart
+              metrics={metrics}
+              progress={progress}
+              settings={settings}
             />
+
+            {/* AI Study Tools Row (Phase 2 Refactoring) */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              {/* Tool 1: NeuraDeck Flashcards (NotebookLM) */}
+              <div className="bg-gradient-to-br from-slate-900/90 via-slate-900/70 to-cyan-950/40 border border-cyan-500/30 p-5 md:p-6 rounded-3xl shadow-xl shadow-cyan-950/20 relative overflow-hidden flex flex-col justify-between group hover:border-cyan-500/50 transition">
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center space-x-2">
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                        NotebookLM • CSV Raw
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-mono">Fase 2 AI</span>
+                    </div>
+                    <div className="p-2 bg-cyan-500/10 text-cyan-400 rounded-xl group-hover:scale-110 transition">
+                      <IconSparkles className="w-5 h-5" />
+                    </div>
+                  </div>
+
+                  <h4 className="text-lg font-bold text-white">Generatore Flashcard NeuraDeck</h4>
+                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                    Filtra in automatico gli argomenti completati nell'ultima settimana e compone il prompt ottimizzato per NotebookLM per estrarre le flashcard nel formato <code>Fronte,Retro</code> pronto all'import.
+                  </p>
+                </div>
+
+                <div className="mt-5 pt-4 border-t border-slate-800/80 flex items-center justify-between">
+                  <span className="text-[11px] text-cyan-400/80 font-mono">
+                    Analisi 1 & Geometria
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsFlashcardsOpen(true)}
+                    className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-slate-950 font-bold rounded-xl text-xs flex items-center space-x-1.5 shadow-lg shadow-cyan-500/20 transition active:scale-95"
+                  >
+                    <IconSparkles className="w-4 h-4 text-slate-950" />
+                    <span>Genera Flashcard</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Tool 2: Exam Simulator (Claude / ChatGPT) */}
+              <div className="bg-gradient-to-br from-slate-900/90 via-slate-900/70 to-indigo-950/40 border border-indigo-500/30 p-5 md:p-6 rounded-3xl shadow-xl shadow-indigo-950/20 relative overflow-hidden flex flex-col justify-between group hover:border-indigo-500/50 transition">
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center space-x-2">
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                        UNIMORE Scritto • 120m/90m
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-mono">Priorità ≥ 3</span>
+                    </div>
+                    <div className="p-2 bg-indigo-500/10 text-indigo-400 rounded-xl group-hover:scale-110 transition">
+                      <IconDice className="w-5 h-5" />
+                    </div>
+                  </div>
+
+                  <h4 className="text-lg font-bold text-white">Simulatore d'Esame Live</h4>
+                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                    Estrae compiti ufficiali cronometrati (120m per Analisi, 90m per Geometria), fornisce autovalutazione passaggio per passaggio e stima il voto d'esame in trentesimi (/30).
+                  </p>
+                </div>
+
+                <div className="mt-5 pt-4 border-t border-slate-800/80 flex items-center justify-between">
+                  <span className="text-[11px] text-indigo-400/80 font-mono">
+                    6 Esercizi o 11 Quiz
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsExamSimulatorOpen(true)}
+                    className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-bold rounded-xl text-xs flex items-center space-x-1.5 shadow-lg shadow-indigo-500/20 transition active:scale-95"
+                  >
+                    <IconDice className="w-4 h-4 text-white" />
+                    <span>Avvia Simulazione</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Tool 3: Math Bug Tracker (Registro Errori) */}
+              <div className="bg-gradient-to-br from-slate-900/90 via-slate-900/70 to-rose-950/40 border border-rose-500/30 p-5 md:p-6 rounded-3xl shadow-xl shadow-rose-950/20 relative overflow-hidden flex flex-col justify-between group hover:border-rose-500/50 transition">
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center space-x-2">
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                        Anti-Trabocchetto
+                      </span>
+                      <span className="text-[10px] text-rose-300 font-mono">
+                        {mathBugs.filter(b => !b.isResolved).length} aperti
+                      </span>
+                    </div>
+                    <div className="p-2 bg-rose-500/10 text-rose-400 rounded-xl group-hover:scale-110 transition">
+                      <IconBug className="w-5 h-5" />
+                    </div>
+                  </div>
+
+                  <h4 className="text-lg font-bold text-white">Bug Tracker Matematico</h4>
+                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                    Traccia e debella gli errori ricorrenti commessi durante gli esercizi (segni nei determinanti, o-piccolo di Taylor, ipotesi di De L'Hôpital) prima dell'appello d'esame.
+                  </p>
+                </div>
+
+                <div className="mt-5 pt-4 border-t border-slate-800/80 flex items-center justify-between">
+                  <span className="text-[11px] text-emerald-400 font-mono">
+                    {mathBugs.filter(b => b.isResolved).length} padroneggiati
+                  </span>
+                  <button
+                    type="button"
+                    onClick={onOpenBugTracker}
+                    className="px-4 py-2 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold rounded-xl text-xs flex items-center space-x-1.5 shadow-lg shadow-rose-600/20 transition active:scale-95"
+                  >
+                    <IconBug className="w-4 h-4 text-white" />
+                    <span>Apri Bug Tracker</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Global Progress Strip */}
+            <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 md:p-5 flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="flex items-center space-x-3.5 w-full md:w-auto">
+                <div className="p-3 bg-gradient-to-tr from-cyan-500 to-indigo-500 rounded-xl text-white shadow-md">
+                  <IconBookOpen className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-white">Riepilogo Globale del Piano di Studio</h4>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Totale {global.totalCount} argomenti ({global.completedCount} completati, {metrics.uncompletedCount} rimanenti).
+                  </p>
+                </div>
+              </div>
+
+              <div className="w-full md:w-72 space-y-1.5">
+                <div className="flex justify-between text-xs text-slate-300 font-medium">
+                  <span>Avanzamento Totale</span>
+                  <span className="font-mono text-cyan-400">{global.percent}%</span>
+                </div>
+                <div className="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-emerald-400 via-cyan-400 to-indigo-500 rounded-full transition-all duration-500"
+                    style={{ width: `${Math.max(2, global.percent)}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+
           </div>
-        </div>
-      </div>
+        )}
+      </section>
 
       {/* Interactive Tool Modals */}
       <NeuraDeckPromptGenerator

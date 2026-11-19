@@ -103,7 +103,7 @@ export function ExerciseOutcomeInput({ exercises, onChange, confidence, onConfid
  * Modalità Stasera: una sola azione chiara. Un tocco avvia il timer sull'argomento
  * giusto; alla fine la sessione viene registrata da sola e si chiedono solo gli esiti.
  */
-export function TonightFocus({ focus, settings, onLogStudySession, onOpenTopicDetail, onOpenLogModal }) {
+export function TonightFocus({ focus, settings, onLogStudySession, onOpenTopicDetail, onOpenLogModal, reviewsDue = 0, reviewsOverdue = 0, onOpenReviews }) {
   const [timer, setTimer] = useState(readStoredTimer);
   const [now, setNow] = useState(Date.now());
   const [isWrapUp, setIsWrapUp] = useState(false);
@@ -298,6 +298,15 @@ export function TonightFocus({ focus, settings, onLogStudySession, onOpenTopicDe
           <button type="button" onClick={() => onOpenTopicDetail(topic.id)}
             className="self-start mt-1 text-[13px] font-medium text-accent-ink flex items-center gap-1 hover:underline">
             <IconBookOpen className="w-3.5 h-3.5" /> Scheda dell'argomento
+          </button>
+        )}
+        {reviewsDue > 0 && onOpenReviews && (
+          <button type="button" onClick={onOpenReviews}
+            className="self-start mt-1 text-[13px] font-medium text-ink-2 flex items-center gap-1.5 hover:text-ink">
+            <span className={`w-1.5 h-1.5 rounded-full ${reviewsOverdue > 0 ? "bg-warn" : "bg-accent"}`} aria-hidden="true" />
+            {reviewsDue === 1 ? "1 ripasso da fare" : `${reviewsDue} ripassi da fare`}
+            {reviewsOverdue > 0 && <span className="text-warn-ink">({reviewsOverdue} in arretrato)</span>}
+            <span aria-hidden="true">→</span>
           </button>
         )}
       </div>
