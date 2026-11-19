@@ -204,7 +204,7 @@ All'avvio gli argomenti salvati passano da `restoreOfficialNotes()`, che ripara 
 | Stessa origine (app, bundle, vendor) | Network-first con ripiego sulla cache; per una navigazione offline restituisce `index.html`. |
 | Altre origini (CDN di fallback) | Cache-first. |
 
-La regola sulle API è essenziale: servire dalla cache le letture GitLab restituirebbe per sempre il primo stato scaricato. Quando si cambiano le regole di caching va incrementato `CACHE_NAME` (attualmente `studiplanner-v3`), così l'evento `activate` elimina le cache precedenti.
+La regola sulle API è essenziale: servire dalla cache le letture GitLab restituirebbe per sempre il primo stato scaricato. Quando si cambiano le regole di caching va incrementato `CACHE_NAME` (attualmente `studiplanner-v4`), così l'evento `activate` elimina le cache precedenti.
 
 ---
 
@@ -212,7 +212,9 @@ La regola sulle API è essenziale: servire dalla cache le letture GitLab restitu
 
 ```
 App
-├── Header: data attiva (◀ ▶, Oggi Reale), conto alla rovescia, badge GitLab, impostazioni
+├── Sidebar (lg+): sezioni, materie, strumenti (Formulario, Split PDF, Bug Tracker, Impostazioni), stato sync
+├── Barra strumenti: giorni all'esame, data attiva (‹ Oggi: gg/mm ›, Oggi Reale), Registra studio
+├── Tab bar iOS (mobile): Oggi, Settimana, + Studio, Storico, Catalogo, Sync
 ├── Tab
 │   ├── Dashboard ── BurndownChart, NeuraDeckPromptGenerator, ExamSimulator
 │   ├── WeeklyTodo ── Pomodoro, Time Shifter, Emergenza lavoro, Bootcamp, Ripasso express

@@ -21,11 +21,13 @@ L'interfaccia utente è interamente ottimizzata per il profilo di uno **studente
 flowchart TD
     App["App (src/app.js)"]
     
-    %% Header & Global Controls
-    Header["Top Header & Navigation Bar"]
-    App --> Header
+    %% Shell: sidebar, barra strumenti, tab bar
+    Sidebar["Sidebar macOS (lg+)"]
+    Toolbar["Barra strumenti (header sticky)"]
+    App --> Sidebar
+    App --> Toolbar
     App --> MainContainer["Main Container (Tabs & Split View)"]
-    App --> BottomNav["Mobile Bottom Navigation Bar"]
+    App --> BottomNav["Tab bar iOS (mobile e tablet)"]
     
     %% Tab Views
     MainContainer --> TabDash["Dashboard (activeTab == 'dashboard')"]
@@ -56,27 +58,43 @@ flowchart TD
 
 ---
 
-## 2. Design System & Dark Mode
+## 2. Design System: "Calma, stile Apple"
 
-L'identità visiva dell'applicazione è fondata su un tema Dark Mode immersivo e coerente, implementato tramite **Tailwind CSS** e arricchito da tinte semantiche calibrate per evitare l'affaticamento visivo durante le sessioni di studio notturne.
+Il tema è chiaro, con superfici bianche su fondo grigio caldo, colori di sistema Apple e tipografia di sistema (SF Pro su Apple, Segoe UI Variable su Windows, Inter come ripiego). Il riferimento visivo è il mockup "1b · Calma, stile Apple" sul canvas di design.
 
-### 2.1 Tavolozza Colori Semantica (Color Palette)
+### 2.1 Come funziona il tema
 
-| Ambito Semantico | Valore Esadecimale | Classi Tailwind Chiave | Utilizzo nell'Interfaccia |
+Il tema vive interamente in `index.html`, nel blocco `tailwind.config` e nello `<style>` che lo segue:
+
+- **Palette rimappata.** I componenti storici erano scritti per un tema scuro. Invece di riscriverli tutti, la configurazione di Tailwind rimappa le scale di colore:
+  - `slate` (e `gray`, `zinc`, ...) è **invertita**: `slate-900` = card bianche, `slate-950` = fondo `#F5F5F7`, `slate-800`/`700` = separatori, `slate-100`–`300` = inchiostro.
+  - `white` diventa l'inchiostro principale `#1D1D1F`, quindi `text-white` resta leggibile su fondo chiaro.
+  - Le tinte accese diventano i colori di sistema Apple: `500`–`700` colore pieno, `50`–`400` inchiostro leggibile, `800`–`950` tinte chiare per badge e superfici. `cyan`/`blue` → blu `#0071E3`, `emerald`/`green` → verde, `amber` → arancione, `rose`/`red` → rosso, `indigo` → `#5E5CE6`, `teal` → `#0A9396`.
+- **Testo bianco sui pieni.** Un piccolo script genera le regole che riportano il testo a bianco su `bg-{tinta}-500/600/700`.
+- **Niente gradienti né bagliori.** I `bg-gradient-to-*` diventano superfici piatte col colore iniziale; le ombre colorate diventano ombre neutre.
+- **Numeri tabulari.** `.font-mono` usa il font di sistema con cifre tabulari, senza l'aspetto "da terminale".
+
+Il codice nuovo usa i **token semantici**: `ink` / `ink-2` / `ink-3`, `canvas`, `paper` (bianco vero), `surface`, `sidebar`, `fill`, `hair`, `accent` (con `-hover`, `-ink`, `-tint`), `analisi`, `geometria`, `ok`, `warn`, `danger`. Sono disponibili anche le ombre `shadow-card`, `shadow-float`, `shadow-seg` e le classi `.large-title`, `.eyebrow`, `.vibrancy`, `.tabular`.
+
+### 2.2 Colori semantici
+
+| Ambito | Colore | Classi | Uso |
 | :--- | :--- | :--- | :--- |
-| **Sfondo Principale (Background)** | `#070b14` | `bg-[#070b14]`, `bg-slate-950` | Body, canvas principale, sfondi dei modali e barre di navigazione |
-| **Superficie Card & Modali** | `#0f172a` / `#111827` | `bg-slate-900/80`, `bg-slate-950/90` | Contenitori, card, finestre di dialogo, tabelle con `backdrop-blur-md` |
-| **Bordi & Separatori** | `#1e293b` / `#334155` | `border-slate-800/80`, `border-slate-700/50` | Contorni dei componenti, divisori di riga e input |
-| **Analisi Matematica 1** | `#10b981` (Emerald) / `#14b8a6` (Teal) | `text-emerald-400`, `bg-emerald-500/20`, `border-emerald-500/30` | Badge Analisi, barre di avanzamento, pulsanti d'azione positiva |
-| **Geometria e Algebra Lineare** | `#6366f1` (Indigo) / `#8b5cf6` (Purple) | `text-indigo-400`, `bg-indigo-500/20`, `border-indigo-500/30` | Badge Geometria, blocco weekend, grafici e accenti di secondo ordine |
-| **Allerte & Fabbisogno Critico** | `#f43f5e` (Rose) | `text-rose-400`, `bg-rose-950/40`, `border-rose-500/40` | Superamento soglia 25h/settimana, errori, ripassi scaduti |
-| **Buffer & Attenzione** | `#f59e0b` (Amber) | `text-amber-400`, `bg-amber-500/20`, `border-amber-500/30` | Badge +20% Buffer, giorni saltati, streak di studio |
-| **Azioni Primarie & Timer** | `#06b6d4` (Cyan) | `text-cyan-400`, `bg-cyan-500/20`, `ring-cyan-500/40` | Giorno "Oggi", timer Pomodoro, indicatori di focus |
+| Fondo | `#F5F5F7` | `bg-canvas`, `bg-slate-950` | Corpo della pagina |
+| Card | `#FFFFFF` | `bg-paper`, `bg-slate-900` | Card con raggio 16–20 px e `shadow-card` |
+| Inchiostro | `#1D1D1F` / `#6E6E73` | `text-ink`, `text-ink-2` | Testo principale e secondario |
+| Accento | `#0071E3` | `bg-accent`, `bg-accent-tint`, `text-accent-ink` | Azione principale, giorno attivo, link |
+| Analisi I | `#5E5CE6` | `indigo-*`, `analisi` | Badge, barre e filtri di Analisi |
+| Geometria | `#0A9396` | `teal-*`, `geometria` | Badge, barre e filtri di Geometria |
+| Esito positivo | `#34C759` | `emerald-*`, `ok` | Completato, sincronizzato |
+| Attenzione | `#FF9F0A` | `amber-*`, `warn` | Buffer +20%, giorni saltati, costanza |
+| Critico | `#FF3B30` | `rose-*`, `danger` | Soglia superata, errori |
 
-### 2.2 Micro-Interazioni e Feedback Visivo
-- **Trasparenze e Backdrop Blur:** Tutte le superfici flottanti (Header, Card, Modali) utilizzano `backdrop-blur-md` o `backdrop-blur-xl` su sfondi con opacità al 80-90% per conservare la profondità visiva.
-- **Transizioni di Pressione (`active:scale-95`):** Tutti i pulsanti interattivi (stepper, registrazione ore, checkbox completamento) riducono istantaneamente la scala al tocco o al click per un feeling nativo.
-- **Indicatore Temporale Dinamico:** La data corrente ("Oggi") è costantemente evidenziata da un anello luminoso `ring-1 ring-cyan-500/40` e da animazioni sottili `animate-pulse-subtle`.
+### 2.3 Micro-interazioni
+- **Vetro smerigliato** (`.vibrancy`) su barra strumenti e tab bar mobile.
+- **Controlli segmentati** con fondo `bg-fill` e pillola bianca selezionata (selettore della data).
+- **Pressione** `active:scale-[0.97]` sui pulsanti principali.
+- **Focus** visibile con anello blu a 3 px su tutti i controlli.
 
 ---
 
@@ -85,21 +103,22 @@ L'identità visiva dell'applicazione è fondata su un tema Dark Mode immersivo e
 L'architettura di navigazione gestisce il routing interamente nello stato React di `App.js` tramite la variabile di stato `activeTab`.
 
 ### 3.1 Flusso di Navigazione Desktop e Mobile
-1. **Desktop Header (`sticky top-0 z-40`):**
-   - **Branding:** Logo StudiPlanner con gradiente ciano-indaco e tag "UNIMORE Ingegneria".
-   - **Tab Switcher:** Pill centrale a 5 vie (`dashboard`, `weekly`, `history`, `topics`, `import`).
-   - **Quick Action Bar:**
-     - Pulsante rapido `+ Registra Studio` (apre `LogStudyModal`).
-     - Pulsante `📐 Formulario [F2]` (apre `MathFormulaDrawer`).
-     - Pulsante `📖 Split PDF` (attiva la modalità affiancata responsive a 12 colonne).
-     - Indicatori di stato real-time per GitLab Cloud Sync e File System Access API.
-     - Pill di simulazione data (stepper `◀` / `▶` e pulsante `Oggi Reale`).
-     - Countdown esame in giorni (`metrics.remainingDays`).
-     - Pulsante installazione PWA (se non in modalità standalone).
-     - Pulsante parametri e impostazioni (`isSettingsOpen`).
-2. **Mobile Bottom Navigation Bar (`fixed bottom-0 z-40 lg:hidden`):**
-   - Barra a 5 icone con etichette testuali compatte.
-   - Pulsante circolare sopraelevato centrale (`+ Studio`) per il logging rapido con una sola mano da smartphone.
+Le voci di navigazione sono definite una sola volta in `NAV_ITEMS` (`src/app.js`), con etichetta completa, etichetta breve e colore dell'icona.
+
+1. **Sidebar macOS (`lg` e oltre, `sticky`, 248 px):**
+   - Marchio StudiPlanner (`h1`).
+   - **Sezioni** (`<nav>`): Dashboard, To-Do Settimanale, Storico & Diario, Catalogo Argomenti (con contatore `completati/totali`), Import / Sync. Ogni voce ha l'icona in un quadrato colorato.
+   - **Materie:** Analisi I e Geometria con il conteggio degli argomenti chiusi; portano al catalogo.
+   - **Strumenti:** Formulario (F2), interruttore "Dispense affiancate" (Split PDF), Errori ricorrenti (Bug Tracker), Impostazioni, Installa app (solo fuori dalla modalità standalone).
+   - **Stato della sincronizzazione** in fondo: GitLab, file collegato o "Solo su questo dispositivo".
+2. **Barra strumenti (`<header>` sticky, 52 px):**
+   - Giorni all'esame (`metrics.remainingDays`).
+   - Selettore della data attiva: `‹` / `Oggi: gg/mm` / `›`, più `Oggi Reale` quando la data è simulata.
+   - Pulsante `Registra studio` (apre `LogStudyModal`).
+   - Su mobile: marchio, Formulario e Impostazioni.
+3. **Tab bar iOS (`fixed bottom-0 lg:hidden`):**
+   - Oggi, Settimana, **+ Studio** (pulsante circolare centrale), Storico, Catalogo, Sync.
+4. **Titoli grandi:** ogni scheda apre con un titolo grande (`PAGE_HEADINGS`); la Dashboard ha la propria intestazione con la data.
 
 ```mermaid
 stateDiagram-v2
@@ -149,6 +168,8 @@ stateDiagram-v2
 | `onToggleSpacedReview` | `Function` | Callback `(topicId, levelKey, isDone) => void` per marcare un ripasso ciclico |
 | `mathBugs` | `Array<Object>` | Lista dei trabocchetti matematici registrati nel Bug Tracker |
 | `onOpenBugTracker` | `Function` | Callback per aprire il modal del Math Bug Tracker |
+| `currentWeekPlan` | `Object \| null` | Settimana che contiene la data attiva (`rebalancedPlan.currentWeekPlan`), per l'anello "Settimana" |
+| `todayPlan` | `Object \| null` | Giorno attivo del calendario (`calendarDays` con `isToday`), per il titolo "Oggi, N ore di studio" |
 
 #### Stato Interno
 - `isFlashcardsOpen` (`boolean`): Controlla l'apertura del generatore flashcard NeuraDeck.
@@ -162,16 +183,15 @@ stateDiagram-v2
    - $\Delta_{\text{ore}} \ge +0.8\text{h}$: Badge `🚀 In Vantaggio` (Emerald).
    - $-1.5\text{h} \le \Delta_{\text{ore}} < +0.8\text{h}$: Badge `🎯 Al Passo (Allineato)` (Cyan).
    - $\Delta_{\text{ore}} < -1.5\text{h}$: Badge `⚠️ In Ritardo` (Amber).
-2. **Spaced Repetition Alert Banner:** Compare automaticamente se ci sono ripassi teorici in scadenza oggi o arretrati (Curva di Ebbinghaus $R_1, R_2, R_3$).
-3. **Fila Card KPI (4 metriche critiche):**
-   - *Target Esame:* Giorni e settimane rimanenti al 10 Gennaio 2027.
-   - *Fabbisogno Settimanale:* Ore/settimana necessarie con banner dinamico in caso di superamento della soglia critica (25h).
-   - *Ore Residue:* Ore rimanenti comprensive della quota buffer (+20%).
-   - *Completamento Globale:* Percentuale totale su ore e temi completati.
-4. **Centrale della Costanza (Streak & Titoli UNIMORE):**
-   Traccia la serie di giorni consecutivi di studio (es. *Innesco Serale*, *Fiamma di Costanza*, *Resilienza Lavoratore d'Acciaio*, *Maestro della Disciplina UNIMORE*, *Leggenda Vivente UNIMORE*), progresso verso il livello successivo e citazione motivazionale quotidiana.
-5. **Previsione Esame & Voto Atteso (Modello Euristico):**
-   Visualizza la probabilità di superamento stimata (0-100%), il voto atteso in trentesimi (es. "27 - 29/30"), il tasso di costanza nelle sere feriali e l'indice di completamento didattico.
+2. **Intestazione:** data attiva in maiuscoletto e titolo grande con le ore pianificate per oggi (oppure giorno di riposo, giorno d'esame o periodo concluso), più il pulsante `Registra ore di studio`.
+3. **Anelli, conto alla rovescia e ritmo:**
+   - *Anelli di attività:* **Settimana** (ore svolte sul budget della settimana, da `calculateWeeklyRetrospective`), **Costanza** (sere di fila verso il prossimo traguardo), **Programma** (percentuale di argomenti chiusi).
+   - *All'esame:* giorni rimanenti, barra del tempo trascorso dall'inizio della roadmap e data dell'esame.
+   - *Ritmo richiesto:* ore a settimana necessarie e ore residue con margine (+20%); la card diventa rossa se si supera la soglia (25 h di default).
+4. **Spaced Repetition Alert Banner:** compare se ci sono ripassi in scadenza oggi o arretrati (Curva di Ebbinghaus $R_1, R_2, R_3$).
+5. **Costanza e Previsione d'esame (due card affiancate):**
+   - *Costanza:* sere consecutive, record, titolo attuale (es. *Innesco Serale*, *Fiamma di Costanza*, *Leggenda Vivente UNIMORE*), avanzamento verso il prossimo titolo, citazione del giorno e traguardi sbloccati.
+   - *Previsione d'esame:* voto stimato, livello di rischio, probabilità di superamento, ritmo richiesto, percentuale di sere attive e di argomenti chiusi.
 6. **Card di Avanzamento Materie (Doppio Motore Analisi / Geometria):**
    Barre graduate di progresso con marcatore dorato del target teorico odierno (`pacing.expectedPercent`), statistiche di dettaglio (argomenti, ore residue, struttura prova scritta).
 7. **Scrum / Agile Burndown Chart Integrato:** Embedding diretto del componente `BurndownChart.js`.
@@ -223,7 +243,7 @@ Costituisce il cuore dell'operatività quotidiana dello studente lavoratore. Vis
 2. **Time Shifter Stepper (`[- 30m]` / `[+ 30m]`):**
    Permette allo studente lavoratore di rimodulare il budget orario di ogni singolo giorno (da 0 h a 12 h a step di 0,5 h; il pulsante `+30m` si disattiva al limite). In caso di override attivo, compare il pulsante di ripristino `↺`.
 3. **Card del Tema Didattico:**
-   - Badge materia (`Analisi Matematica 1` in verde smeraldo, `Geometria e Algebra` in indaco).
+   - Badge materia (`Analisi Matematica 1` in viola-indaco, `Geometria e Algebra` in verde acqua).
    - ID tema con pulsante rapido `ℹ Info` per aprire la scheda dettagliata.
    - Badge di completamento con data o badge `⏳ In Corso (xh svolte)`.
    - Badge `+20% Buffer Priorità` se Priorità $\ge 4$ o Difficoltà $\ge 4$.
