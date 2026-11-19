@@ -1,4 +1,4 @@
-const CACHE_NAME = 'studiplanner-v4'; // v4: tema chiaro. v3: elimina le risposte API GitLab messe in cache dalle versioni precedenti
+const CACHE_NAME = 'studiplanner-v5'; // v5: promemoria serale. v4: tema chiaro. v3: elimina le risposte API GitLab messe in cache dalle versioni precedenti
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -40,6 +40,19 @@ self.addEventListener('activate', (event) => {
         })
       );
     }).then(() => self.clients.claim())
+  );
+});
+
+// Promemoria serale: un tocco sulla notifica riporta all'app già aperta (o la apre)
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if ('focus' in client) return client.focus();
+      }
+      if (self.clients.openWindow) return self.clients.openWindow('./');
+    })
   );
 });
 

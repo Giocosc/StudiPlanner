@@ -1553,8 +1553,8 @@ function calculateExamReadinessAndGrade(topics, metrics) {
     riskLevel = "Attenzione (Fascia Minima)";
     riskColor = "amber";
   } else {
-    gradeLabel = "< 18 (Rischio Insufficienza)";
-    riskLevel = "Critico (Rischio Bocciatura)";
+    gradeLabel = "sotto il 18, per ora";
+    riskLevel = "Da recuperare";
     riskColor = "rose";
   }
 
@@ -1590,6 +1590,8 @@ const DEFAULT_SETTINGS = {
   bufferMultiplier: 1.2, // +20% time buffer
   interleaveSubjects: true, // Alternate Analisi and Geometria across days
   streakJokersPerMonth: 1, // Sere saltate "perdonate" ogni mese
+  eveningReminderEnabled: false, // Notifica serale (solo su questo dispositivo serve il permesso)
+  eveningReminderTime: "19:15",
   studyDays: {
     1: { name: "Lunedì", enabled: true, isWeekend: false, defaultSubject: "Analisi 1", timeSlot: "Sera (19:30 - 22:00)" },
     2: { name: "Martedì", enabled: true, isWeekend: false, defaultSubject: "Geometria", timeSlot: "Sera (19:30 - 22:00)" },
@@ -2479,6 +2481,82 @@ function calculateWeeklyRetrospective(week) {
 
   const efficiency = targetHours > 0 ? Math.min(150, Math.round((actualHours / targetHours) * 100)) : 100;
   return { targetHours, actualHours, completedTopics, remainingTopics, efficiency, elapsedDays: elapsed.length };
+}
+
+/** Millisecondi fino alla prossima occorrenza dell'orario "HH:MM" (ora locale). */
+function msUntilNextTime(nowMs, hhmm = "19:15") {
+  const [h, m] = String(hhmm || "19:15").split(":").map(Number);
+  const now = new Date(nowMs);
+  const next = new Date(now.getFullYear(), now.getMonth(), now.getDate(), Number.isFinite(h) ? h : 19, Number.isFinite(m) ? m : 15, 0, 0);
+  if (next.getTime() <= nowMs) next.setDate(next.getDate() + 1);
+  return next.getTime() - nowMs;
+}
+
+/** Testo del promemoria serale, oppure null se stasera non serve ricordare nulla. */
+function buildEveningReminder(focus) {
+  if (!focus) return null;
+  if (focus.kind === "study" && focus.topic) {
+    const h = Number(focus.plannedHours || 0);
+    const dur = h < 1 ? `${Math.max(1, Math.round(h * 60))} min` : `${String(Math.round(h * 10) / 10).replace(".", ",")} h`;
+    return {
+      title: `Stasera: ${focus.topic.id} ${focus.topic.argomento}`,
+      body: `${dur}${focus.reviewsCount > 0 ? ` e ${focus.reviewsCount} ${focus.reviewsCount === 1 ? "ripasso" : "ripassi"}` : ""}. Apri StudiPlanner e premi Inizia.`
+    };
+  }
+  if (focus.kind === "none" && focus.reviewsCount > 0) {
+    return { title: "Stasera: ripassi brevi", body: `${focus.reviewsCount} da 15 minuti. La serie ti aspetta.` };
+  }
+  return null;
+}
+
+/**
+ * Il punto della domenica: riepilogo concreto della settimana che contiene la data attiva.
+ * Solo numeri reali (ore, argomenti chiusi, esercizi, ripassi, temi), niente giudizi.
+ */
+function calculateWeeklyDigest(week, studySessions = [], topics = [], mockExams = []) {
+  const retro = calculateWeeklyRetrospective(week);
+  const start = week && week.startDate;
+  const end = week && week.endDate;
+  const inWeek = d => Boolean(d && start && end && d >= start && d <= end);
+  let correct = 0, partial = 0, attempts = 0;
+  (studySessions || []).filter(s => inWeek(s.date)).forEach(s => {
+    const ex = normalizeExercises(s.exercises);
+    if (!ex) return;
+    correct += ex.correct;
+    partial += ex.partial;
+    attempts += ex.correct + ex.partial + ex.wrong;
+  });
+  let reviewsDone = 0, reviewsFailed = 0;
+  (topics || []).forEach(t => Object.values(t.spacedReviews || {}).forEach(v => {
+    const r = getReviewRecord(v);
+    if (r.done && inWeek(r.date)) {
+      reviewsDone += 1;
+      if (r.outcome === "failed") reviewsFailed += 1;
+    }
+  }));
+  const isDone = t => Boolean(t.completato !== undefined ? t.completato : t.isCompleted);
+  const closedTopics = (topics || []).filter(t => isDone(t) && inWeek(t.completedDate)).map(t => t.id);
+  const weekMocks = (mockExams || []).filter(e => e && inWeek(e.date));
+
+  const lines = [];
+  lines.push(`${String(retro.actualHours).replace(".", ",")} h studiate su ${String(retro.targetHours).replace(".", ",")} previste.`);
+  if (closedTopics.length > 0) lines.push(`${closedTopics.length} ${closedTopics.length === 1 ? "argomento chiuso" : "argomenti chiusi"}: ${closedTopics.join(", ")}.`);
+  if (attempts > 0) lines.push(`Esercizi senza appunti: ${correct} su ${attempts} giusti${partial > 0 ? ` (${partial} parziali)` : ""}.`);
+  if (reviewsDone > 0) lines.push(`${reviewsDone} ${reviewsDone === 1 ? "ripasso fatto" : "ripassi fatti"}${reviewsFailed > 0 ? `, ${reviewsFailed} da rifare tra 3 giorni` : ""}.`);
+  weekMocks.forEach(e => lines.push(`Tema di ${MOCK_EXAM_SUBJECTS[e.subject] ? MOCK_EXAM_SUBJECTS[e.subject].label : e.subject}: ${String(e.score).replace(".", ",")}/${e.maxScore || 30}.`));
+
+  return {
+    startDate: start || null,
+    endDate: end || null,
+    actualHours: retro.actualHours,
+    targetHours: retro.targetHours,
+    closedTopics,
+    exercises: { correct, partial, attempts },
+    reviewsDone,
+    reviewsFailed,
+    mockExams: weekMocks,
+    lines
+  };
 }
 
 /**
@@ -5665,8 +5743,9 @@ const CLARKE_QUOTES = [
   (ctx) => `T-minus ${ctx.days} giorni alla sessione del 10 Gennaio 2027. La distanza si riduce ogni sera. Procedi con orgoglio: sono fiero di te.`
 ];
 
-const LOCAL_STORAGE_KEY_COLLAPSED = "unimore_clarke9000_collapsed";
-const LOCAL_STORAGE_KEY_MUTED = "unimore_clarke9000_muted";
+const LOCAL_STORAGE_KEY_COLLAPSED = "unimore_clarke9000_collapsed_v2"; // v2: parte chiuso per tutti
+// v2: Clarke resta chiuso e silenzioso finché non lo apri tu (prima si apriva da solo)
+const LOCAL_STORAGE_KEY_MUTED = "unimore_clarke9000_muted_v2";
 
 function Clarke9000Companion({ progress, metrics }) {
   // Safe stats
@@ -5707,9 +5786,10 @@ function Clarke9000Companion({ progress, metrics }) {
   // Mute periodic automatic popup
   const [isMuted, setIsMuted] = useState(() => {
     try {
-      return localStorage.getItem(LOCAL_STORAGE_KEY_MUTED) === "true";
+      const saved = localStorage.getItem(LOCAL_STORAGE_KEY_MUTED);
+      return saved === null ? true : saved === "true";
     } catch (e) {
-      return false;
+      return true;
     }
   });
 
@@ -6508,7 +6588,7 @@ function TonightFocus({ focus, settings, onLogStudySession, onOpenTopicDetail, o
     <section className="bg-paper rounded-[20px] p-5 md:p-6 shadow-card flex flex-col sm:flex-row sm:items-center justify-between gap-4" aria-label="Cosa fare stasera">
       <div className="min-w-0 flex flex-col gap-1">
         <span className="eyebrow">{eyebrow}</span>
-        <h3 className="text-[22px] md:text-[26px] font-bold tracking-tight leading-tight">{title}</h3>
+        <h3 className="text-[22px] md:text-[26px] font-bold tracking-tight leading-tight line-clamp-2" title={title}>{title}</h3>
         {subtitle && <p className="text-[13px] text-ink-2">{subtitle}</p>}
         {savedMessage && <p className="text-[13px] text-ok-ink font-medium">{savedMessage}</p>}
         {focus && focus.kind === "study" && topic && onOpenTopicDetail && (
@@ -6936,6 +7016,8 @@ function Dashboard({
   onToggleSpacedReview,
   onLogStudySession,
   mockExams = [],
+  studySessions = [],
+  onOpenRetrospective,
   onSaveMockExam,
   onDeleteMockExam,
   mathBugs = [],
@@ -7047,6 +7129,28 @@ function Dashboard({
         </button>
       </header>
 
+      {/* Il punto della domenica: numeri concreti della settimana */}
+      {todayPlan && todayPlan.dayOfWeek === 0 && currentWeekPlan && (() => {
+        const digest = calculateWeeklyDigest(currentWeekPlan, studySessions, topics, mockExams);
+        return (
+          <section className="bg-paper rounded-[20px] p-5 md:p-6 shadow-card flex flex-col sm:flex-row sm:items-end justify-between gap-4" aria-label="Il punto della domenica">
+            <div className="min-w-0 flex flex-col gap-1.5">
+              <span className="eyebrow">Il punto della domenica</span>
+              <h3 className="text-[22px] font-bold tracking-tight">La tua settimana in numeri</h3>
+              <ul className="flex flex-col gap-0.5 text-[14px] text-ink">
+                {digest.lines.map(line => <li key={line}>{line}</li>)}
+              </ul>
+            </div>
+            {onOpenRetrospective && (
+              <button type="button" onClick={onOpenRetrospective}
+                className="self-start sm:self-auto h-10 px-4 rounded-full bg-accent-tint text-accent-ink text-sm font-semibold shrink-0">
+                Prepara la prossima settimana
+              </button>
+            )}
+          </section>
+        );
+      })()}
+
       {/* Modalità Stasera: una sola azione chiara */}
       <TonightFocus
         focus={getTonightFocus(todayPlan, settings.targetExamDate)}
@@ -7101,17 +7205,17 @@ function Dashboard({
           </div>
         </div>
 
-        <div className={`rounded-[20px] p-5 md:p-6 flex flex-col justify-between gap-3 ${metrics.isCriticalOverload ? "bg-danger-tint" : "bg-accent-tint"}`}>
-          <div className={`flex items-center gap-2 text-[13px] font-semibold ${metrics.isCriticalOverload ? "text-danger-ink" : "text-accent-ink"}`}>
+        <div className={`rounded-[20px] p-5 md:p-6 flex flex-col justify-between gap-3 ${metrics.isCriticalOverload ? "bg-warn-tint" : "bg-accent-tint"}`}>
+          <div className={`flex items-center gap-2 text-[13px] font-semibold ${metrics.isCriticalOverload ? "text-warn-ink" : "text-accent-ink"}`}>
             {metrics.isCriticalOverload ? <IconFlame className="w-4 h-4" /> : <IconClock className="w-4 h-4" />}
-            <span>{metrics.isCriticalOverload ? "Sopra la soglia" : "Ritmo richiesto"}</span>
+            <span>{metrics.isCriticalOverload ? "Ritmo alto" : "Ritmo richiesto"}</span>
           </div>
           <div className="text-[21px] font-bold tracking-tight leading-snug">
             Servono {fmtNum(metrics.requiredWeeklyHours)} h a settimana.
           </div>
           <div className="text-[13px] text-[#3A3A3C] leading-relaxed">
             {metrics.isCriticalOverload
-              ? `La soglia è ${fmtNum(metrics.criticalWeeklyHoursThreshold)} h: aggiungi tempo con il Time Shifter o accetta un margine più stretto.`
+              ? `Più della soglia di ${fmtNum(metrics.criticalWeeklyHoursThreshold)} h che hai scelto. Un'ora in più nel weekend con il Time Shifter riporta il piano in equilibrio.`
               : `Sotto la soglia di ${fmtNum(metrics.criticalWeeklyHoursThreshold)} h.`}
             {" "}Restano {fmtNum(metrics.totalRemainingEffectiveHours)} h, margine incluso (+{fmtNum(metrics.totalBufferHours)} h).
           </div>
@@ -7219,7 +7323,7 @@ function Dashboard({
                   emerald: "bg-ok-tint text-ok-ink",
                   cyan: "bg-accent-tint text-accent-ink",
                   amber: "bg-warn-tint text-warn-ink"
-                }[metrics.examPrediction.riskColor] || "bg-danger-tint text-danger-ink"
+                }[metrics.examPrediction.riskColor] || "bg-warn-tint text-warn-ink"
               }`}>
                 {metrics.examPrediction.riskLevel}
               </span>
@@ -8471,7 +8575,7 @@ function WeeklyTodo({
             onClick={() => setIsExpressReviewActive(prev => !prev)}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border shadow-sm ${
               isExpressReviewActive
-                ? "bg-rose-500/25 text-rose-200 border-rose-500/50 shadow-rose-950/40 animate-pulse"
+                ? "bg-amber-500/25 text-amber-200 border-amber-500/50"
                 : "bg-slate-950/80 hover:bg-slate-800 text-slate-300 border-slate-800"
             }`}
             title="Modalità Sprint Pre-Esame (Triage 7gg): concentra lo studio solo su argomenti a Priorità 4 e 5 e temi d'esame"
@@ -8686,7 +8790,7 @@ function WeeklyTodo({
                           rev.isDone
                             ? "bg-emerald-950/40 border-emerald-500/30 text-emerald-200"
                             : rev.isOverdue
-                            ? "bg-rose-950/50 border-rose-500/40 text-rose-200"
+                            ? "bg-amber-950/40 border-amber-500/30 text-amber-200"
                             : "bg-slate-900/90 border-slate-800 text-slate-200"
                         }`}
                       >
@@ -8696,7 +8800,7 @@ function WeeklyTodo({
                             rev.isDone
                               ? "bg-emerald-500/20 text-emerald-300"
                               : rev.isOverdue
-                              ? "bg-rose-500/20 text-rose-300 animate-pulse"
+                              ? "bg-amber-500/20 text-amber-300"
                               : "bg-purple-500/20 text-purple-300"
                           }`}>
                             {rev.levelLabel}
@@ -10790,6 +10894,40 @@ function SettingsModalContent({
             </div>
           </div>
 
+          {/* Promemoria serale */}
+          <div className="p-3 bg-slate-950/60 rounded-2xl border border-slate-800/80 space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <label className="flex items-center gap-2 text-slate-300 font-semibold cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={Boolean(formData.eveningReminderEnabled)}
+                  onChange={async (e) => {
+                    const on = e.target.checked;
+                    if (on && typeof Notification !== "undefined" && Notification.permission === "default") {
+                      try { await Notification.requestPermission(); } catch (err) { /* permesso negato */ }
+                    }
+                    handleChange("eveningReminderEnabled", on);
+                  }}
+                  className="w-4 h-4 accent-[#0071E3]"
+                />
+                Promemoria serale
+              </label>
+              <input
+                type="time"
+                value={formData.eveningReminderTime || "19:15"}
+                onChange={(e) => handleChange("eveningReminderTime", e.target.value || "19:15")}
+                className="bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-white font-mono focus:outline-none focus:border-cyan-500"
+              />
+            </div>
+            <p className="text-[10px] text-slate-500">
+              {typeof Notification === "undefined"
+                ? "Questo browser non supporta le notifiche."
+                : Notification.permission === "denied"
+                ? "Notifiche bloccate nel browser: riattivale dalle impostazioni del sito."
+                : "Una notifica con l'argomento della sera, solo se non hai ancora studiato. Funziona con l'app aperta o installata e in background."}
+            </p>
+          </div>
+
           {/* Critical Threshold & Buffer */}
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -12804,6 +12942,7 @@ const LOCAL_STORAGE_KEY_SESSIONS = "unimore_rebalancer_sessions_v2";
 const LOCAL_STORAGE_KEY_DELETED_SESSIONS = "unimore_rebalancer_deleted_sessions_v1";
 const LOCAL_STORAGE_KEY_SYNC_META = "unimore_rebalancer_sync_meta_v1";
 const LOCAL_STORAGE_KEY_MOCK_EXAMS = "unimore_rebalancer_mock_exams_v1";
+const LOCAL_STORAGE_KEY_REMINDER_SENT = "studiplanner_evening_reminder_sent_v1";
 const LOCAL_STORAGE_KEY_DELETED_MOCK_EXAMS = "unimore_rebalancer_deleted_mock_exams_v1";
 
 const loadJson = (key, fallback) => {
@@ -13488,6 +13627,39 @@ function App() {
 
   const { metrics, weeklyPlans, progress, historyDays } = rebalancedPlan;
 
+  // Promemoria serale: notifica locale all'orario scelto, solo se stasera c'è qualcosa
+  // da fare e non è ancora stato registrato studio. Una sola notifica al giorno.
+  const tonightFocusRef = useRef(null);
+  tonightFocusRef.current = getTonightFocus(rebalancedPlan.calendarDays.find(d => d.isToday) || null, settings.targetExamDate);
+  useEffect(() => {
+    if (!settings.eveningReminderEnabled || typeof Notification === "undefined") return undefined;
+    let timerId = null;
+    const realToday = () => {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    };
+    const schedule = () => {
+      timerId = setTimeout(async () => {
+        try {
+          const msg = buildEveningReminder(tonightFocusRef.current);
+          const today = realToday();
+          if (msg && Notification.permission === "granted" && localStorage.getItem(LOCAL_STORAGE_KEY_REMINDER_SENT) !== today) {
+            localStorage.setItem(LOCAL_STORAGE_KEY_REMINDER_SENT, today);
+            const reg = navigator.serviceWorker ? await navigator.serviceWorker.getRegistration() : null;
+            const options = { body: msg.body, tag: "studiplanner-evening", icon: "./icons/icon-192.png" };
+            if (reg && reg.showNotification) await reg.showNotification(msg.title, options);
+            else new Notification(msg.title, options);
+          }
+        } catch (e) {
+          console.warn("Promemoria serale non inviato:", e);
+        }
+        schedule();
+      }, msUntilNextTime(Date.now(), settings.eveningReminderTime) + 500);
+    };
+    schedule();
+    return () => clearTimeout(timerId);
+  }, [settings.eveningReminderEnabled, settings.eveningReminderTime]);
+
   // Open / Close Log Study Modal
   const handleOpenLogModal = (initialData = {}) => {
     setLogModalInitialData(initialData || {});
@@ -13940,6 +14112,8 @@ function App() {
                 onToggleSpacedReview={handleToggleSpacedReview}
                 onLogStudySession={handleLogStudySession}
                 mockExams={mockExams}
+                studySessions={studySessions}
+                onOpenRetrospective={() => setIsRetroModalOpen(true)}
                 onSaveMockExam={handleSaveMockExam}
                 onDeleteMockExam={handleDeleteMockExam}
                 mathBugs={mathBugs}

@@ -17,7 +17,7 @@ import { ExamSimulator } from "./ExamSimulator.js";
 import { BurndownChart } from "./BurndownChart.js";
 import { TonightFocus } from "./TonightFocus.js";
 import { MockExamPanel } from "./MockExamPanel.js";
-import { DEFAULT_ROADMAP_START_DATE, DEFAULT_TARGET_EXAM_DATE, calculateWeeklyRetrospective, MASTERY_MIN_ATTEMPTS, getTonightFocus } from "../services/rebalancerEngine.js";
+import { DEFAULT_ROADMAP_START_DATE, DEFAULT_TARGET_EXAM_DATE, calculateWeeklyRetrospective, MASTERY_MIN_ATTEMPTS, getTonightFocus, calculateWeeklyDigest } from "../services/rebalancerEngine.js";
 
 /**
  * Calculates whether the student is ahead, on track, or behind schedule for a subject
@@ -90,6 +90,8 @@ export function Dashboard({
   onToggleSpacedReview,
   onLogStudySession,
   mockExams = [],
+  studySessions = [],
+  onOpenRetrospective,
   onSaveMockExam,
   onDeleteMockExam,
   mathBugs = [],
@@ -201,6 +203,28 @@ export function Dashboard({
         </button>
       </header>
 
+      {/* Il punto della domenica: numeri concreti della settimana */}
+      {todayPlan && todayPlan.dayOfWeek === 0 && currentWeekPlan && (() => {
+        const digest = calculateWeeklyDigest(currentWeekPlan, studySessions, topics, mockExams);
+        return (
+          <section className="bg-paper rounded-[20px] p-5 md:p-6 shadow-card flex flex-col sm:flex-row sm:items-end justify-between gap-4" aria-label="Il punto della domenica">
+            <div className="min-w-0 flex flex-col gap-1.5">
+              <span className="eyebrow">Il punto della domenica</span>
+              <h3 className="text-[22px] font-bold tracking-tight">La tua settimana in numeri</h3>
+              <ul className="flex flex-col gap-0.5 text-[14px] text-ink">
+                {digest.lines.map(line => <li key={line}>{line}</li>)}
+              </ul>
+            </div>
+            {onOpenRetrospective && (
+              <button type="button" onClick={onOpenRetrospective}
+                className="self-start sm:self-auto h-10 px-4 rounded-full bg-accent-tint text-accent-ink text-sm font-semibold shrink-0">
+                Prepara la prossima settimana
+              </button>
+            )}
+          </section>
+        );
+      })()}
+
       {/* Modalità Stasera: una sola azione chiara */}
       <TonightFocus
         focus={getTonightFocus(todayPlan, settings.targetExamDate)}
@@ -255,17 +279,17 @@ export function Dashboard({
           </div>
         </div>
 
-        <div className={`rounded-[20px] p-5 md:p-6 flex flex-col justify-between gap-3 ${metrics.isCriticalOverload ? "bg-danger-tint" : "bg-accent-tint"}`}>
-          <div className={`flex items-center gap-2 text-[13px] font-semibold ${metrics.isCriticalOverload ? "text-danger-ink" : "text-accent-ink"}`}>
+        <div className={`rounded-[20px] p-5 md:p-6 flex flex-col justify-between gap-3 ${metrics.isCriticalOverload ? "bg-warn-tint" : "bg-accent-tint"}`}>
+          <div className={`flex items-center gap-2 text-[13px] font-semibold ${metrics.isCriticalOverload ? "text-warn-ink" : "text-accent-ink"}`}>
             {metrics.isCriticalOverload ? <IconFlame className="w-4 h-4" /> : <IconClock className="w-4 h-4" />}
-            <span>{metrics.isCriticalOverload ? "Sopra la soglia" : "Ritmo richiesto"}</span>
+            <span>{metrics.isCriticalOverload ? "Ritmo alto" : "Ritmo richiesto"}</span>
           </div>
           <div className="text-[21px] font-bold tracking-tight leading-snug">
             Servono {fmtNum(metrics.requiredWeeklyHours)} h a settimana.
           </div>
           <div className="text-[13px] text-[#3A3A3C] leading-relaxed">
             {metrics.isCriticalOverload
-              ? `La soglia è ${fmtNum(metrics.criticalWeeklyHoursThreshold)} h: aggiungi tempo con il Time Shifter o accetta un margine più stretto.`
+              ? `Più della soglia di ${fmtNum(metrics.criticalWeeklyHoursThreshold)} h che hai scelto. Un'ora in più nel weekend con il Time Shifter riporta il piano in equilibrio.`
               : `Sotto la soglia di ${fmtNum(metrics.criticalWeeklyHoursThreshold)} h.`}
             {" "}Restano {fmtNum(metrics.totalRemainingEffectiveHours)} h, margine incluso (+{fmtNum(metrics.totalBufferHours)} h).
           </div>
@@ -373,7 +397,7 @@ export function Dashboard({
                   emerald: "bg-ok-tint text-ok-ink",
                   cyan: "bg-accent-tint text-accent-ink",
                   amber: "bg-warn-tint text-warn-ink"
-                }[metrics.examPrediction.riskColor] || "bg-danger-tint text-danger-ink"
+                }[metrics.examPrediction.riskColor] || "bg-warn-tint text-warn-ink"
               }`}>
                 {metrics.examPrediction.riskLevel}
               </span>

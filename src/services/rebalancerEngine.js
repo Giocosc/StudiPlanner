@@ -399,8 +399,8 @@ export function calculateExamReadinessAndGrade(topics, metrics) {
     riskLevel = "Attenzione (Fascia Minima)";
     riskColor = "amber";
   } else {
-    gradeLabel = "< 18 (Rischio Insufficienza)";
-    riskLevel = "Critico (Rischio Bocciatura)";
+    gradeLabel = "sotto il 18, per ora";
+    riskLevel = "Da recuperare";
     riskColor = "rose";
   }
 
@@ -436,6 +436,8 @@ export const DEFAULT_SETTINGS = {
   bufferMultiplier: 1.2, // +20% time buffer
   interleaveSubjects: true, // Alternate Analisi and Geometria across days
   streakJokersPerMonth: 1, // Sere saltate "perdonate" ogni mese
+  eveningReminderEnabled: false, // Notifica serale (solo su questo dispositivo serve il permesso)
+  eveningReminderTime: "19:15",
   studyDays: {
     1: { name: "Lunedì", enabled: true, isWeekend: false, defaultSubject: "Analisi 1", timeSlot: "Sera (19:30 - 22:00)" },
     2: { name: "Martedì", enabled: true, isWeekend: false, defaultSubject: "Geometria", timeSlot: "Sera (19:30 - 22:00)" },
@@ -1325,6 +1327,82 @@ export function calculateWeeklyRetrospective(week) {
 
   const efficiency = targetHours > 0 ? Math.min(150, Math.round((actualHours / targetHours) * 100)) : 100;
   return { targetHours, actualHours, completedTopics, remainingTopics, efficiency, elapsedDays: elapsed.length };
+}
+
+/** Millisecondi fino alla prossima occorrenza dell'orario "HH:MM" (ora locale). */
+export function msUntilNextTime(nowMs, hhmm = "19:15") {
+  const [h, m] = String(hhmm || "19:15").split(":").map(Number);
+  const now = new Date(nowMs);
+  const next = new Date(now.getFullYear(), now.getMonth(), now.getDate(), Number.isFinite(h) ? h : 19, Number.isFinite(m) ? m : 15, 0, 0);
+  if (next.getTime() <= nowMs) next.setDate(next.getDate() + 1);
+  return next.getTime() - nowMs;
+}
+
+/** Testo del promemoria serale, oppure null se stasera non serve ricordare nulla. */
+export function buildEveningReminder(focus) {
+  if (!focus) return null;
+  if (focus.kind === "study" && focus.topic) {
+    const h = Number(focus.plannedHours || 0);
+    const dur = h < 1 ? `${Math.max(1, Math.round(h * 60))} min` : `${String(Math.round(h * 10) / 10).replace(".", ",")} h`;
+    return {
+      title: `Stasera: ${focus.topic.id} ${focus.topic.argomento}`,
+      body: `${dur}${focus.reviewsCount > 0 ? ` e ${focus.reviewsCount} ${focus.reviewsCount === 1 ? "ripasso" : "ripassi"}` : ""}. Apri StudiPlanner e premi Inizia.`
+    };
+  }
+  if (focus.kind === "none" && focus.reviewsCount > 0) {
+    return { title: "Stasera: ripassi brevi", body: `${focus.reviewsCount} da 15 minuti. La serie ti aspetta.` };
+  }
+  return null;
+}
+
+/**
+ * Il punto della domenica: riepilogo concreto della settimana che contiene la data attiva.
+ * Solo numeri reali (ore, argomenti chiusi, esercizi, ripassi, temi), niente giudizi.
+ */
+export function calculateWeeklyDigest(week, studySessions = [], topics = [], mockExams = []) {
+  const retro = calculateWeeklyRetrospective(week);
+  const start = week && week.startDate;
+  const end = week && week.endDate;
+  const inWeek = d => Boolean(d && start && end && d >= start && d <= end);
+  let correct = 0, partial = 0, attempts = 0;
+  (studySessions || []).filter(s => inWeek(s.date)).forEach(s => {
+    const ex = normalizeExercises(s.exercises);
+    if (!ex) return;
+    correct += ex.correct;
+    partial += ex.partial;
+    attempts += ex.correct + ex.partial + ex.wrong;
+  });
+  let reviewsDone = 0, reviewsFailed = 0;
+  (topics || []).forEach(t => Object.values(t.spacedReviews || {}).forEach(v => {
+    const r = getReviewRecord(v);
+    if (r.done && inWeek(r.date)) {
+      reviewsDone += 1;
+      if (r.outcome === "failed") reviewsFailed += 1;
+    }
+  }));
+  const isDone = t => Boolean(t.completato !== undefined ? t.completato : t.isCompleted);
+  const closedTopics = (topics || []).filter(t => isDone(t) && inWeek(t.completedDate)).map(t => t.id);
+  const weekMocks = (mockExams || []).filter(e => e && inWeek(e.date));
+
+  const lines = [];
+  lines.push(`${String(retro.actualHours).replace(".", ",")} h studiate su ${String(retro.targetHours).replace(".", ",")} previste.`);
+  if (closedTopics.length > 0) lines.push(`${closedTopics.length} ${closedTopics.length === 1 ? "argomento chiuso" : "argomenti chiusi"}: ${closedTopics.join(", ")}.`);
+  if (attempts > 0) lines.push(`Esercizi senza appunti: ${correct} su ${attempts} giusti${partial > 0 ? ` (${partial} parziali)` : ""}.`);
+  if (reviewsDone > 0) lines.push(`${reviewsDone} ${reviewsDone === 1 ? "ripasso fatto" : "ripassi fatti"}${reviewsFailed > 0 ? `, ${reviewsFailed} da rifare tra 3 giorni` : ""}.`);
+  weekMocks.forEach(e => lines.push(`Tema di ${MOCK_EXAM_SUBJECTS[e.subject] ? MOCK_EXAM_SUBJECTS[e.subject].label : e.subject}: ${String(e.score).replace(".", ",")}/${e.maxScore || 30}.`));
+
+  return {
+    startDate: start || null,
+    endDate: end || null,
+    actualHours: retro.actualHours,
+    targetHours: retro.targetHours,
+    closedTopics,
+    exercises: { correct, partial, attempts },
+    reviewsDone,
+    reviewsFailed,
+    mockExams: weekMocks,
+    lines
+  };
 }
 
 /**

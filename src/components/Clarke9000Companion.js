@@ -135,8 +135,9 @@ const CLARKE_QUOTES = [
   (ctx) => `T-minus ${ctx.days} giorni alla sessione del 10 Gennaio 2027. La distanza si riduce ogni sera. Procedi con orgoglio: sono fiero di te.`
 ];
 
-const LOCAL_STORAGE_KEY_COLLAPSED = "unimore_clarke9000_collapsed";
-const LOCAL_STORAGE_KEY_MUTED = "unimore_clarke9000_muted";
+const LOCAL_STORAGE_KEY_COLLAPSED = "unimore_clarke9000_collapsed_v2"; // v2: parte chiuso per tutti
+// v2: Clarke resta chiuso e silenzioso finché non lo apri tu (prima si apriva da solo)
+const LOCAL_STORAGE_KEY_MUTED = "unimore_clarke9000_muted_v2";
 
 export function Clarke9000Companion({ progress, metrics }) {
   // Safe stats
@@ -177,9 +178,10 @@ export function Clarke9000Companion({ progress, metrics }) {
   // Mute periodic automatic popup
   const [isMuted, setIsMuted] = useState(() => {
     try {
-      return localStorage.getItem(LOCAL_STORAGE_KEY_MUTED) === "true";
+      const saved = localStorage.getItem(LOCAL_STORAGE_KEY_MUTED);
+      return saved === null ? true : saved === "true";
     } catch (e) {
-      return false;
+      return true;
     }
   });
 

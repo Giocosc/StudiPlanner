@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { INITIAL_TOPICS } from "./data/defaultData.js";
-import { rebalanceStudyPlan, DEFAULT_SETTINGS, getLocalTodayDateStr, clampDayCapacity, normalizeExercises } from "./services/rebalancerEngine.js";
+import { rebalanceStudyPlan, DEFAULT_SETTINGS, getLocalTodayDateStr, clampDayCapacity, normalizeExercises, getTonightFocus, buildEveningReminder, msUntilNextTime } from "./services/rebalancerEngine.js";
 import { applySessionToTopic, revertSessionFromTopic, restoreOfficialNotes, stampChangedTopics } from "./services/topicStateService.js";
 import { AlertBanner } from "./components/AlertBanner.js";
 import { Dashboard } from "./components/Dashboard.js";
@@ -55,6 +55,7 @@ const LOCAL_STORAGE_KEY_SESSIONS = "unimore_rebalancer_sessions_v2";
 const LOCAL_STORAGE_KEY_DELETED_SESSIONS = "unimore_rebalancer_deleted_sessions_v1";
 const LOCAL_STORAGE_KEY_SYNC_META = "unimore_rebalancer_sync_meta_v1";
 const LOCAL_STORAGE_KEY_MOCK_EXAMS = "unimore_rebalancer_mock_exams_v1";
+const LOCAL_STORAGE_KEY_REMINDER_SENT = "studiplanner_evening_reminder_sent_v1";
 const LOCAL_STORAGE_KEY_DELETED_MOCK_EXAMS = "unimore_rebalancer_deleted_mock_exams_v1";
 
 const loadJson = (key, fallback) => {
@@ -739,6 +740,39 @@ export function App() {
 
   const { metrics, weeklyPlans, progress, historyDays } = rebalancedPlan;
 
+  // Promemoria serale: notifica locale all'orario scelto, solo se stasera c'è qualcosa
+  // da fare e non è ancora stato registrato studio. Una sola notifica al giorno.
+  const tonightFocusRef = useRef(null);
+  tonightFocusRef.current = getTonightFocus(rebalancedPlan.calendarDays.find(d => d.isToday) || null, settings.targetExamDate);
+  useEffect(() => {
+    if (!settings.eveningReminderEnabled || typeof Notification === "undefined") return undefined;
+    let timerId = null;
+    const realToday = () => {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    };
+    const schedule = () => {
+      timerId = setTimeout(async () => {
+        try {
+          const msg = buildEveningReminder(tonightFocusRef.current);
+          const today = realToday();
+          if (msg && Notification.permission === "granted" && localStorage.getItem(LOCAL_STORAGE_KEY_REMINDER_SENT) !== today) {
+            localStorage.setItem(LOCAL_STORAGE_KEY_REMINDER_SENT, today);
+            const reg = navigator.serviceWorker ? await navigator.serviceWorker.getRegistration() : null;
+            const options = { body: msg.body, tag: "studiplanner-evening", icon: "./icons/icon-192.png" };
+            if (reg && reg.showNotification) await reg.showNotification(msg.title, options);
+            else new Notification(msg.title, options);
+          }
+        } catch (e) {
+          console.warn("Promemoria serale non inviato:", e);
+        }
+        schedule();
+      }, msUntilNextTime(Date.now(), settings.eveningReminderTime) + 500);
+    };
+    schedule();
+    return () => clearTimeout(timerId);
+  }, [settings.eveningReminderEnabled, settings.eveningReminderTime]);
+
   // Open / Close Log Study Modal
   const handleOpenLogModal = (initialData = {}) => {
     setLogModalInitialData(initialData || {});
@@ -1191,6 +1225,8 @@ export function App() {
                 onToggleSpacedReview={handleToggleSpacedReview}
                 onLogStudySession={handleLogStudySession}
                 mockExams={mockExams}
+                studySessions={studySessions}
+                onOpenRetrospective={() => setIsRetroModalOpen(true)}
                 onSaveMockExam={handleSaveMockExam}
                 onDeleteMockExam={handleDeleteMockExam}
                 mathBugs={mathBugs}

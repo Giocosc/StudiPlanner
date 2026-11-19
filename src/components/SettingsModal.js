@@ -267,6 +267,40 @@ function SettingsModalContent({
             </div>
           </div>
 
+          {/* Promemoria serale */}
+          <div className="p-3 bg-slate-950/60 rounded-2xl border border-slate-800/80 space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <label className="flex items-center gap-2 text-slate-300 font-semibold cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={Boolean(formData.eveningReminderEnabled)}
+                  onChange={async (e) => {
+                    const on = e.target.checked;
+                    if (on && typeof Notification !== "undefined" && Notification.permission === "default") {
+                      try { await Notification.requestPermission(); } catch (err) { /* permesso negato */ }
+                    }
+                    handleChange("eveningReminderEnabled", on);
+                  }}
+                  className="w-4 h-4 accent-[#0071E3]"
+                />
+                Promemoria serale
+              </label>
+              <input
+                type="time"
+                value={formData.eveningReminderTime || "19:15"}
+                onChange={(e) => handleChange("eveningReminderTime", e.target.value || "19:15")}
+                className="bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-white font-mono focus:outline-none focus:border-cyan-500"
+              />
+            </div>
+            <p className="text-[10px] text-slate-500">
+              {typeof Notification === "undefined"
+                ? "Questo browser non supporta le notifiche."
+                : Notification.permission === "denied"
+                ? "Notifiche bloccate nel browser: riattivale dalle impostazioni del sito."
+                : "Una notifica con l'argomento della sera, solo se non hai ancora studiato. Funziona con l'app aperta o installata e in background."}
+            </p>
+          </div>
+
           {/* Critical Threshold & Buffer */}
           <div className="grid grid-cols-2 gap-3">
             <div>

@@ -291,7 +291,7 @@ export function TonightFocus({ focus, settings, onLogStudySession, onOpenTopicDe
     <section className="bg-paper rounded-[20px] p-5 md:p-6 shadow-card flex flex-col sm:flex-row sm:items-center justify-between gap-4" aria-label="Cosa fare stasera">
       <div className="min-w-0 flex flex-col gap-1">
         <span className="eyebrow">{eyebrow}</span>
-        <h3 className="text-[22px] md:text-[26px] font-bold tracking-tight leading-tight">{title}</h3>
+        <h3 className="text-[22px] md:text-[26px] font-bold tracking-tight leading-tight line-clamp-2" title={title}>{title}</h3>
         {subtitle && <p className="text-[13px] text-ink-2">{subtitle}</p>}
         {savedMessage && <p className="text-[13px] text-ok-ink font-medium">{savedMessage}</p>}
         {focus && focus.kind === "study" && topic && onOpenTopicDetail && (

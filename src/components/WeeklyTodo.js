@@ -559,7 +559,7 @@ export function WeeklyTodo({
             onClick={() => setIsExpressReviewActive(prev => !prev)}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border shadow-sm ${
               isExpressReviewActive
-                ? "bg-rose-500/25 text-rose-200 border-rose-500/50 shadow-rose-950/40 animate-pulse"
+                ? "bg-amber-500/25 text-amber-200 border-amber-500/50"
                 : "bg-slate-950/80 hover:bg-slate-800 text-slate-300 border-slate-800"
             }`}
             title="Modalità Sprint Pre-Esame (Triage 7gg): concentra lo studio solo su argomenti a Priorità 4 e 5 e temi d'esame"
@@ -774,7 +774,7 @@ export function WeeklyTodo({
                           rev.isDone
                             ? "bg-emerald-950/40 border-emerald-500/30 text-emerald-200"
                             : rev.isOverdue
-                            ? "bg-rose-950/50 border-rose-500/40 text-rose-200"
+                            ? "bg-amber-950/40 border-amber-500/30 text-amber-200"
                             : "bg-slate-900/90 border-slate-800 text-slate-200"
                         }`}
                       >
@@ -784,7 +784,7 @@ export function WeeklyTodo({
                             rev.isDone
                               ? "bg-emerald-500/20 text-emerald-300"
                               : rev.isOverdue
-                              ? "bg-rose-500/20 text-rose-300 animate-pulse"
+                              ? "bg-amber-500/20 text-amber-300"
                               : "bg-purple-500/20 text-purple-300"
                           }`}>
                             {rev.levelLabel}

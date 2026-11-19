@@ -329,3 +329,33 @@ test("temi d'esame: settimana, curva e peso nella previsione", async () => {
   assert.strictEqual(plan.metrics.mockExams.total, 3);
   assert.strictEqual(plan.metrics.examPrediction.mockBased, true);
 });
+
+test("motivazione: promemoria serale, orario e punto della domenica", async () => {
+  const { msUntilNextTime, buildEveningReminder, calculateWeeklyDigest } = await import("../src/services/rebalancerEngine.js");
+  const at = (h, m) => new Date(2026, 10, 19, h, m, 0, 0).getTime();
+  assert.strictEqual(msUntilNextTime(at(18, 15), "19:15"), 60 * 60 * 1000);
+  assert.strictEqual(msUntilNextTime(at(19, 15), "19:15"), 24 * 60 * 60 * 1000, "all'orario esatto si passa al giorno dopo");
+
+  const msg = buildEveningReminder({ kind: "study", topic: { id: "G-01", argomento: "Matrici" }, plannedHours: 2, reviewsCount: 1 });
+  assert.strictEqual(msg.title, "Stasera: G-01 Matrici");
+  assert.ok(msg.body.startsWith("2 h e 1 ripasso"));
+  assert.strictEqual(buildEveningReminder({ kind: "done", reviewsCount: 0 }), null, "già studiato: niente notifica");
+  assert.strictEqual(buildEveningReminder({ kind: "rest", reviewsCount: 0 }), null);
+
+  const topics = freshTopics().map(t => t.id === "A-01"
+    ? { ...t, completato: true, isCompleted: true, completedDate: "2026-11-17", spacedReviews: { r1: { done: true, outcome: "failed", date: "2026-11-18" } } }
+    : t);
+  const sessions = [
+    { id: "s1", date: "2026-11-17", topicId: "A-01", hours: 2, exercises: { correct: 4, partial: 0, wrong: 1 } },
+    { id: "s2", date: "2026-11-01", topicId: "A-01", hours: 1, exercises: { correct: 0, partial: 0, wrong: 3 } }
+  ];
+  const plan = rebalanceStudyPlan(topics, { currentSimulatedDate: "2026-11-19" }, {}, sessions);
+  const week = plan.currentWeekPlan;
+  const d = calculateWeeklyDigest(week, sessions, topics, [{ id: "m", date: week.startDate, subject: "analisi", score: 20, maxScore: 30 }]);
+  assert.deepStrictEqual(d.exercises, { correct: 4, partial: 0, attempts: 5 }, "solo le sessioni della settimana");
+  assert.deepStrictEqual(d.closedTopics, ["A-01"]);
+  assert.strictEqual(d.reviewsDone, 1);
+  assert.strictEqual(d.reviewsFailed, 1);
+  assert.ok(d.lines.some(l => l === "Esercizi senza appunti: 4 su 5 giusti."));
+  assert.ok(d.lines.some(l => l === "Tema di Analisi I: 20/30."));
+});
