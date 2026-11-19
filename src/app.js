@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { INITIAL_TOPICS } from "./data/defaultData.js";
 import { rebalanceStudyPlan, DEFAULT_SETTINGS, getLocalTodayDateStr } from "./services/rebalancerEngine.js";
-import { applySessionToTopic, revertSessionFromTopic } from "./services/topicStateService.js";
+import { applySessionToTopic, revertSessionFromTopic, restoreOfficialNotes } from "./services/topicStateService.js";
 import { AlertBanner } from "./components/AlertBanner.js";
 import { Dashboard } from "./components/Dashboard.js";
 import { WeeklyTodo } from "./components/WeeklyTodo.js";
@@ -54,7 +54,7 @@ export function App() {
     try {
       const saved = localStorage.getItem(LOCAL_STORAGE_KEY_TOPICS);
       if (saved) {
-        const parsed = JSON.parse(saved);
+        const parsed = restoreOfficialNotes(JSON.parse(saved), INITIAL_TOPICS);
         return parsed.map(t => {
           const isDone = Boolean(t.completato !== undefined ? t.completato : t.isCompleted);
           const oreEff = t.oreEffettive !== undefined && t.oreEffettive !== null

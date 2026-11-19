@@ -2252,6 +2252,22 @@ function withCompletion(topic, done, date = null) {
   };
 }
 
+/**
+ * Migrazione dati: le versioni precedenti salvavano gli appunti personali anche in
+ * `note`, cancellando il focus didattico ufficiale. Se `note` coincide con gli appunti,
+ * si ripristina il testo ufficiale dal dataset predefinito.
+ */
+function restoreOfficialNotes(topics, defaultTopics) {
+  const officialById = new Map((defaultTopics || []).map(t => [t.id, t.note]));
+  return (topics || []).map(t => {
+    const official = officialById.get(t.id);
+    if (t.scratchpadNotes && t.note === t.scratchpadNotes && official !== undefined && official !== t.note) {
+      return { ...t, note: official };
+    }
+    return t;
+  });
+}
+
 
 // --- src/services/parserService.js ---
 /**
@@ -10480,20 +10496,19 @@ function TopicDetailModalContent({
 }) {
 
   const [activeTab, setActiveTab] = useState("overview"); // "overview" | "theorems" | "sessions" | "notes"
-  const [noteText, setNoteText] = useState(topic.scratchpadNotes || topic.note || "");
+  // Gli appunti personali vivono in scratchpadNotes; `note` è il focus didattico ufficiale
+  // dell'argomento (usato da Simulatore d'esame e NeuraDeck) e non va mai sovrascritto.
+  const [noteText, setNoteText] = useState(topic.scratchpadNotes || "");
   const [notesSavedAlert, setNotesSavedAlert] = useState(false);
   const [isNotePreview, setIsNotePreview] = useState(false);
 
   useEffect(() => {
-    setNoteText(topic.scratchpadNotes || topic.note || "");
-  }, [topic.id, topic.scratchpadNotes, topic.note]);
+    setNoteText(topic.scratchpadNotes || "");
+  }, [topic.id, topic.scratchpadNotes]);
 
   const handleSaveNotes = () => {
     if (onUpdateTopic) {
-      onUpdateTopic(topic.id, {
-        scratchpadNotes: noteText,
-        note: noteText
-      });
+      onUpdateTopic(topic.id, { scratchpadNotes: noteText });
       setNotesSavedAlert(true);
       setTimeout(() => setNotesSavedAlert(false), 2500);
     }
@@ -10767,7 +10782,7 @@ function TopicDetailModalContent({
             }`}
           >
             <span>📝 Appunti & Scratchpad</span>
-            {Boolean(topic.scratchpadNotes || topic.note) && (
+            {Boolean(topic.scratchpadNotes) && (
               <span className="w-2 h-2 rounded-full bg-cyan-400 inline-block animate-pulse"></span>
             )}
           </button>
@@ -11543,7 +11558,7 @@ function App() {
     try {
       const saved = localStorage.getItem(LOCAL_STORAGE_KEY_TOPICS);
       if (saved) {
-        const parsed = JSON.parse(saved);
+        const parsed = restoreOfficialNotes(JSON.parse(saved), INITIAL_TOPICS);
         return parsed.map(t => {
           const isDone = Boolean(t.completato !== undefined ? t.completato : t.isCompleted);
           const oreEff = t.oreEffettive !== undefined && t.oreEffettive !== null

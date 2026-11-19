@@ -30,20 +30,19 @@ function TopicDetailModalContent({
 }) {
 
   const [activeTab, setActiveTab] = useState("overview"); // "overview" | "theorems" | "sessions" | "notes"
-  const [noteText, setNoteText] = useState(topic.scratchpadNotes || topic.note || "");
+  // Gli appunti personali vivono in scratchpadNotes; `note` è il focus didattico ufficiale
+  // dell'argomento (usato da Simulatore d'esame e NeuraDeck) e non va mai sovrascritto.
+  const [noteText, setNoteText] = useState(topic.scratchpadNotes || "");
   const [notesSavedAlert, setNotesSavedAlert] = useState(false);
   const [isNotePreview, setIsNotePreview] = useState(false);
 
   useEffect(() => {
-    setNoteText(topic.scratchpadNotes || topic.note || "");
-  }, [topic.id, topic.scratchpadNotes, topic.note]);
+    setNoteText(topic.scratchpadNotes || "");
+  }, [topic.id, topic.scratchpadNotes]);
 
   const handleSaveNotes = () => {
     if (onUpdateTopic) {
-      onUpdateTopic(topic.id, {
-        scratchpadNotes: noteText,
-        note: noteText
-      });
+      onUpdateTopic(topic.id, { scratchpadNotes: noteText });
       setNotesSavedAlert(true);
       setTimeout(() => setNotesSavedAlert(false), 2500);
     }
@@ -317,7 +316,7 @@ function TopicDetailModalContent({
             }`}
           >
             <span>📝 Appunti & Scratchpad</span>
-            {Boolean(topic.scratchpadNotes || topic.note) && (
+            {Boolean(topic.scratchpadNotes) && (
               <span className="w-2 h-2 rounded-full bg-cyan-400 inline-block animate-pulse"></span>
             )}
           </button>

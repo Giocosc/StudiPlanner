@@ -1,6 +1,6 @@
 import assert from "assert";
 import { test } from "./harness.mjs";
-import { applySessionToTopic, revertSessionFromTopic, withCompletion, isTopicDone } from "../src/services/topicStateService.js";
+import { applySessionToTopic, revertSessionFromTopic, withCompletion, isTopicDone, restoreOfficialNotes } from "../src/services/topicStateService.js";
 
 const topic = (extra = {}) => ({ id: "A-01", oreStimate: 2, oreEffettive: 0, completato: false, isCompleted: false, ...extra });
 
@@ -65,4 +65,16 @@ test("completamento: withCompletion allinea completato e isCompleted", () => {
   const again = withCompletion(reset, true, "2026-11-19");
   assert.strictEqual(isTopicDone(again), true);
   assert.strictEqual(again.completedDate, "2026-11-19");
+});
+
+test("note: la migrazione ripristina il focus didattico sovrascritto dagli appunti", () => {
+  const defaults = [{ id: "A-01", note: "Definizione formale sup/inf" }, { id: "A-02", note: "Grafici" }];
+  const saved = [
+    { id: "A-01", note: "miei appunti", scratchpadNotes: "miei appunti" },
+    { id: "A-02", note: "Grafici", scratchpadNotes: "altro" }
+  ];
+  const fixed = restoreOfficialNotes(saved, defaults);
+  assert.strictEqual(fixed[0].note, "Definizione formale sup/inf");
+  assert.strictEqual(fixed[0].scratchpadNotes, "miei appunti");
+  assert.strictEqual(fixed[1].note, "Grafici");
 });

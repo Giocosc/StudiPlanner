@@ -86,3 +86,19 @@ export function withCompletion(topic, done, date = null) {
     completedDate: isDone ? (topic.completedDate || date || null) : null
   };
 }
+
+/**
+ * Migrazione dati: le versioni precedenti salvavano gli appunti personali anche in
+ * `note`, cancellando il focus didattico ufficiale. Se `note` coincide con gli appunti,
+ * si ripristina il testo ufficiale dal dataset predefinito.
+ */
+export function restoreOfficialNotes(topics, defaultTopics) {
+  const officialById = new Map((defaultTopics || []).map(t => [t.id, t.note]));
+  return (topics || []).map(t => {
+    const official = officialById.get(t.id);
+    if (t.scratchpadNotes && t.note === t.scratchpadNotes && official !== undefined && official !== t.note) {
+      return { ...t, note: official };
+    }
+    return t;
+  });
+}
