@@ -78,3 +78,15 @@ test("note: la migrazione ripristina il focus didattico sovrascritto dagli appun
   assert.strictEqual(fixed[0].scratchpadNotes, "miei appunti");
   assert.strictEqual(fixed[1].note, "Grafici");
 });
+
+test("sync: solo gli argomenti realmente modificati ricevono updatedAt", async () => {
+  const { stampChangedTopics } = await import("../src/services/topicStateService.js");
+  const prev = [{ id: "A-01", ore: 1 }, { id: "A-02", ore: 2 }, { id: "A-03", ore: 3 }];
+  const next = [prev[0], { ...prev[1] }, { ...prev[2], ore: 4 }, { id: "A-04" }];
+  const out = stampChangedTopics(prev, next, 123);
+  assert.strictEqual(out[0], prev[0]);
+  assert.strictEqual(out[1].updatedAt, undefined, "copia identica: nessun timestamp");
+  assert.strictEqual(out[2].updatedAt, 123);
+  assert.strictEqual(out[3].updatedAt, 123);
+  assert.strictEqual(stampChangedTopics(prev, prev, 1), prev);
+});

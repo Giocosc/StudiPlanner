@@ -158,9 +158,24 @@ export async function pullFromGitLab(config) {
 }
 
 /**
- * Pushes updated state to GitLab repository (creates file if not present, updates if present)
+ * Errore di conflitto: il file remoto è cambiato dopo l'ultima lettura
+ * (GitLab rifiuta il commit perché `last_commit_id` non è più l'ultimo).
  */
-export async function pushToGitLab(config, payload, commitMessage = "") {
+export class GitLabConflictError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "GitLabConflictError";
+    this.isConflict = true;
+  }
+}
+
+/**
+ * Pushes updated state to GitLab repository (creates file if not present, updates if present)
+ * options.lastCommitId: se presente, GitLab accetta l'aggiornamento solo se il file non è
+ *   cambiato da quel commit (controllo di concorrenza ottimistico); altrimenti -> GitLabConflictError.
+ * options.fileExists: se noto (es. da un pull appena fatto) evita la richiesta HEAD.
+ */
+export async function pushToGitLab(config, payload, commitMessage = "", options = {}) {
   const instanceUrl = cleanInstanceUrl(config.instanceUrl);
   const projectId = encodeProjectId(config.projectId);
   const token = (config.token || "").trim();
@@ -172,17 +187,18 @@ export async function pushToGitLab(config, payload, commitMessage = "") {
     throw new Error("Configurazione GitLab incompleta per il push.");
   }
 
-  const checkEndpoint = `${instanceUrl}/api/v4/projects/${projectId}/repository/files/${filePath}?ref=${encodeURIComponent(branch)}`;
-  let fileExists = false;
-
-  try {
-    const checkRes = await fetch(checkEndpoint, {
-      method: "HEAD",
-      headers: { "PRIVATE-TOKEN": token }
-    });
-    fileExists = checkRes.status === 200;
-  } catch (e) {
-    fileExists = false;
+  let fileExists = options.fileExists;
+  if (fileExists === undefined) {
+    const checkEndpoint = `${instanceUrl}/api/v4/projects/${projectId}/repository/files/${filePath}?ref=${encodeURIComponent(branch)}`;
+    try {
+      const checkRes = await fetch(checkEndpoint, {
+        method: "HEAD",
+        headers: { "PRIVATE-TOKEN": token }
+      });
+      fileExists = checkRes.status === 200;
+    } catch (e) {
+      fileExists = false;
+    }
   }
 
   const method = fileExists ? "PUT" : "POST";
@@ -196,6 +212,9 @@ export async function pushToGitLab(config, payload, commitMessage = "") {
     content: JSON.stringify(payload, null, 2),
     encoding: "text"
   };
+  if (fileExists && options.lastCommitId) {
+    requestBody.last_commit_id = options.lastCommitId;
+  }
 
   const response = await fetch(endpoint, {
     method: method,
@@ -209,6 +228,11 @@ export async function pushToGitLab(config, payload, commitMessage = "") {
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => "");
+    // 400 "...has changed since you started editing it" / 409: il file remoto è cambiato.
+    // Un POST su file già creato da un altro dispositivo risponde 400 "already exists".
+    if (response.status === 409 || (response.status === 400 && /changed|already exists|last_commit_id/i.test(errorBody))) {
+      throw new GitLabConflictError(`Il file remoto è cambiato nel frattempo (${response.status}).`);
+    }
     throw new Error(`Errore durante il push su GitLab (${response.status}): ${errorBody || response.statusText}`);
   }
 
@@ -223,29 +247,69 @@ export async function pushToGitLab(config, payload, commitMessage = "") {
   };
 }
 
+/* ------------------------------------------------------------------------- */
+/* Merge                                                                     */
+/* ------------------------------------------------------------------------- */
+
+const sumSessionHoursByTopic = (sessions) => {
+  const map = new Map();
+  (sessions || []).forEach(s => {
+    if (!s || !s.topicId) return;
+    map.set(s.topicId, (map.get(s.topicId) || 0) + Number(s.hours || 0));
+  });
+  return map;
+};
+
+const syncTs = (value) => {
+  const n = typeof value === "string" ? Date.parse(value) : Number(value);
+  return Number.isFinite(n) ? n : 0;
+};
+
+/**
+ * Serializzazione JSON con chiavi ordinate: serve a confrontare due stati
+ * indipendentemente dall'ordine delle proprietà.
+ */
+export function stableStringify(value) {
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value).sort().filter(k => value[k] !== undefined).map(k => `${JSON.stringify(k)}:${stableStringify(value[k])}`).join(",")}}`;
+  }
+  return JSON.stringify(value === undefined ? null : value);
+}
+
 /**
  * Intelligent Conflict Resolution & Session-Level Merge (Punto 16)
  * Merges local and remote states preventing data loss across offline devices.
- * - Deduplicates and unifies all study sessions by unique session ID.
- * - Preserves completion status (logical OR) and maximum actual study hours.
- * - Unions Feynman checklists and scratchpad notes per topic.
- * - Merges custom day capacity overrides seamlessly.
+ * - Sessioni: unione per ID, MENO quelle cancellate su un qualsiasi dispositivo
+ *   (deletedSessionIds, "tombstone"): una sessione eliminata non ricompare.
+ * - Argomenti: per stato (completamento, Feynman, ripassi, appunti) vince la modifica
+ *   più recente (updatedAt); se nessuno dei due ha updatedAt si usa l'unione storica.
+ * - oreEffettive: ricalcolate = ore delle sessioni unite + correzioni manuali (±30m,
+ *   spunte senza sessioni) del lato più recente. Prima si prendeva il massimo dei due
+ *   lati e le ore registrate offline su due dispositivi andavano perse.
+ * - `note` (focus didattico ufficiale) e `scratchpadNotes` (appunti) restano distinti.
+ * - Time Shifter, impostazioni e bug tracker: vince il lato modificato più di recente
+ *   (syncMeta), così anche un reset/cancellazione si propaga.
  */
 export function mergeStudyPlannerStates(localState = {}, remoteState = {}) {
   if (!remoteState) return localState;
   if (!localState) return remoteState;
 
-  // 1. Merge Study Sessions by Unique ID (Deduplication + Union)
+  // 0. Tombstone delle sessioni cancellate (unione dei due lati)
+  const deletedIds = new Set([
+    ...((remoteState.deletedSessionIds) || []),
+    ...((localState.deletedSessionIds) || [])
+  ]);
+
+  // 1. Merge Study Sessions by Unique ID (Deduplication + Union - Tombstones)
   const sessionsMap = new Map();
-  // Remote sessions
   (remoteState.studySessions || []).forEach(sess => {
-    if (sess && sess.id) {
+    if (sess && sess.id && !deletedIds.has(sess.id)) {
       sessionsMap.set(sess.id, sess);
     }
   });
-  // Local sessions
   (localState.studySessions || []).forEach(sess => {
-    if (sess && sess.id) {
+    if (sess && sess.id && !deletedIds.has(sess.id)) {
       if (sessionsMap.has(sess.id)) {
         const existing = sessionsMap.get(sess.id);
         sessionsMap.set(sess.id, {
@@ -260,62 +324,205 @@ export function mergeStudyPlannerStates(localState = {}, remoteState = {}) {
     }
   });
   const mergedSessions = Array.from(sessionsMap.values()).sort((a, b) => {
-    return (b.date || "").localeCompare(a.date || "");
+    const byDate = (b.date || "").localeCompare(a.date || "");
+    return byDate !== 0 ? byDate : String(b.timestamp || "").localeCompare(String(a.timestamp || ""));
   });
 
-  // 2. Merge Topics (Preserve sequential order, max oreEffettive, completion union, Feynman union)
+  const localSessionHours = sumSessionHoursByTopic(localState.studySessions);
+  const remoteSessionHours = sumSessionHoursByTopic(remoteState.studySessions);
+  const mergedSessionHours = sumSessionHoursByTopic(mergedSessions);
+
+  // 2. Merge Topics
   const localTopics = localState.topics || [];
   const remoteTopicsMap = new Map((remoteState.topics || []).map(t => [t.id, t]));
+  const localIds = new Set(localTopics.map(t => t.id));
+
+  const mergeTopic = (localT, remoteT) => {
+    const lTime = syncTs(localT.updatedAt);
+    const rTime = syncTs(remoteT.updatedAt);
+    const hasTimestamps = lTime > 0 || rTime > 0;
+    const remoteIsNewer = rTime > lTime;
+    const newer = remoteIsNewer ? remoteT : localT;
+    const older = remoteIsNewer ? localT : remoteT;
+
+    const manualDelta = (t, sessionHours) => Number(t.oreEffettive || 0) - (sessionHours.get(t.id) || 0);
+    const localManual = manualDelta(localT, localSessionHours);
+    const remoteManual = manualDelta(remoteT, remoteSessionHours);
+    const manual = hasTimestamps ? (remoteIsNewer ? remoteManual : localManual) : Math.max(localManual, remoteManual);
+    const effHours = Math.max(0, Number(((mergedSessionHours.get(localT.id) || 0) + manual).toFixed(2)));
+
+    let state;
+    if (hasTimestamps) {
+      const isCompleted = Boolean(newer.completato !== undefined ? newer.completato : newer.isCompleted);
+      state = {
+        completato: isCompleted,
+        isCompleted,
+        completedDate: isCompleted ? (newer.completedDate || older.completedDate || null) : null,
+        feynmanChecklist: newer.feynmanChecklist || older.feynmanChecklist,
+        spacedReviews: newer.spacedReviews || older.spacedReviews,
+        scratchpadNotes: newer.scratchpadNotes !== undefined ? newer.scratchpadNotes : older.scratchpadNotes,
+        autoFilledHours: newer.autoFilledHours !== undefined ? newer.autoFilledHours : older.autoFilledHours
+      };
+    } else {
+      // Dati legacy senza updatedAt: unione conservativa (nessuna perdita)
+      const isCompleted = Boolean(localT.isCompleted || localT.completato || remoteT.isCompleted || remoteT.completato);
+      const lFeynman = localT.feynmanChecklist || {};
+      const rFeynman = remoteT.feynmanChecklist || {};
+      state = {
+        completato: isCompleted,
+        isCompleted,
+        completedDate: isCompleted ? (localT.completedDate || remoteT.completedDate || null) : null,
+        feynmanChecklist: {
+          intuitive: Boolean(lFeynman.intuitive || rFeynman.intuitive),
+          formal: Boolean(lFeynman.formal || rFeynman.formal),
+          proof: Boolean(lFeynman.proof || rFeynman.proof)
+        },
+        spacedReviews: { ...(remoteT.spacedReviews || {}), ...(localT.spacedReviews || {}) },
+        scratchpadNotes: localT.scratchpadNotes || remoteT.scratchpadNotes || ""
+      };
+    }
+
+    return {
+      ...older,
+      ...newer,
+      ...state,
+      note: newer.note !== undefined ? newer.note : older.note,
+      oreEffettive: effHours,
+      updatedAt: Math.max(lTime, rTime) || undefined
+    };
+  };
 
   const mergedTopics = localTopics.map(localT => {
     const remoteT = remoteTopicsMap.get(localT.id);
-    if (!remoteT) return localT;
-
-    const isCompleted = Boolean(localT.isCompleted || localT.completato || remoteT.isCompleted || remoteT.completato);
-    const effHours = Math.max(Number(localT.oreEffettive || 0), Number(remoteT.oreEffettive || 0));
-    const completedDate = localT.completedDate || remoteT.completedDate || (isCompleted ? new Date().toISOString().split("T")[0] : null);
-
-    // Feynman checklist union
-    const lFeynman = localT.feynmanChecklist || {};
-    const rFeynman = remoteT.feynmanChecklist || {};
-    const mergedFeynman = {
-      intuitive: Boolean(lFeynman.intuitive || rFeynman.intuitive),
-      formal: Boolean(lFeynman.formal || rFeynman.formal),
-      proof: Boolean(lFeynman.proof || rFeynman.proof)
-    };
-
-    // Notes: keep non-empty, prefer longer or combine
-    const mergedNotes = localT.scratchpadNotes || remoteT.scratchpadNotes || localT.note || remoteT.note || "";
-
-    return {
-      ...remoteT,
-      ...localT,
-      isCompleted,
-      completato: isCompleted,
-      completedDate,
-      oreEffettive: effHours,
-      feynmanChecklist: mergedFeynman,
-      scratchpadNotes: mergedNotes,
-      note: mergedNotes
-    };
+    return remoteT ? mergeTopic(localT, remoteT) : localT;
+  });
+  // Argomenti presenti solo sull'altro dispositivo (es. import CSV fatto altrove)
+  (remoteState.topics || []).forEach(remoteT => {
+    if (remoteT && remoteT.id && !localIds.has(remoteT.id)) mergedTopics.push(remoteT);
   });
 
-  // 3. Merge Custom Day Capacities
-  const mergedCapacities = {
-    ...(remoteState.customDayCapacities || {}),
-    ...(localState.customDayCapacities || {})
+  // 3. Metadati di sincronizzazione (ultimo aggiornamento per sezione)
+  const localMeta = localState.syncMeta || {};
+  const remoteMeta = remoteState.syncMeta || {};
+  const pickNewer = (key, localValue, remoteValue, legacyMerge) => {
+    const l = syncTs(localMeta[key]);
+    const r = syncTs(remoteMeta[key]);
+    if (l === 0 && r === 0) return legacyMerge();
+    return r > l ? remoteValue : localValue;
   };
 
-  // 4. Merge Settings (Keep local simulated date if present)
-  const mergedSettings = {
-    ...(remoteState.settings || {}),
-    ...(localState.settings || {})
-  };
+  // 4. Merge Custom Day Capacities
+  const mergedCapacities = pickNewer(
+    "capacitiesUpdatedAt",
+    localState.customDayCapacities || {},
+    remoteState.customDayCapacities || {},
+    () => ({ ...(remoteState.customDayCapacities || {}), ...(localState.customDayCapacities || {}) })
+  );
+
+  // 5. Merge Settings (la data simulata resta sempre quella del dispositivo locale)
+  const chosenSettings = pickNewer(
+    "settingsUpdatedAt",
+    localState.settings || {},
+    remoteState.settings || {},
+    () => ({ ...(remoteState.settings || {}), ...(localState.settings || {}) })
+  );
+  const mergedSettings = { ...chosenSettings };
+  if (localState.settings && localState.settings.currentSimulatedDate) {
+    mergedSettings.currentSimulatedDate = localState.settings.currentSimulatedDate;
+  } else {
+    delete mergedSettings.currentSimulatedDate;
+  }
+
+  // 6. Bug tracker matematico
+  const mergedMathBugs = pickNewer(
+    "mathBugsUpdatedAt",
+    localState.mathBugs,
+    remoteState.mathBugs,
+    () => (localState.mathBugs && localState.mathBugs.length > 0 ? localState.mathBugs : remoteState.mathBugs)
+  );
+
+  const mergedMeta = {};
+  ["settingsUpdatedAt", "capacitiesUpdatedAt", "mathBugsUpdatedAt"].forEach(key => {
+    const value = Math.max(syncTs(localMeta[key]), syncTs(remoteMeta[key]));
+    if (value > 0) mergedMeta[key] = value;
+  });
 
   return {
     topics: mergedTopics.length > 0 ? mergedTopics : (remoteState.topics || []),
     studySessions: mergedSessions,
+    deletedSessionIds: Array.from(deletedIds),
     customDayCapacities: mergedCapacities,
-    settings: mergedSettings
+    settings: mergedSettings,
+    mathBugs: mergedMathBugs,
+    syncMeta: mergedMeta
   };
+}
+
+/* ------------------------------------------------------------------------- */
+/* Sync completo: pull -> merge -> push con controllo di concorrenza          */
+/* ------------------------------------------------------------------------- */
+
+/** Payload salvato su GitLab (senza la data simulata, che è propria di ogni dispositivo). */
+export function buildSyncPayload(state = {}) {
+  const settings = { ...(state.settings || {}) };
+  delete settings.currentSimulatedDate;
+  const payload = {
+    exportDate: new Date().toISOString(),
+    settings,
+    topics: state.topics || [],
+    customDayCapacities: state.customDayCapacities || {},
+    studySessions: state.studySessions || [],
+    deletedSessionIds: state.deletedSessionIds || [],
+    syncMeta: state.syncMeta || {}
+  };
+  if (state.mathBugs !== undefined) payload.mathBugs = state.mathBugs;
+  return payload;
+}
+
+const comparableSyncPayload = (payload) => {
+  const { exportDate, ...rest } = payload || {};
+  const settings = { ...(rest.settings || {}) };
+  delete settings.currentSimulatedDate;
+  return stableStringify({ ...rest, settings });
+};
+
+/** true se i due stati sono equivalenti ai fini del sync (data di export e data simulata escluse) */
+export function syncStatesEqual(a, b) {
+  return comparableSyncPayload(buildSyncPayload(a)) === comparableSyncPayload(buildSyncPayload(b));
+}
+
+/**
+ * Sincronizzazione completa e sicura con più dispositivi aperti:
+ * 1. legge il file remoto (e il suo last_commit_id);
+ * 2. fonde lo stato remoto con quello locale;
+ * 3. se il risultato differisce dal remoto, lo scrive passando last_commit_id:
+ *    se nel frattempo un altro dispositivo ha scritto, GitLab rifiuta e si riparte dal punto 1.
+ * Restituisce lo stato fuso, da applicare in locale.
+ */
+export async function syncWithGitLab(config, localState, commitMessage = "", maxAttempts = 3) {
+  let lastError = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const remote = await pullFromGitLab(config);
+    const merged = remote.data ? mergeStudyPlannerStates(localState, remote.data) : { ...localState };
+
+    // Il remoto viene normalizzato con la stessa fusione (campi mancanti nei dati legacy),
+    // così uno stato già allineato non genera commit inutili.
+    if (remote.data && syncStatesEqual(merged, mergeStudyPlannerStates(remote.data, remote.data))) {
+      return { merged, pushed: false, commitId: remote.lastCommitId || remote.commitId || null, attempts: attempt };
+    }
+
+    try {
+      const res = await pushToGitLab(config, buildSyncPayload(merged), commitMessage, {
+        fileExists: !remote.notFound,
+        lastCommitId: remote.lastCommitId
+      });
+      return { merged, pushed: true, commitId: res.commitId, timestamp: res.timestamp, attempts: attempt };
+    } catch (err) {
+      if (!err || !err.isConflict) throw err;
+      lastError = err;
+      // Conflitto: un altro dispositivo ha scritto. Si rilegge e si rifonde.
+      localState = merged;
+    }
+  }
+  throw lastError || new Error("Sincronizzazione GitLab non riuscita dopo più tentativi.");
 }

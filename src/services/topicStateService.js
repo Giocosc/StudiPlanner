@@ -102,3 +102,31 @@ export function restoreOfficialNotes(topics, defaultTopics) {
     return t;
   });
 }
+
+const sameTopicContent = (a, b) => {
+  const keys = new Set([...Object.keys(a || {}), ...Object.keys(b || {})]);
+  keys.delete("updatedAt");
+  for (const k of keys) {
+    if (JSON.stringify(a[k]) !== JSON.stringify(b[k])) return false;
+  }
+  return true;
+};
+
+/**
+ * Marca con `updatedAt` gli argomenti modificati dall'utente (nuovi o con contenuto
+ * diverso dalla versione precedente). Serve al sync GitLab per far vincere la
+ * modifica più recente, anche quando si toglie una spunta o si cancella un appunto.
+ */
+export function stampChangedTopics(prevTopics, nextTopics, now = Date.now()) {
+  if (!Array.isArray(nextTopics) || nextTopics === prevTopics) return nextTopics;
+  const prevById = new Map((prevTopics || []).map(t => [t.id, t]));
+  let changed = false;
+  const stamped = nextTopics.map(t => {
+    const prev = prevById.get(t.id);
+    if (prev === t) return t;
+    if (prev && sameTopicContent(prev, t)) return t;
+    changed = true;
+    return { ...t, updatedAt: now };
+  });
+  return changed ? stamped : nextTopics;
+}
