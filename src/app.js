@@ -849,7 +849,9 @@ export function App() {
   };
 
   // Spaced Repetition: Toggle review level completion (r1, r2, r3)
-  const handleToggleSpacedReview = (topicId, levelKey, isDone) => {
+  // Con l'esito (good | partial | failed) il ripasso successivo si ricalcola dalla data
+  // di oggi: allungato, accorciato o riportato a +3 giorni.
+  const handleToggleSpacedReview = (topicId, levelKey, isDone, outcome = "good") => {
     setTopics(prev =>
       prev.map(t => {
         if (t.id === topicId) {
@@ -859,6 +861,8 @@ export function App() {
             spacedReviews: {
               ...curReviews,
               [levelKey]: isDone
+                ? { done: true, outcome: outcome || "good", date: settings.currentSimulatedDate }
+                : false
             }
           };
         }
@@ -1181,6 +1185,7 @@ export function App() {
                 onOpenTopicDetail={handleOpenTopicDetail}
                 onToggleSpacedReview={handleToggleSpacedReview}
                 onOpenRetrospective={() => setIsRetroModalOpen(true)}
+                mathBugs={mathBugs}
               />
             )}
 

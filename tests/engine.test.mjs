@@ -248,3 +248,38 @@ test("padronanza: gli esiti degli esercizi misurano la padronanza e spostano la 
   assert.strictEqual(plan.metrics.mastery.attempts, 9);
   assert.strictEqual(plan.metrics.examPrediction.masteryBased, true);
 });
+
+test("ripassi: intervalli adattivi in base all'esito", async () => {
+  const { buildSpacedReviewSchedule } = await import("../src/services/rebalancerEngine.js");
+  const t = (spacedReviews) => ({ id: "A-01", materia: "Analisi 1", argomento: "x", completedDate: "2026-11-01", spacedReviews });
+  const by = (list) => Object.fromEntries(list.map(r => [r.levelKey, r]));
+
+  // Nessun ripasso fatto: calendario fisso +3 / +7 / +21 dal completamento
+  let r = by(buildSpacedReviewSchedule(t({}), "2026-11-02"));
+  assert.deepStrictEqual([r.r1.targetDate, r.r2.targetDate, r.r3.targetDate], ["2026-11-04", "2026-11-08", "2026-11-22"]);
+  assert.ok(!r.r4, "nessun ripasso di recupero senza fallimenti");
+
+  // Dato storico (true): stesso calendario di prima
+  r = by(buildSpacedReviewSchedule(t({ r1: true }), "2026-11-05"));
+  assert.strictEqual(r.r1.isDone, true);
+  assert.strictEqual(r.r2.targetDate, "2026-11-08");
+
+  // R1 riuscito il 05/11: R2 si allunga a +7 dalla data del ripasso
+  r = by(buildSpacedReviewSchedule(t({ r1: { done: true, outcome: "good", date: "2026-11-05" } }), "2026-11-05"));
+  assert.strictEqual(r.r2.targetDate, "2026-11-12");
+
+  // R1 fallito: R2 torna a +3 giorni ed è un recupero
+  r = by(buildSpacedReviewSchedule(t({ r1: { done: true, outcome: "failed", date: "2026-11-05" } }), "2026-11-05"));
+  assert.strictEqual(r.r2.targetDate, "2026-11-08");
+  assert.strictEqual(r.r2.isRecovery, true);
+
+  // R3 fallito: compare un R4 di recupero a +3
+  r = by(buildSpacedReviewSchedule(t({
+    r1: { done: true, outcome: "good", date: "2026-11-04" },
+    r2: { done: true, outcome: "good", date: "2026-11-11" },
+    r3: { done: true, outcome: "failed", date: "2026-12-02" }
+  }), "2026-12-02"));
+  assert.strictEqual(r.r3.targetDate, "2026-12-02");
+  assert.strictEqual(r.r4.targetDate, "2026-12-05");
+  assert.ok(!r.r5);
+});

@@ -14,7 +14,7 @@ import {
   IconCalendar
 } from "./Icons.js";
 import { downloadIcsCalendar } from "../services/calendarExportService.js";
-import { getPreExamWindowStart, getHolidayBootcampDates, MAX_DAY_CAPACITY_HOURS } from "../services/rebalancerEngine.js";
+import { getPreExamWindowStart, getHolidayBootcampDates, MAX_DAY_CAPACITY_HOURS, REVIEW_OUTCOMES } from "../services/rebalancerEngine.js";
 
 const LOCAL_STORAGE_KEY_POMODORO = "unimore_rebalancer_pomodoro_v2";
 
@@ -32,7 +32,8 @@ export function WeeklyTodo({
   onOpenLogModal,
   onOpenTopicDetail,
   onToggleSpacedReview,
-  onOpenRetrospective
+  onOpenRetrospective,
+  mathBugs = []
 }) {
   // Default to the week containing Today
   const [selectedWeekIndex, setSelectedWeekIndex] = useState(() => {
@@ -769,7 +770,7 @@ export function WeeklyTodo({
                     {day.spacedReviews.map(rev => (
                       <div
                         key={`${rev.topicId}-${rev.levelKey}`}
-                        className={`flex items-center justify-between gap-2 p-2 rounded-xl border text-xs transition ${
+                        className={`flex flex-col gap-2 p-2 rounded-xl border text-xs transition ${
                           rev.isDone
                             ? "bg-emerald-950/40 border-emerald-500/30 text-emerald-200"
                             : rev.isOverdue
@@ -777,6 +778,7 @@ export function WeeklyTodo({
                             : "bg-slate-900/90 border-slate-800 text-slate-200"
                         }`}
                       >
+                        <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0">
                           <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold ${
                             rev.isDone
@@ -801,18 +803,52 @@ export function WeeklyTodo({
                           >
                             📖 Scheda
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => onToggleSpacedReview && onToggleSpacedReview(rev.topicId, rev.levelKey, !rev.isDone)}
-                            className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition ${
-                              rev.isDone
-                                ? "bg-emerald-500/30 border-emerald-500/50 text-emerald-200"
-                                : "bg-purple-600/40 hover:bg-purple-600/60 border-purple-500/50 text-purple-200 shadow-sm"
-                            }`}
-                          >
-                            {rev.isDone ? "Ripassato ✓" : "Segna Fatto"}
-                          </button>
+                          {rev.isDone && (
+                            <button
+                              type="button"
+                              onClick={() => onToggleSpacedReview && onToggleSpacedReview(rev.topicId, rev.levelKey, false)}
+                              className="px-2 py-1 rounded-lg text-[10px] font-bold border bg-emerald-500/30 border-emerald-500/50 text-emerald-200 transition"
+                              title="Annulla il ripasso"
+                            >
+                              {rev.outcome && REVIEW_OUTCOMES[rev.outcome] ? REVIEW_OUTCOMES[rev.outcome].label : "Ripassato"} ✓
+                            </button>
+                          )}
                         </div>
+                        </div>
+                        {!rev.isDone && (() => {
+                          const openBugs = (mathBugs || []).filter(b => b.topicId === rev.topicId && !b.isResolved);
+                          return (
+                            <div className="flex flex-col gap-2">
+                              {openBugs.length > 0 && (
+                                <div className="text-[11px] text-slate-300 bg-amber-950/40 rounded-lg px-2 py-1.5">
+                                  <span className="font-semibold text-amber-300">Prima di ripassare, i tuoi errori qui:</span>
+                                  <ul className="mt-0.5 space-y-0.5">
+                                    {openBugs.slice(0, 3).map(b => (
+                                      <li key={b.id}>• {b.title}{b.fixRule ? ` — ${b.fixRule}` : ""}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="text-[10px] text-slate-400 mr-1">Ripeti a memoria, poi:</span>
+                                {[
+                                  { key: "good", cls: "bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300" },
+                                  { key: "partial", cls: "bg-amber-500/20 hover:bg-amber-500/30 text-amber-300" },
+                                  { key: "failed", cls: "bg-rose-500/20 hover:bg-rose-500/30 text-rose-300" }
+                                ].map(opt => (
+                                  <button
+                                    key={opt.key}
+                                    type="button"
+                                    onClick={() => onToggleSpacedReview && onToggleSpacedReview(rev.topicId, rev.levelKey, true, opt.key)}
+                                    className={`px-2 py-1 rounded-lg text-[10px] font-bold transition ${opt.cls}`}
+                                  >
+                                    {REVIEW_OUTCOMES[opt.key].label}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </div>
                     ))}
                   </div>

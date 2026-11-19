@@ -1309,6 +1309,94 @@ function calculateMasteryStats(topics = [], studySessions = []) {
 }
 
 /**
+ * Ripassi attivi con intervalli adattivi.
+ * Lo stato di ogni livello in `topic.spacedReviews[rN]` può essere:
+ * - `true` (dato storico: ripasso fatto, esito sconosciuto);
+ * - `{ done: true, outcome: "good" | "partial" | "failed", date }`.
+ * Il primo ripasso cade a +3 giorni dal completamento. Ogni ripasso successivo parte
+ * dalla data del precedente: se andato bene l'intervallo si allunga, se parziale si
+ * accorcia, se fallito torna a +3 giorni. Un R3 non riuscito aggiunge ripassi di
+ * recupero (fino a R6) finché l'argomento non torna solido.
+ */
+const REVIEW_OUTCOMES = {
+  good: { label: "Ricordavo bene" },
+  partial: { label: "Incerto" },
+  failed: { label: "Non ricordavo" }
+};
+const REVIEW_BASE_DAYS = [3, 7, 21];
+const REVIEW_GOOD_GAP = { 2: 7, 3: 21 };
+const REVIEW_PARTIAL_GAP = { 2: 4, 3: 10 };
+const REVIEW_RECOVERY_GOOD_GAP = 14;
+const REVIEW_RECOVERY_PARTIAL_GAP = 7;
+const REVIEW_FAILED_GAP = 3;
+const MAX_REVIEW_LEVELS = 6;
+
+function getReviewRecord(value) {
+  if (value === true) return { done: true, outcome: null, date: null };
+  if (value && typeof value === "object" && value.done) {
+    return {
+      done: true,
+      outcome: REVIEW_OUTCOMES[value.outcome] ? value.outcome : null,
+      date: typeof value.date === "string" ? value.date : null
+    };
+  }
+  return { done: false, outcome: null, date: null };
+}
+
+function buildSpacedReviewSchedule(topic, currentDate) {
+  if (!topic || !topic.completedDate) return [];
+  const state = topic.spacedReviews || {};
+  const reviews = [];
+  let prev = null;
+  for (let level = 1; level <= MAX_REVIEW_LEVELS; level++) {
+    const isRecoveryLevel = level > REVIEW_BASE_DAYS.length;
+    // Oltre R3 si continua solo se l'ultimo ripasso non è andato bene
+    if (isRecoveryLevel && !(prev && prev.record.done && (prev.record.outcome === "failed" || prev.record.outcome === "partial"))) break;
+
+    let targetDate;
+    let intervalDays;
+    if (level === 1) {
+      intervalDays = REVIEW_BASE_DAYS[0];
+      targetDate = addDaysToDateStr(topic.completedDate, intervalDays);
+    } else if (prev.record.done && prev.record.outcome && prev.record.date) {
+      if (prev.record.outcome === "failed") intervalDays = REVIEW_FAILED_GAP;
+      else if (prev.record.outcome === "partial") intervalDays = isRecoveryLevel ? REVIEW_RECOVERY_PARTIAL_GAP : REVIEW_PARTIAL_GAP[level];
+      else intervalDays = isRecoveryLevel ? REVIEW_RECOVERY_GOOD_GAP : REVIEW_GOOD_GAP[level];
+      targetDate = addDaysToDateStr(prev.record.date, intervalDays);
+    } else {
+      // Ripasso precedente non ancora fatto (o dato storico senza esito): calendario fisso
+      intervalDays = REVIEW_BASE_DAYS[Math.min(level, REVIEW_BASE_DAYS.length) - 1];
+      targetDate = addDaysToDateStr(topic.completedDate, intervalDays);
+    }
+
+    const key = `r${level}`;
+    const record = getReviewRecord(state[key]);
+    const fromCompletion = level === 1 || !(prev.record.done && prev.record.outcome && prev.record.date);
+    reviews.push({
+      topicId: topic.id,
+      materia: topic.materia,
+      capitolo: topic.capitolo || "",
+      argomento: topic.argomento,
+      level,
+      levelKey: key,
+      levelLabel: `R${level} (+${intervalDays}gg)`,
+      intervalDays,
+      intervalFrom: fromCompletion ? "completion" : "previousReview",
+      isRecovery: Boolean(prev && prev.record.outcome === "failed"),
+      previousOutcome: prev ? prev.record.outcome : null,
+      targetDate,
+      isDone: record.done,
+      outcome: record.outcome,
+      doneDate: record.date,
+      isOverdue: !record.done && targetDate < currentDate,
+      isDueToday: !record.done && targetDate === currentDate
+    });
+    prev = { record };
+  }
+  return reviews;
+}
+
+/**
  * Heuristic Predictor for Exam Pass Probability & Expected Grade Range
  */
 function calculateExamReadinessAndGrade(topics, metrics) {
@@ -2097,36 +2185,12 @@ function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacities = {
     day.allocatedHours = Number((day.allocatedHours + a.hours).toFixed(2));
   });
 
-  // 4b. Spaced Repetition Cyclical Reviews Calculation (+3d, +7d, +21d)
+  // 4b. Ripassi attivi con intervalli adattivi (R1 +3gg, poi in base all'esito)
   const allSpacedReviews = [];
   processedTopics.forEach(t => {
     const isDone = Boolean(t.completato !== undefined ? t.completato : t.isCompleted);
     if (isDone && t.completedDate) {
-      const srState = t.spacedReviews || {};
-      const intervals = [
-        { level: 1, label: "R1 (+3gg)", days: 3, key: "r1" },
-        { level: 2, label: "R2 (+7gg)", days: 7, key: "r2" },
-        { level: 3, label: "R3 (+21gg)", days: 21, key: "r3" }
-      ];
-      intervals.forEach(inv => {
-        const targetDate = addDaysToDateStr(t.completedDate, inv.days);
-        const isCompletedReview = Boolean(srState[inv.key]);
-        const isOverdue = !isCompletedReview && targetDate < settings.currentSimulatedDate;
-        const isDueToday = !isCompletedReview && targetDate === settings.currentSimulatedDate;
-        allSpacedReviews.push({
-          topicId: t.id,
-          materia: t.materia,
-          capitolo: t.capitolo || "",
-          argomento: t.argomento,
-          level: inv.level,
-          levelKey: inv.key,
-          levelLabel: inv.label,
-          targetDate,
-          isDone: isCompletedReview,
-          isOverdue,
-          isDueToday
-        });
-      });
+      buildSpacedReviewSchedule(t, settings.currentSimulatedDate).forEach(r => allSpacedReviews.push(r));
     }
   });
 
@@ -2227,6 +2291,7 @@ function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacities = {
         dueToday: allSpacedReviews.filter(r => r.isDueToday).length,
         overdue: allSpacedReviews.filter(r => r.isOverdue).length,
         completed: allSpacedReviews.filter(r => r.isDone).length,
+        failed: allSpacedReviews.filter(r => r.isDone && r.outcome === "failed").length,
         totalPlanned: allSpacedReviews.length,
         activeReviews: allSpacedReviews.filter(r => !r.isDone && (r.isDueToday || r.isOverdue))
       },
@@ -7093,7 +7158,8 @@ function WeeklyTodo({
   onOpenLogModal,
   onOpenTopicDetail,
   onToggleSpacedReview,
-  onOpenRetrospective
+  onOpenRetrospective,
+  mathBugs = []
 }) {
   // Default to the week containing Today
   const [selectedWeekIndex, setSelectedWeekIndex] = useState(() => {
@@ -7830,7 +7896,7 @@ function WeeklyTodo({
                     {day.spacedReviews.map(rev => (
                       <div
                         key={`${rev.topicId}-${rev.levelKey}`}
-                        className={`flex items-center justify-between gap-2 p-2 rounded-xl border text-xs transition ${
+                        className={`flex flex-col gap-2 p-2 rounded-xl border text-xs transition ${
                           rev.isDone
                             ? "bg-emerald-950/40 border-emerald-500/30 text-emerald-200"
                             : rev.isOverdue
@@ -7838,6 +7904,7 @@ function WeeklyTodo({
                             : "bg-slate-900/90 border-slate-800 text-slate-200"
                         }`}
                       >
+                        <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0">
                           <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold ${
                             rev.isDone
@@ -7862,18 +7929,52 @@ function WeeklyTodo({
                           >
                             📖 Scheda
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => onToggleSpacedReview && onToggleSpacedReview(rev.topicId, rev.levelKey, !rev.isDone)}
-                            className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition ${
-                              rev.isDone
-                                ? "bg-emerald-500/30 border-emerald-500/50 text-emerald-200"
-                                : "bg-purple-600/40 hover:bg-purple-600/60 border-purple-500/50 text-purple-200 shadow-sm"
-                            }`}
-                          >
-                            {rev.isDone ? "Ripassato ✓" : "Segna Fatto"}
-                          </button>
+                          {rev.isDone && (
+                            <button
+                              type="button"
+                              onClick={() => onToggleSpacedReview && onToggleSpacedReview(rev.topicId, rev.levelKey, false)}
+                              className="px-2 py-1 rounded-lg text-[10px] font-bold border bg-emerald-500/30 border-emerald-500/50 text-emerald-200 transition"
+                              title="Annulla il ripasso"
+                            >
+                              {rev.outcome && REVIEW_OUTCOMES[rev.outcome] ? REVIEW_OUTCOMES[rev.outcome].label : "Ripassato"} ✓
+                            </button>
+                          )}
                         </div>
+                        </div>
+                        {!rev.isDone && (() => {
+                          const openBugs = (mathBugs || []).filter(b => b.topicId === rev.topicId && !b.isResolved);
+                          return (
+                            <div className="flex flex-col gap-2">
+                              {openBugs.length > 0 && (
+                                <div className="text-[11px] text-slate-300 bg-amber-950/40 rounded-lg px-2 py-1.5">
+                                  <span className="font-semibold text-amber-300">Prima di ripassare, i tuoi errori qui:</span>
+                                  <ul className="mt-0.5 space-y-0.5">
+                                    {openBugs.slice(0, 3).map(b => (
+                                      <li key={b.id}>• {b.title}{b.fixRule ? ` — ${b.fixRule}` : ""}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="text-[10px] text-slate-400 mr-1">Ripeti a memoria, poi:</span>
+                                {[
+                                  { key: "good", cls: "bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300" },
+                                  { key: "partial", cls: "bg-amber-500/20 hover:bg-amber-500/30 text-amber-300" },
+                                  { key: "failed", cls: "bg-rose-500/20 hover:bg-rose-500/30 text-rose-300" }
+                                ].map(opt => (
+                                  <button
+                                    key={opt.key}
+                                    type="button"
+                                    onClick={() => onToggleSpacedReview && onToggleSpacedReview(rev.topicId, rev.levelKey, true, opt.key)}
+                                    className={`px-2 py-1 rounded-lg text-[10px] font-bold transition ${opt.cls}`}
+                                  >
+                                    {REVIEW_OUTCOMES[opt.key].label}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </div>
                     ))}
                   </div>
@@ -12743,7 +12844,9 @@ function App() {
   };
 
   // Spaced Repetition: Toggle review level completion (r1, r2, r3)
-  const handleToggleSpacedReview = (topicId, levelKey, isDone) => {
+  // Con l'esito (good | partial | failed) il ripasso successivo si ricalcola dalla data
+  // di oggi: allungato, accorciato o riportato a +3 giorni.
+  const handleToggleSpacedReview = (topicId, levelKey, isDone, outcome = "good") => {
     setTopics(prev =>
       prev.map(t => {
         if (t.id === topicId) {
@@ -12753,6 +12856,8 @@ function App() {
             spacedReviews: {
               ...curReviews,
               [levelKey]: isDone
+                ? { done: true, outcome: outcome || "good", date: settings.currentSimulatedDate }
+                : false
             }
           };
         }
@@ -13075,6 +13180,7 @@ function App() {
                 onOpenTopicDetail={handleOpenTopicDetail}
                 onToggleSpacedReview={handleToggleSpacedReview}
                 onOpenRetrospective={() => setIsRetroModalOpen(true)}
+                mathBugs={mathBugs}
               />
             )}
 
