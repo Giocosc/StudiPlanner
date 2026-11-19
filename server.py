@@ -21,9 +21,25 @@ HOST = "0.0.0.0"  # Binding su tutte le interfacce per accesso locale e LAN
 PORT = 3000
 DIRECTORY = os.path.dirname(os.path.abspath(__file__))
 
+def is_hidden_path(url_path):
+    """True se il percorso tocca file o cartelle nascoste (.git, .claude, .env, ...)."""
+    from urllib.parse import unquote, urlsplit
+    path = unquote(urlsplit(url_path).path).replace("\\", "/")
+    return any(part.startswith(".") for part in path.split("/") if part)
+
+
 class Handler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=DIRECTORY, **kwargs)
+
+    def send_head(self):
+        # Il server e' raggiungibile da tutta la LAN (0.0.0.0): la cartella radice e' il
+        # repository, quindi senza questo filtro chiunque in rete poteva scaricare .git
+        # (cronologia completa) e altri file nascosti.
+        if is_hidden_path(self.path):
+            self.send_error(404, "File not found")
+            return None
+        return super().send_head()
 
     def end_headers(self):
         # Enable CORS and caching headers for local development
