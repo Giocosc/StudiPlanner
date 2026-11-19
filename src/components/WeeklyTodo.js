@@ -915,6 +915,14 @@ export function WeeklyTodo({
                                 {topic.effectiveHours}h
                               </span>
                             </div>
+                            {topic.isSplit && !topic.isSessionLog && (
+                              <span
+                                className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-violet-500/15 text-violet-300 border border-violet-500/30"
+                                title={`Argomento diviso su più giorni: ${topic.topicEffectiveHours}h totali pianificate`}
+                              >
+                                Parte {topic.partIndex}/{topic.partCount}
+                              </span>
+                            )}
                             <div className="flex items-center space-x-2 text-[10px] text-slate-400">
                               <span>P: <strong className="text-amber-400">{topic.prioritaEsame}/5</strong></span>
                               <span>D: <strong className="text-cyan-400">{topic.difficolta}/5</strong></span>

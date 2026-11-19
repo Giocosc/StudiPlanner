@@ -1455,6 +1455,139 @@ function calculateStudyStreak(historyDays = [], currentSimulatedDate, studySessi
   };
 }
 
+const MIN_CHUNK_HOURS = 0.5;
+const EPS = 1e-6;
+
+/**
+ * Allocazione sequenziale a "blocchi" (chunk):
+ * - ogni giorno riceve al massimo la sua capacità residua (maxHours - ore già registrate);
+ * - un argomento troppo lungo viene diviso su più giorni (Parte 1/N, 2/N, ...);
+ * - l'ordine A-01 → A-32 e G-01 → G-31 non viene mai alterato;
+ * - i giorni "Misto" (weekend) dividono il budget a metà tra le due materie;
+ * - se la capacità totale non basta, il budget di ogni giorno viene scalato in modo
+ *   uniforme (capacityScale > 1) invece di ammassare gli argomenti sugli ultimi giorni.
+ */
+function isFinalRehearsalTopic(t) {
+  return t.id === "A-32" || /^PROVA GENERALE/i.test(String(t.argomento || ""));
+}
+
+function allocateSequentialChunks(days, analisiQueue, geometriaQueue, finalWeekStartDate) {
+  const totalDemand = [...analisiQueue, ...geometriaQueue].reduce((acc, t) => acc + t.effectiveHours, 0);
+  const freeCapacities = days.map(d => Math.max(0, Number((d.maxHours - d.allocatedHours).toFixed(2))));
+  const totalFree = freeCapacities.reduce((acc, c) => acc + c, 0);
+
+  const simulate = (scale, virtualCapacity) => {
+    const queues = {
+      analisi: analisiQueue.map(t => ({ topic: t, remaining: t.effectiveHours })),
+      geometria: geometriaQueue.map(t => ({ topic: t, remaining: t.effectiveHours }))
+    };
+    const assignments = [];
+
+    const fill = (dayIndex, subject, budget) => {
+      const queue = queues[subject];
+      while (queue.length > 0 && budget > EPS) {
+        const head = queue[0];
+        // La Prova Generale (A-32) va solo nell'ultima settimana pre-esame:
+        // prima di allora la coda di Analisi resta in attesa e il budget passa all'altra materia.
+        if (isFinalRehearsalTopic(head.topic) && days[dayIndex].date < finalWeekStartDate) break;
+        if (budget < MIN_CHUNK_HOURS - EPS && head.remaining > budget + EPS) break;
+        let take = Math.min(head.remaining, budget);
+        // Evita code minuscole (< 15 minuti) su un altro giorno: le assorbe oggi.
+        if (head.remaining - take > EPS && head.remaining - take < 0.25) take = head.remaining;
+        const last = assignments[assignments.length - 1];
+        if (last && last.dayIndex === dayIndex && last.topic.id === head.topic.id) {
+          last.hours += take;
+        } else {
+          assignments.push({ dayIndex, topic: head.topic, hours: take });
+        }
+        head.remaining = Number((head.remaining - take).toFixed(4));
+        budget = Number((budget - take).toFixed(4));
+        if (head.remaining <= EPS) queue.shift();
+      }
+      return budget;
+    };
+
+    days.forEach((day, dayIndex) => {
+      const base = virtualCapacity !== undefined ? virtualCapacity : freeCapacities[dayIndex];
+      let budget = Number((base * scale).toFixed(4));
+      if (budget <= EPS) return;
+
+      if (day.preferredSubject === "Analisi 1") {
+        budget = fill(dayIndex, "analisi", budget);
+        fill(dayIndex, "geometria", budget);
+      } else if (day.preferredSubject === "Geometria") {
+        budget = fill(dayIndex, "geometria", budget);
+        fill(dayIndex, "analisi", budget);
+      } else if (queues.analisi.length > 0 && queues.geometria.length > 0) {
+        // Misto: metà budget per materia, il resto a chi ha ancora argomenti
+        const half = Number((budget / 2).toFixed(4));
+        const restA = fill(dayIndex, "analisi", half);
+        const restG = fill(dayIndex, "geometria", Number((budget - half + restA).toFixed(4)));
+        if (restG > EPS) fill(dayIndex, "analisi", restG);
+      } else {
+        budget = fill(dayIndex, "analisi", budget);
+        fill(dayIndex, "geometria", budget);
+      }
+    });
+
+    const leftover = [...queues.analisi, ...queues.geometria];
+    return { assignments, leftover };
+  };
+
+  if (days.length === 0 || totalDemand <= EPS) {
+    return { assignments: [], capacityScale: 1, isSaturated: false };
+  }
+
+  let scale = 1;
+  let virtualCapacity;
+  if (totalFree <= EPS) {
+    // Nessuna capacità (es. tutti i giorni a 0h): distribuzione uniforme virtuale
+    virtualCapacity = 1;
+    scale = totalDemand / days.length;
+  }
+
+  let result = simulate(scale, virtualCapacity);
+  if (result.leftover.length > 0) {
+    // Cerca il fattore di scala MINIMO che fa entrare tutto (ricerca binaria)
+    let lo = scale;
+    let hi = virtualCapacity === undefined ? Math.max(scale, totalDemand / totalFree) : scale * 1.25;
+    let hiResult = simulate(hi, virtualCapacity);
+    let guard = 0;
+    while (hiResult.leftover.length > 0 && guard < 40) {
+      lo = hi;
+      hi *= 1.25;
+      hiResult = simulate(hi, virtualCapacity);
+      guard++;
+    }
+    for (let i = 0; i < 25 && hiResult.leftover.length === 0; i++) {
+      const mid = (lo + hi) / 2;
+      const midResult = simulate(mid, virtualCapacity);
+      if (midResult.leftover.length === 0) {
+        hi = mid;
+        hiResult = midResult;
+      } else {
+        lo = mid;
+      }
+    }
+    scale = hi;
+    result = hiResult;
+  }
+
+  // Ultima rete di sicurezza: accoda in ordine sull'ultimo giorno disponibile (sequenza preservata).
+  if (result.leftover.length > 0) {
+    const lastIndex = days.length - 1;
+    result.leftover.forEach(item => {
+      result.assignments.push({ dayIndex: lastIndex, topic: item.topic, hours: item.remaining });
+    });
+  }
+
+  return {
+    assignments: result.assignments,
+    capacityScale: Number(scale.toFixed(2)),
+    isSaturated: scale > 1 + EPS
+  };
+}
+
 /**
  * Main rolling rebalancing function:
  * 1. Tracks history of past days from roadmapStartDate to currentSimulatedDate.
@@ -1679,88 +1812,57 @@ function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacities = {
     .sort(sortBySequentialId);
 
   const geometriaQueue = uncompletedToSchedule
-    .filter(t => t.materia.toLowerCase().includes("geometria"))
+    .filter(t => !t.materia.toLowerCase().includes("analisi"))
     .sort(sortBySequentialId);
 
-  // Active / Future days where new study can be allocated (Today + Future)
-  const activeAndFutureDays = allCalendarDays.filter(d => (d.isToday || d.isFuture) && d.enabled);
-
-  activeAndFutureDays.forEach(day => {
-    let capacityLeft = Math.max(0, Number((day.maxHours - day.allocatedHours).toFixed(2)));
-
-    // An empty day always gets at least one topic (if queue has topics).
-    // A day that already has topics/sessions only gets an extra topic if there is at least 1.0h of capacity left AND it hasn't reached maxHours.
-    while (
-      (day.topics.length === 0 && capacityLeft > 0.4) ||
-      (day.topics.length > 0 && capacityLeft >= 1.0 && day.allocatedHours < day.maxHours)
-    ) {
-      let chosenTopic = null;
-      let chosenQueue = null;
-
-      // Select subject queue based on day preference or availability
-      if (day.preferredSubject === "Analisi 1") {
-        if (analisiQueue.length > 0) {
-          chosenTopic = analisiQueue[0];
-          chosenQueue = analisiQueue;
-        } else if (geometriaQueue.length > 0) {
-          chosenTopic = geometriaQueue[0];
-          chosenQueue = geometriaQueue;
-        }
-      } else if (day.preferredSubject === "Geometria") {
-        if (geometriaQueue.length > 0) {
-          chosenTopic = geometriaQueue[0];
-          chosenQueue = geometriaQueue;
-        } else if (analisiQueue.length > 0) {
-          chosenTopic = analisiQueue[0];
-          chosenQueue = analisiQueue;
-        }
-      } else {
-        // Misto (e.g. Weekend slots): alternate subjects sequentially
-        if (day.topics.length % 2 === 0) {
-          if (analisiQueue.length > 0) {
-            chosenTopic = analisiQueue[0];
-            chosenQueue = analisiQueue;
-          } else if (geometriaQueue.length > 0) {
-            chosenTopic = geometriaQueue[0];
-            chosenQueue = geometriaQueue;
-          }
-        } else {
-          if (geometriaQueue.length > 0) {
-            chosenTopic = geometriaQueue[0];
-            chosenQueue = geometriaQueue;
-          } else if (analisiQueue.length > 0) {
-            chosenTopic = analisiQueue[0];
-            chosenQueue = analisiQueue;
-          }
-        }
-      }
-
-      if (!chosenTopic) break; // All uncompleted topics have been allocated
-
-      // Allocate topic sequentially
-      chosenQueue.shift(); // Remove from queue
-      chosenTopic.assignedDate = day.date;
-      chosenTopic.assignedWeek = day.weekIndex;
-      chosenTopic.assignedDayName = day.dayName;
-
-      day.topics.push(chosenTopic);
-      day.allocatedHours = Number((day.allocatedHours + chosenTopic.effectiveHours).toFixed(2));
-      capacityLeft = Number((capacityLeft - chosenTopic.effectiveHours).toFixed(2));
-    }
-  });
-
-  // Handle any remaining unallocated topics if calendar was completely filled
-  const unallocated = [...analisiQueue, ...geometriaQueue];
-  if (unallocated.length > 0 && activeAndFutureDays.length > 0) {
-    unallocated.forEach((topic, idx) => {
-      const targetDay = activeAndFutureDays[activeAndFutureDays.length - 1 - (idx % Math.min(7, activeAndFutureDays.length))];
-      topic.assignedDate = targetDay.date;
-      topic.assignedWeek = targetDay.weekIndex;
-      topic.assignedDayName = targetDay.dayName;
-      targetDay.topics.push(topic);
-      targetDay.allocatedHours = Number((targetDay.allocatedHours + topic.effectiveHours).toFixed(2));
-    });
+  // Giorni su cui allocare nuovo studio: Oggi + futuro, abilitati, ESCLUSO il giorno d'esame.
+  let activeAndFutureDays = allCalendarDays.filter(
+    d => (d.isToday || d.isFuture) && d.enabled && d.date < settings.targetExamDate
+  );
+  if (activeAndFutureDays.length === 0) {
+    // Caso limite: oggi è il giorno d'esame (o la sessione è finita). Si usa l'ultimo giorno disponibile.
+    const fallbackDay = allCalendarDays.find(d => d.isToday) || allCalendarDays[allCalendarDays.length - 1];
+    activeAndFutureDays = fallbackDay ? [fallbackDay] : [];
   }
+
+  const { assignments, capacityScale, isSaturated } = allocateSequentialChunks(
+    activeAndFutureDays,
+    analisiQueue,
+    geometriaQueue,
+    addDaysToDateStr(settings.targetExamDate, -7)
+  );
+
+  // Applica le assegnazioni: un argomento può essere diviso in più "parti" su giorni consecutivi.
+  const partsByTopic = new Map();
+  assignments.forEach(a => {
+    partsByTopic.set(a.topic.id, (partsByTopic.get(a.topic.id) || 0) + 1);
+  });
+  const partCounter = new Map();
+  assignments.forEach(a => {
+    const day = activeAndFutureDays[a.dayIndex];
+    const partIndex = (partCounter.get(a.topic.id) || 0) + 1;
+    partCounter.set(a.topic.id, partIndex);
+    const partCount = partsByTopic.get(a.topic.id);
+
+    if (partIndex === 1) {
+      a.topic.assignedDate = day.date;
+      a.topic.assignedWeek = day.weekIndex;
+      a.topic.assignedDayName = day.dayName;
+    }
+
+    day.topics.push({
+      ...a.topic,
+      effectiveHours: Number(a.hours.toFixed(2)),
+      topicEffectiveHours: a.topic.effectiveHours,
+      partIndex,
+      partCount,
+      isSplit: partCount > 1,
+      assignedDate: day.date,
+      assignedWeek: day.weekIndex,
+      assignedDayName: day.dayName
+    });
+    day.allocatedHours = Number((day.allocatedHours + a.hours).toFixed(2));
+  });
 
   // 4b. Spaced Repetition Cyclical Reviews Calculation (+3d, +7d, +21d)
   const allSpacedReviews = [];
@@ -1828,7 +1930,7 @@ function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacities = {
     week.days.push(day);
     week.totalAllocatedHours = Number((week.totalAllocatedHours + day.allocatedHours).toFixed(1));
     week.topics.push(...day.topics);
-    week.totalTopicsCount = week.topics.length;
+    week.totalTopicsCount = new Set(week.topics.map(t => t.id)).size;
     if (day.isToday) {
       week.hasToday = true;
       week.isCurrentWeek = true;
@@ -1873,6 +1975,9 @@ function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacities = {
       isCriticalOverload,
       excessHours: Number(Math.max(0, requiredWeeklyHours - dynamicCriticalThreshold).toFixed(1)),
       uncompletedCount: uncompletedToSchedule.length,
+      // Saturazione calendario: >1 significa che ogni giorno deve rendere più del budget impostato
+      capacityScale,
+      isScheduleSaturated: isSaturated,
       totalEffectiveHours: Number(topics.reduce((acc, t) => acc + (Number(t.oreEffettive || (t.isCompleted || t.completato ? t.oreStimate : 0))), 0).toFixed(1)),
       targetExamDate: settings.targetExamDate,
       currentSimulatedDate: settings.currentSimulatedDate,
@@ -7225,6 +7330,14 @@ function WeeklyTodo({
                                 {topic.effectiveHours}h
                               </span>
                             </div>
+                            {topic.isSplit && !topic.isSessionLog && (
+                              <span
+                                className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-violet-500/15 text-violet-300 border border-violet-500/30"
+                                title={`Argomento diviso su più giorni: ${topic.topicEffectiveHours}h totali pianificate`}
+                              >
+                                Parte {topic.partIndex}/{topic.partCount}
+                              </span>
+                            )}
                             <div className="flex items-center space-x-2 text-[10px] text-slate-400">
                               <span>P: <strong className="text-amber-400">{topic.prioritaEsame}/5</strong></span>
                               <span>D: <strong className="text-cyan-400">{topic.difficolta}/5</strong></span>
