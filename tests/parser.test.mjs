@@ -37,3 +37,20 @@ test("excel: il titolo esatto di un argomento lo marca", () => {
   const { topics } = mergeTopicsWithExcelData(fresh(), { completedIds: new Set(), completedKeywords: [target.argomento.toLowerCase()] });
   assert.ok(doneIds(topics).includes("G-01"));
 });
+
+test("csv: gli apostrofi italiani non rompono le colonne", async () => {
+  const { parseCSVString } = await import("../src/services/parserService.js");
+  const csv = [
+    "ID,Materia,Capitolo,Argomento,Ore_Stimate,Difficolta,Priorita",
+    "A-20,Analisi 1,Derivate,Teorema dell'Hôpital e applicazioni,3,4,5",
+    'A-21,Analisi 1,"Integrali, primitive",L\'integrale di Riemann,2.5,3,4'
+  ].join("\n");
+  const rows = parseCSVString(csv, "Analisi.csv");
+  assert.strictEqual(rows.length, 2);
+  assert.strictEqual(rows[0].argomento, "Teorema dell'Hôpital e applicazioni");
+  assert.strictEqual(rows[0].oreStimate, 3);
+  assert.strictEqual(rows[0].prioritaEsame, 5);
+  assert.strictEqual(rows[1].capitolo, "Integrali, primitive");
+  assert.strictEqual(rows[1].argomento, "L'integrale di Riemann");
+  assert.strictEqual(rows[1].oreStimate, 2.5);
+});

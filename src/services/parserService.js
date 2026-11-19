@@ -31,7 +31,9 @@ export function parseCSVString(csvContent, filename = "") {
     let inQuotes = false;
     for (let i = 0; i < line.length; i++) {
       const char = line[i];
-      if (char === '"' || char === "'") {
+      // Solo il doppio apice delimita i campi: l'apostrofo è normale testo italiano
+      // ("dell'integrale", "l'Hôpital") e prima spezzava le colonne della riga.
+      if (char === '"') {
         if (inQuotes && line[i + 1] === char) {
           cur += char;
           i++; // skip escaped quote
