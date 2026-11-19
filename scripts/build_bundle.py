@@ -16,6 +16,7 @@ files_order = [
     'src/components/MathFormulaDrawer.js',
     'src/components/Clarke9000Companion.js',
     'src/components/BurndownChart.js',
+    'src/components/TonightFocus.js',
     'src/components/Dashboard.js',
     'src/components/ActivityHeatmap.js',
     'src/components/WeeklyTodo.js',

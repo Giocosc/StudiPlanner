@@ -283,3 +283,21 @@ test("ripassi: intervalli adattivi in base all'esito", async () => {
   assert.strictEqual(r.r4.targetDate, "2026-12-05");
   assert.ok(!r.r5);
 });
+
+test("stasera: una sola azione dal giorno attivo", async () => {
+  const { getTonightFocus } = await import("../src/services/rebalancerEngine.js");
+  const plan = rebalanceStudyPlan(freshTopics(), { currentSimulatedDate: "2026-11-19" }, {}, []);
+  const today = plan.calendarDays.find(d => d.isToday);
+  const f = getTonightFocus(today, plan.metrics.targetExamDate || "2027-01-10");
+  assert.strictEqual(f.kind, "study");
+  const firstPlanned = today.topics.find(t => !t.isSessionLog && t.partIndex !== undefined);
+  assert.strictEqual(f.topic.id, firstPlanned.id);
+  assert.strictEqual(f.plannedHours, firstPlanned.effectiveHours);
+
+  assert.strictEqual(getTonightFocus({ ...today, date: "2027-01-10" }, "2027-01-10").kind, "exam");
+  assert.strictEqual(getTonightFocus({ date: "2026-11-20", enabled: false, dayStatus: "rest", topics: [] }, "2027-01-10").kind, "rest");
+  const done = getTonightFocus({ date: "2026-11-20", topics: [{ id: "A-01", isSessionLog: true, effectiveHours: 2 }] }, "2027-01-10");
+  assert.strictEqual(done.kind, "done");
+  assert.strictEqual(done.studiedHours, 2);
+  assert.strictEqual(getTonightFocus(null).kind, "none");
+});

@@ -1162,6 +1162,7 @@ export function App() {
                 onOpenLogModal={handleOpenLogModal}
                 onOpenTopicDetail={handleOpenTopicDetail}
                 onToggleSpacedReview={handleToggleSpacedReview}
+                onLogStudySession={handleLogStudySession}
                 mathBugs={mathBugs}
                 onOpenBugTracker={() => setIsBugTrackerOpen(true)}
                 currentWeekPlan={rebalancedPlan.currentWeekPlan}

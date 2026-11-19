@@ -243,6 +243,38 @@ export function buildSpacedReviewSchedule(topic, currentDate) {
 }
 
 /**
+ * Modalità Stasera: dal giorno attivo del calendario ricava UNA sola azione.
+ * - "study": primo blocco pianificato (in ordine propedeutico) con le sue ore;
+ * - "exam": giorno d'esame, niente studio;
+ * - "rest": giorno di riposo pianificato;
+ * - "done": niente più in programma ma studio già registrato oggi;
+ * - "none": nessun piano per oggi.
+ */
+export function getTonightFocus(todayPlan, targetExamDate) {
+  if (!todayPlan) return { kind: "none", topic: null, plannedHours: 0, reviewsCount: 0, studiedHours: 0 };
+  const topics = todayPlan.topics || [];
+  const reviewsCount = (todayPlan.spacedReviews || []).filter(r => !r.isDone).length;
+  const studiedHours = Number(topics.filter(t => t.isSessionLog).reduce((acc, t) => acc + Number(t.effectiveHours || 0), 0).toFixed(2));
+  const base = { reviewsCount, studiedHours };
+  if (targetExamDate && todayPlan.date === targetExamDate) return { ...base, kind: "exam", topic: null, plannedHours: 0 };
+  const planned = topics.filter(t => !t.isSessionLog && t.partIndex !== undefined);
+  if (planned.length > 0) {
+    const first = planned[0];
+    return {
+      ...base,
+      kind: "study",
+      topic: first,
+      plannedHours: Number(first.effectiveHours || 0),
+      partLabel: first.isSplit ? `parte ${first.partIndex} di ${first.partCount}` : "",
+      nextTopics: planned.slice(1).map(t => t.id)
+    };
+  }
+  if (studiedHours > 0) return { ...base, kind: "done", topic: null, plannedHours: 0 };
+  if (todayPlan.enabled === false || todayPlan.dayStatus === "rest") return { ...base, kind: "rest", topic: null, plannedHours: 0 };
+  return { ...base, kind: "none", topic: null, plannedHours: 0 };
+}
+
+/**
  * Heuristic Predictor for Exam Pass Probability & Expected Grade Range
  */
 export function calculateExamReadinessAndGrade(topics, metrics) {

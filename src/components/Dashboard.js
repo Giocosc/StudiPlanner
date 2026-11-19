@@ -15,7 +15,8 @@ import {
 import { NeuraDeckPromptGenerator } from "./NeuraDeckPromptGenerator.js";
 import { ExamSimulator } from "./ExamSimulator.js";
 import { BurndownChart } from "./BurndownChart.js";
-import { DEFAULT_ROADMAP_START_DATE, DEFAULT_TARGET_EXAM_DATE, calculateWeeklyRetrospective, MASTERY_MIN_ATTEMPTS } from "../services/rebalancerEngine.js";
+import { TonightFocus } from "./TonightFocus.js";
+import { DEFAULT_ROADMAP_START_DATE, DEFAULT_TARGET_EXAM_DATE, calculateWeeklyRetrospective, MASTERY_MIN_ATTEMPTS, getTonightFocus } from "../services/rebalancerEngine.js";
 
 /**
  * Calculates whether the student is ahead, on track, or behind schedule for a subject
@@ -86,6 +87,7 @@ export function Dashboard({
   onOpenLogModal,
   onOpenTopicDetail,
   onToggleSpacedReview,
+  onLogStudySession,
   mathBugs = [],
   onOpenBugTracker,
   currentWeekPlan = null,
@@ -194,6 +196,15 @@ export function Dashboard({
           <span>Registra ore di studio</span>
         </button>
       </header>
+
+      {/* Modalità Stasera: una sola azione chiara */}
+      <TonightFocus
+        focus={getTonightFocus(todayPlan, settings.targetExamDate)}
+        settings={settings}
+        onLogStudySession={onLogStudySession}
+        onOpenTopicDetail={onOpenTopicDetail}
+        onOpenLogModal={onOpenLogModal}
+      />
 
       {/* Anelli, conto alla rovescia e ritmo richiesto */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[1.25fr_1fr_1fr] gap-4">
