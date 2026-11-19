@@ -243,7 +243,7 @@ export function FileImporter({
         const excelData = parseExcelData(arrayBuffer, fileName);
 
         // Merge completion status with existing topics
-        const { topics: mergedTopics, matchedCount } = mergeTopicsWithExcelData(topics, excelData);
+        const { topics: mergedTopics, matchedCount } = mergeTopicsWithExcelData(topics, excelData, settings && settings.currentSimulatedDate);
         onTopicsUpdated(mergedTopics);
 
         setNotification({

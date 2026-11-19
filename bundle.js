@@ -2181,6 +2181,8 @@ function withCompletion(topic, done, date = null) {
  * Merges data and detects completed IDs / Argomenti based on Excel sheets.
  */
 
+
+
 /**
  * Robust CSV string parser (handles quotes, commas, semicolons, tabs)
  */
@@ -2371,60 +2373,67 @@ function parseExcelData(arrayBuffer, filename = "") {
 }
 
 /**
- * Normalizes text for fuzzy topic matching
+ * Normalizes text for fuzzy topic matching (lettere accentate comprese)
  */
 function cleanTextForMatching(str) {
-  return str
+  return String(str || "")
     .toLowerCase()
-    .replace(/[^\w\s]/g, " ")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
 
 /**
- * Merges topic list with completion data extracted from Excel
+ * Normalizza un ID argomento: "a1", "A-1", "A 01", "a_01" -> "A-01".
+ * Gli ID non riconosciuti vengono solo messi in maiuscolo.
  */
-function mergeTopicsWithExcelData(topics, excelParsedData) {
+function normalizeTopicId(id) {
+  const raw = String(id || "").trim().toUpperCase();
+  const m = raw.match(/^([A-Z]+)\s*[-_ ]?\s*0*(\d+)$/);
+  if (!m) return raw;
+  return `${m[1]}-${String(Number(m[2])).padStart(2, "0")}`;
+}
+
+const significantWords = (text) => cleanTextForMatching(text).split(" ").filter(w => w.length > 3);
+
+/**
+ * Merges topic list with completion data extracted from Excel
+ * - ID: solo corrispondenza ESATTA dopo normalizzazione (prima "1" marcava
+ *   A-01, A-10...A-19, G-01... per sottostringa).
+ * - Testo: almeno 3 parole significative in comune al 60%, oppure titolo identico.
+ */
+function mergeTopicsWithExcelData(topics, excelParsedData, completionDate = null) {
   if (!excelParsedData) return { topics, matchedCount: 0 };
 
   const { completedIds, completedKeywords } = excelParsedData;
+  const normalizedIds = new Set(Array.from(completedIds || []).map(normalizeTopicId));
   let matchedCount = 0;
 
   const merged = topics.map(topic => {
     // If already completed in memory, keep it completed
-    if (topic.isCompleted) return topic;
+    if (isTopicDone(topic)) return topic;
 
-    let shouldMarkCompleted = false;
+    let shouldMarkCompleted = normalizedIds.has(normalizeTopicId(topic.id));
 
-    // 1. Direct ID match (e.g. "A-01", "G-01", "S1-A", "1")
-    const topicIdUpper = topic.id.toUpperCase();
-    if (completedIds.has(topicIdUpper)) {
-      shouldMarkCompleted = true;
-    }
-
-    // Check if slot code matches (e.g. S1-A, S2-B)
-    for (const compId of completedIds) {
-      if (topicIdUpper.includes(compId) || compId.includes(topicIdUpper)) {
-        shouldMarkCompleted = true;
-        break;
-      }
-    }
-
-    // 2. Keyword/Sub-string match on topic name
-    if (!shouldMarkCompleted && completedKeywords.length > 0) {
+    if (!shouldMarkCompleted && completedKeywords && completedKeywords.length > 0) {
       const cleanTopic = cleanTextForMatching(topic.argomento);
+      const topicWords = significantWords(topic.argomento);
       for (const kw of completedKeywords) {
         const cleanKw = cleanTextForMatching(kw);
-        // If keyword contains at least 3 significant words and overlaps
-        const words = cleanKw.split(" ").filter(w => w.length > 3);
-        const matchCount = words.filter(w => cleanTopic.includes(w)).length;
-        if (words.length >= 3 && matchCount / words.length >= 0.6) {
+        if (!cleanKw) continue;
+        if (cleanKw === cleanTopic) {
           shouldMarkCompleted = true;
           break;
         }
-        if (cleanTopic.includes(cleanKw) || cleanKw.includes(cleanTopic)) {
-          shouldMarkCompleted = true;
-          break;
+        const kwWords = significantWords(kw);
+        if (kwWords.length >= 3) {
+          const overlap = kwWords.filter(w => topicWords.includes(w)).length;
+          if (overlap / kwWords.length >= 0.6 && overlap >= 3) {
+            shouldMarkCompleted = true;
+            break;
+          }
         }
       }
     }
@@ -2432,8 +2441,7 @@ function mergeTopicsWithExcelData(topics, excelParsedData) {
     if (shouldMarkCompleted) {
       matchedCount++;
       return {
-        ...topic,
-        isCompleted: true,
+        ...withCompletion(topic, true, completionDate),
         completedSource: "Excel Sync"
       };
     }
@@ -8584,7 +8592,7 @@ function FileImporter({
         const excelData = parseExcelData(arrayBuffer, fileName);
 
         // Merge completion status with existing topics
-        const { topics: mergedTopics, matchedCount } = mergeTopicsWithExcelData(topics, excelData);
+        const { topics: mergedTopics, matchedCount } = mergeTopicsWithExcelData(topics, excelData, settings && settings.currentSimulatedDate);
         onTopicsUpdated(mergedTopics);
 
         setNotification({
