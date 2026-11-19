@@ -81,6 +81,7 @@ export async function testGitLabConnection(config) {
   const endpoint = `${instanceUrl}/api/v4/projects/${projectId}`;
   const response = await fetch(endpoint, {
     method: "GET",
+    cache: "no-store",
     headers: {
       "PRIVATE-TOKEN": token,
       "Accept": "application/json"
@@ -123,6 +124,7 @@ export async function pullFromGitLab(config) {
   const endpoint = `${instanceUrl}/api/v4/projects/${projectId}/repository/files/${filePath}?ref=${encodeURIComponent(branch)}`;
   const response = await fetch(endpoint, {
     method: "GET",
+    cache: "no-store",
     headers: {
       "PRIVATE-TOKEN": token,
       "Accept": "application/json"

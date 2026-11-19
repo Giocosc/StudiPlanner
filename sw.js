@@ -1,4 +1,4 @@
-const CACHE_NAME = 'studiplanner-v2';
+const CACHE_NAME = 'studiplanner-v3'; // v3: elimina le risposte API GitLab messe in cache dalle versioni precedenti
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -48,6 +48,13 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
+
+  // Chiamate API (GitLab REST v4 o richieste autenticate): sempre dalla rete, mai in cache.
+  // Servirle cache-first restituiva per sempre il primo stato scaricato: il pull non vedeva
+  // le modifiche degli altri dispositivi e ogni push andava in conflitto.
+  if (url.pathname.includes('/api/') || event.request.headers.has('PRIVATE-TOKEN') || event.request.headers.has('Authorization')) {
+    return;
+  }
 
   // Local app assets (Network-first with immediate cache fallback)
   if (url.origin === self.location.origin) {
