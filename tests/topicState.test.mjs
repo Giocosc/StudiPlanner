@@ -1,6 +1,6 @@
 import assert from "assert";
 import { test } from "./harness.mjs";
-import { applySessionToTopic, revertSessionFromTopic } from "../src/services/topicStateService.js";
+import { applySessionToTopic, revertSessionFromTopic, withCompletion, isTopicDone } from "../src/services/topicStateService.js";
 
 const topic = (extra = {}) => ({ id: "A-01", oreStimate: 2, oreEffettive: 0, completato: false, isCompleted: false, ...extra });
 
@@ -54,4 +54,15 @@ test("cancellazione: se un'altra sessione completata esiste resta completato con
   const after = revertSessionFromTopic(done, s1, [s1, s2]);
   assert.strictEqual(after.completato, true);
   assert.strictEqual(after.completedDate, "2026-11-19");
+});
+
+test("completamento: withCompletion allinea completato e isCompleted", () => {
+  const done = topic({ completato: true, isCompleted: true, completedDate: "2026-11-18" });
+  const reset = withCompletion(done, false);
+  assert.strictEqual(isTopicDone(reset), false);
+  assert.strictEqual(reset.isCompleted, false);
+  assert.strictEqual(reset.completedDate, null);
+  const again = withCompletion(reset, true, "2026-11-19");
+  assert.strictEqual(isTopicDone(again), true);
+  assert.strictEqual(again.completedDate, "2026-11-19");
 });

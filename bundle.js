@@ -2158,6 +2158,21 @@ function revertSessionFromTopic(topic, session, otherSessions = []) {
   };
 }
 
+/**
+ * Imposta lo stato di completamento scrivendo SEMPRE entrambi i campi
+ * (`completato` è quello letto dal motore, `isCompleted` è il campo legacy):
+ * scriverne uno solo lasciava l'altro in contrasto e la modifica non aveva effetto.
+ */
+function withCompletion(topic, done, date = null) {
+  const isDone = Boolean(done);
+  return {
+    ...topic,
+    completato: isDone,
+    isCompleted: isDone,
+    completedDate: isDone ? (topic.completedDate || date || null) : null
+  };
+}
+
 
 // --- src/services/parserService.js ---
 /**
@@ -8046,6 +8061,8 @@ function HistoryLog({
 
 
 
+
+
 function TopicsTable({ topics, onToggleComplete, onUpdateTopicHours, onBatchUpdate, onOpenTopicDetail }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [subjectFilter, setSubjectFilter] = useState("all");
@@ -8150,7 +8167,7 @@ function TopicsTable({ topics, onToggleComplete, onUpdateTopicHours, onBatchUpda
 
         <div className="flex items-center space-x-2">
           <button
-            onClick={() => onBatchUpdate(topics.map(t => ({ ...t, isCompleted: false })))}
+            onClick={() => onBatchUpdate(topics.map(t => withCompletion(t, false)))}
             className="text-xs text-slate-500 hover:text-slate-300 transition"
           >
             Reset tutti a "Da fare"
@@ -8159,10 +8176,8 @@ function TopicsTable({ topics, onToggleComplete, onUpdateTopicHours, onBatchUpda
           <button
             onClick={() => {
               // Mark first 6 topics completed as a test
-              const updated = topics.map((t, idx) => ({
-                ...t,
-                isCompleted: idx < 6 ? true : t.isCompleted
-              }));
+              const today = getLocalTodayDateStr();
+              const updated = topics.map((t, idx) => (idx < 6 ? withCompletion(t, true, today) : t));
               onBatchUpdate(updated);
             }}
             className="text-xs text-cyan-400 hover:text-cyan-300 transition"

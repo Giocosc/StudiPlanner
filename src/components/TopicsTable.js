@@ -1,4 +1,6 @@
 import React, { useState, useMemo } from "react";
+import { withCompletion } from "../services/topicStateService.js";
+import { getLocalTodayDateStr } from "../services/rebalancerEngine.js";
 import { IconSearch, IconFilter, IconCheck, IconClock, IconFlame, IconCheckCircle } from "./Icons.js";
 
 export function TopicsTable({ topics, onToggleComplete, onUpdateTopicHours, onBatchUpdate, onOpenTopicDetail }) {
@@ -105,7 +107,7 @@ export function TopicsTable({ topics, onToggleComplete, onUpdateTopicHours, onBa
 
         <div className="flex items-center space-x-2">
           <button
-            onClick={() => onBatchUpdate(topics.map(t => ({ ...t, isCompleted: false })))}
+            onClick={() => onBatchUpdate(topics.map(t => withCompletion(t, false)))}
             className="text-xs text-slate-500 hover:text-slate-300 transition"
           >
             Reset tutti a "Da fare"
@@ -114,10 +116,8 @@ export function TopicsTable({ topics, onToggleComplete, onUpdateTopicHours, onBa
           <button
             onClick={() => {
               // Mark first 6 topics completed as a test
-              const updated = topics.map((t, idx) => ({
-                ...t,
-                isCompleted: idx < 6 ? true : t.isCompleted
-              }));
+              const today = getLocalTodayDateStr();
+              const updated = topics.map((t, idx) => (idx < 6 ? withCompletion(t, true, today) : t));
               onBatchUpdate(updated);
             }}
             className="text-xs text-cyan-400 hover:text-cyan-300 transition"

@@ -71,3 +71,18 @@ export function revertSessionFromTopic(topic, session, otherSessions = []) {
     completedDate: stillDone ? completedDate : null
   };
 }
+
+/**
+ * Imposta lo stato di completamento scrivendo SEMPRE entrambi i campi
+ * (`completato` è quello letto dal motore, `isCompleted` è il campo legacy):
+ * scriverne uno solo lasciava l'altro in contrasto e la modifica non aveva effetto.
+ */
+export function withCompletion(topic, done, date = null) {
+  const isDone = Boolean(done);
+  return {
+    ...topic,
+    completato: isDone,
+    isCompleted: isDone,
+    completedDate: isDone ? (topic.completedDate || date || null) : null
+  };
+}
