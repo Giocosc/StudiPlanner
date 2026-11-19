@@ -590,6 +590,13 @@ export function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacit
   let pastDaysSkipped = 0;
   let totalPastHours = 0;
 
+  // Ore già rappresentate dalle sessioni registrate, per argomento: servono a non
+  // ricontare le stesse ore quando l'argomento viene spuntato in un giorno diverso.
+  const sessionHoursByTopic = new Map();
+  sessions.forEach(s => {
+    sessionHoursByTopic.set(s.topicId, (sessionHoursByTopic.get(s.topicId) || 0) + Number(s.hours || 0));
+  });
+
   allCalendarDays.forEach(day => {
     // 1. Check for explicitly logged study sessions on this date
     const sessionsOnThisDay = sessions.filter(s => s.date === day.date);
@@ -621,9 +628,13 @@ export function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacit
     completedOnThisDay.forEach(t => {
       if (!seenTopicIds.has(t.id)) {
         seenTopicIds.add(t.id);
+        const loggedHours = sessionHoursByTopic.get(t.id) || 0;
+        const unloggedHours = sessionHoursByTopic.has(t.id)
+          ? Math.max(0, Number(((t.oreEffettive || 0) - loggedHours).toFixed(2)))
+          : Number(t.oreEffettive || t.oreStimate || 0);
         dayTopics.push({
           ...t,
-          effectiveHours: Number(t.oreEffettive || t.oreStimate || 0),
+          effectiveHours: unloggedHours,
           assignedDate: day.date,
           assignedWeek: day.weekIndex,
           assignedDayName: day.dayName

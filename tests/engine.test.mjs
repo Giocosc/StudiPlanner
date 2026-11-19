@@ -73,3 +73,17 @@ test("motore: la Prova Generale A-32 cade solo nell'ultima settimana pre-esame",
   assert.ok(parts.length > 0);
   parts.forEach(c => assert.ok(c.date >= "2027-01-03", `A-32 pianificato il ${c.date}`));
 });
+
+test("motore: spunta in un giorno diverso dalle sessioni non raddoppia le ore", () => {
+  const topics = freshTopics().map(t => t.id === "A-01"
+    ? { ...t, completato: true, isCompleted: true, completedDate: "2026-11-18", oreEffettive: 4 } : t);
+  const sessions = [
+    { id: "s1", date: "2026-11-16", topicId: "A-01", hours: 2 },
+    { id: "s2", date: "2026-11-17", topicId: "A-01", hours: 2 }
+  ];
+  const plan = rebalanceStudyPlan(topics, { currentSimulatedDate: "2026-11-19" }, {}, sessions);
+  assert.strictEqual(plan.metrics.totalPastHours, 4);
+  const day18 = plan.calendarDays.find(d => d.date === "2026-11-18");
+  assert.strictEqual(day18.dayStatus, "completed");
+  assert.strictEqual(day18.allocatedHours, 0);
+});
