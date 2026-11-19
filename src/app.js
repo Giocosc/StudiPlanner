@@ -713,13 +713,29 @@ export function App() {
           const isDone = Boolean(t.completato !== undefined ? t.completato : t.isCompleted);
           const willComplete = !isDone;
           const currentEff = Number(t.oreEffettive || 0);
+          if (willComplete) {
+            // Se si spunta senza ore registrate, si assume svolta la stima: la quota
+            // "presunta" viene ricordata in autoFilledHours per poterla annullare.
+            const autoFilled = currentEff === 0 ? Number(t.oreStimate || 2.0) : 0;
+            return {
+              ...t,
+              completato: true,
+              isCompleted: true,
+              completedDate: t.completedDate || settings.currentSimulatedDate,
+              oreEffettive: Number((currentEff + autoFilled).toFixed(2)),
+              autoFilledHours: autoFilled
+            };
+          }
+          // Togliendo la spunta si rimuovono le ore presunte aggiunte al completamento,
+          // così l'argomento torna nel piano con le sue ore residue reali.
+          const autoFilled = Number(t.autoFilledHours || 0);
           return {
             ...t,
-            completato: willComplete,
-            isCompleted: willComplete,
-            completedDate: willComplete ? (t.completedDate || settings.currentSimulatedDate) : null,
-            // If marking completed and had 0 hours logged, defaults to oreStimate; else preserves accumulated hours
-            oreEffettive: willComplete && currentEff === 0 ? Number(t.oreStimate || 2.0) : currentEff
+            completato: false,
+            isCompleted: false,
+            completedDate: null,
+            oreEffettive: Math.max(0, Number((currentEff - autoFilled).toFixed(2))),
+            autoFilledHours: 0
           };
         }
         return t;

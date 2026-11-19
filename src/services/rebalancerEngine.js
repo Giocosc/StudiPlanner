@@ -141,6 +141,17 @@ export function getCalendarMetrics(startDateStr, endDateStr) {
 }
 
 /**
+ * Blocco minimo pianificato per un argomento non completato le cui ore spese
+ * hanno già raggiunto (o superato) la stima.
+ */
+export const MIN_OPEN_RESIDUE_HOURS = 0.5;
+
+export function computeResidualHours(isDone, oreStimate, oreEffettive) {
+  if (isDone) return 0;
+  return Math.max(MIN_OPEN_RESIDUE_HOURS, Number((Number(oreStimate) - Number(oreEffettive || 0)).toFixed(2)));
+}
+
+/**
  * Calculates progress for each subject and total
  */
 export function calculateSubjectProgress(topics) {
@@ -157,8 +168,8 @@ export function calculateSubjectProgress(topics) {
     const isDone = Boolean(t.completato !== undefined ? t.completato : t.isCompleted);
     const effettive = Number(t.oreEffettive || 0);
 
-    // Ore residue: se completato sono 0, altrimenti max(0, oreStimate - oreEffettive)
-    const residue = isDone ? 0 : Math.max(0, Number((stimate - effettive).toFixed(2)));
+    // Ore residue: se completato sono 0, altrimenti almeno il blocco minimo di chiusura
+    const residue = computeResidualHours(isDone, stimate, effettive);
 
     sub.totalCount += 1;
     sub.totalHours += stimate;
@@ -457,8 +468,10 @@ export function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacit
     const isDone = Boolean(t.completato !== undefined ? t.completato : t.isCompleted);
     const oreStimate = Number(t.oreStimate) || 2.0;
     const oreEffettive = Number(t.oreEffettive || 0);
-    // Formula: const oreResidue = completato ? 0 : Math.max(0, oreStimate - oreEffettive);
-    const oreResidue = isDone ? 0 : Math.max(0, Number((oreStimate - oreEffettive).toFixed(2)));
+    // Formula: oreResidue = completato ? 0 : max(MIN_OPEN_RESIDUE_HOURS, oreStimate - oreEffettive).
+    // Un argomento NON completato non sparisce mai dal piano, anche se le ore spese hanno
+    // già raggiunto la stima: riceve un blocco minimo di chiusura.
+    const oreResidue = computeResidualHours(isDone, oreStimate, oreEffettive);
 
     const isHighPriority = (t.prioritaEsame || 3) >= settings.highPriorityThreshold;
     const isHighDifficulty = (t.difficolta || 3) >= settings.highPriorityThreshold;

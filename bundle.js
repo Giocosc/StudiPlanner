@@ -1295,6 +1295,17 @@ function getCalendarMetrics(startDateStr, endDateStr) {
 }
 
 /**
+ * Blocco minimo pianificato per un argomento non completato le cui ore spese
+ * hanno già raggiunto (o superato) la stima.
+ */
+const MIN_OPEN_RESIDUE_HOURS = 0.5;
+
+function computeResidualHours(isDone, oreStimate, oreEffettive) {
+  if (isDone) return 0;
+  return Math.max(MIN_OPEN_RESIDUE_HOURS, Number((Number(oreStimate) - Number(oreEffettive || 0)).toFixed(2)));
+}
+
+/**
  * Calculates progress for each subject and total
  */
 function calculateSubjectProgress(topics) {
@@ -1311,8 +1322,8 @@ function calculateSubjectProgress(topics) {
     const isDone = Boolean(t.completato !== undefined ? t.completato : t.isCompleted);
     const effettive = Number(t.oreEffettive || 0);
 
-    // Ore residue: se completato sono 0, altrimenti max(0, oreStimate - oreEffettive)
-    const residue = isDone ? 0 : Math.max(0, Number((stimate - effettive).toFixed(2)));
+    // Ore residue: se completato sono 0, altrimenti almeno il blocco minimo di chiusura
+    const residue = computeResidualHours(isDone, stimate, effettive);
 
     sub.totalCount += 1;
     sub.totalHours += stimate;
@@ -1611,8 +1622,10 @@ function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacities = {
     const isDone = Boolean(t.completato !== undefined ? t.completato : t.isCompleted);
     const oreStimate = Number(t.oreStimate) || 2.0;
     const oreEffettive = Number(t.oreEffettive || 0);
-    // Formula: const oreResidue = completato ? 0 : Math.max(0, oreStimate - oreEffettive);
-    const oreResidue = isDone ? 0 : Math.max(0, Number((oreStimate - oreEffettive).toFixed(2)));
+    // Formula: oreResidue = completato ? 0 : max(MIN_OPEN_RESIDUE_HOURS, oreStimate - oreEffettive).
+    // Un argomento NON completato non sparisce mai dal piano, anche se le ore spese hanno
+    // già raggiunto la stima: riceve un blocco minimo di chiusura.
+    const oreResidue = computeResidualHours(isDone, oreStimate, oreEffettive);
 
     const isHighPriority = (t.prioritaEsame || 3) >= settings.highPriorityThreshold;
     const isHighDifficulty = (t.difficolta || 3) >= settings.highPriorityThreshold;
@@ -11866,13 +11879,29 @@ function App() {
           const isDone = Boolean(t.completato !== undefined ? t.completato : t.isCompleted);
           const willComplete = !isDone;
           const currentEff = Number(t.oreEffettive || 0);
+          if (willComplete) {
+            // Se si spunta senza ore registrate, si assume svolta la stima: la quota
+            // "presunta" viene ricordata in autoFilledHours per poterla annullare.
+            const autoFilled = currentEff === 0 ? Number(t.oreStimate || 2.0) : 0;
+            return {
+              ...t,
+              completato: true,
+              isCompleted: true,
+              completedDate: t.completedDate || settings.currentSimulatedDate,
+              oreEffettive: Number((currentEff + autoFilled).toFixed(2)),
+              autoFilledHours: autoFilled
+            };
+          }
+          // Togliendo la spunta si rimuovono le ore presunte aggiunte al completamento,
+          // così l'argomento torna nel piano con le sue ore residue reali.
+          const autoFilled = Number(t.autoFilledHours || 0);
           return {
             ...t,
-            completato: willComplete,
-            isCompleted: willComplete,
-            completedDate: willComplete ? (t.completedDate || settings.currentSimulatedDate) : null,
-            // If marking completed and had 0 hours logged, defaults to oreStimate; else preserves accumulated hours
-            oreEffettive: willComplete && currentEff === 0 ? Number(t.oreStimate || 2.0) : currentEff
+            completato: false,
+            isCompleted: false,
+            completedDate: null,
+            oreEffettive: Math.max(0, Number((currentEff - autoFilled).toFixed(2))),
+            autoFilledHours: 0
           };
         }
         return t;

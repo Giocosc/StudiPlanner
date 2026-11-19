@@ -87,3 +87,11 @@ test("motore: spunta in un giorno diverso dalle sessioni non raddoppia le ore", 
   assert.strictEqual(day18.dayStatus, "completed");
   assert.strictEqual(day18.allocatedHours, 0);
 });
+
+test("motore: un argomento non completato con ore >= stima resta nel piano", () => {
+  const topics = freshTopics().map(t => t.id === "A-01" ? { ...t, oreEffettive: Number(t.oreStimate) + 1 } : t);
+  const plan = rebalanceStudyPlan(topics, { currentSimulatedDate: "2026-11-19" });
+  const parts = scheduledChunks(plan).filter(c => c.id === "A-01");
+  assert.ok(parts.length > 0, "A-01 deve restare pianificato");
+  assert.ok(plan.progress.analisi.remainingHours > 0);
+});
