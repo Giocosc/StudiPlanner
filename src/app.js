@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { INITIAL_TOPICS } from "./data/defaultData.js";
 import { rebalanceStudyPlan, DEFAULT_SETTINGS, getLocalTodayDateStr } from "./services/rebalancerEngine.js";
+import { applySessionToTopic } from "./services/topicStateService.js";
 import { AlertBanner } from "./components/AlertBanner.js";
 import { Dashboard } from "./components/Dashboard.js";
 import { WeeklyTodo } from "./components/WeeklyTodo.js";
@@ -671,21 +672,10 @@ export function App() {
       timestamp: new Date().toISOString()
     };
 
-    setTopics(prev => prev.map(t => {
-      if (t.id === topicId) {
-        const currentEff = Number(t.oreEffettive || 0);
-        const newEff = Number((currentEff + numHours).toFixed(2));
-        const isDone = completed !== undefined ? Boolean(completed) : (t.completato || newEff >= Number(t.oreStimate || 2.0));
-        return {
-          ...t,
-          oreEffettive: newEff,
-          completato: isDone,
-          isCompleted: isDone,
-          completedDate: isDone ? (t.completedDate || sessionDate) : null
-        };
-      }
-      return t;
-    }));
+    // Registrare una sessione non toglie mai il completamento (vedi topicStateService)
+    setTopics(prev => prev.map(t => (
+      t.id === topicId ? applySessionToTopic(t, { hours: numHours, completed, date: sessionDate }) : t
+    )));
 
     setStudySessions(prev => [newSession, ...prev]);
   };

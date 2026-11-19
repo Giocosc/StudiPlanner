@@ -5,6 +5,7 @@ files_order = [
     'src/data/defaultData.js',
     'src/components/Icons.js',
     'src/services/rebalancerEngine.js',
+    'src/services/topicStateService.js',
     'src/services/parserService.js',
     'src/services/gitlabSyncService.js',
     'src/services/calendarExportService.js',
