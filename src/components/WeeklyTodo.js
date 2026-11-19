@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   IconChevronLeft,
   IconChevronRight,
@@ -257,15 +257,7 @@ export function WeeklyTodo({
     }
   }, [settings.currentSimulatedDate]);
 
-  if (!weeklyPlans || weeklyPlans.length === 0) {
-    return (
-      <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-8 text-center text-slate-400">
-        <p className="text-base">Nessun piano settimanale disponibile. Tutti gli argomenti potrebbero essere già completati!</p>
-      </div>
-    );
-  }
-
-  const currentWeek = weeklyPlans.find(w => w.weekNumber === selectedWeekIndex) || weeklyPlans[0];
+  const currentWeek = (weeklyPlans || []).find(w => w.weekNumber === selectedWeekIndex) || (weeklyPlans || [])[0];
 
   const handlePrevWeek = () => {
     if (selectedWeekIndex > 1) {
@@ -342,6 +334,15 @@ export function WeeklyTodo({
     }
     onBatchUpdateDayCapacities(updates);
   };
+
+  // Early return solo DOPO tutti gli hook (Rules of Hooks)
+  if (!weeklyPlans || weeklyPlans.length === 0) {
+    return (
+      <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-8 text-center text-slate-400">
+        <p className="text-base">Nessun piano settimanale disponibile. Tutti gli argomenti potrebbero essere già completati!</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

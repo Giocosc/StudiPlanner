@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   IconX,
   IconClock,
@@ -12,7 +12,14 @@ import {
   IconInfo
 } from "./Icons.js";
 
-export function TopicDetailModal({
+// Wrapper: monta il contenuto solo quando il modale è aperto, così gli hook
+// del contenuto vengono sempre chiamati nello stesso ordine (Rules of Hooks).
+export function TopicDetailModal(props) {
+  if (!props.isOpen || !props.topic) return null;
+  return <TopicDetailModalContent {...props} />;
+}
+
+function TopicDetailModalContent({
   isOpen,
   onClose,
   topic,
@@ -21,7 +28,6 @@ export function TopicDetailModal({
   onUpdateTopic,
   studySessions = []
 }) {
-  if (!isOpen || !topic) return null;
 
   const [activeTab, setActiveTab] = useState("overview"); // "overview" | "theorems" | "sessions" | "notes"
   const [noteText, setNoteText] = useState(topic.scratchpadNotes || topic.note || "");

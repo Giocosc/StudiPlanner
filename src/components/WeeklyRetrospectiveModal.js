@@ -1,7 +1,14 @@
 import React, { useMemo } from "react";
 import { IconCheckCircle, IconFlame, IconClock, IconCalendar, IconCheck, IconX } from "./Icons.js";
 
-export function WeeklyRetrospectiveModal({
+// Wrapper: monta il contenuto solo quando il modale è aperto, così gli hook
+// del contenuto vengono sempre chiamati nello stesso ordine (Rules of Hooks).
+export function WeeklyRetrospectiveModal(props) {
+  if (!props.isOpen) return null;
+  return <WeeklyRetrospectiveModalContent {...props} />;
+}
+
+function WeeklyRetrospectiveModalContent({
   isOpen,
   onClose,
   weeklyPlans = [],
@@ -10,7 +17,6 @@ export function WeeklyRetrospectiveModal({
   customDayCapacities = {},
   onBatchUpdateDayCapacities
 }) {
-  if (!isOpen) return null;
 
   // Find the current active week
   const activeWeek = useMemo(() => {

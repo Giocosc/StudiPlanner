@@ -1,0 +1,10 @@
+{
+  "name": "studiplanner",
+  "private": true,
+  "type": "module",
+  "description": "StudiPlanner UNIMORE - SPA React senza build tool (bundle generato da scripts/build_bundle.py)",
+  "scripts": {
+    "build": "python scripts/build_bundle.py",
+    "test": "node tests/run-tests.mjs"
+  }
+}

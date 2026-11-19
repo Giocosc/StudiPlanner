@@ -12,7 +12,14 @@ import {
   IconSearch
 } from "./Icons.js";
 
-export function LogStudyModal({
+// Wrapper: monta il contenuto solo quando il modale è aperto, così gli hook
+// del contenuto vengono sempre chiamati nello stesso ordine (Rules of Hooks).
+export function LogStudyModal(props) {
+  if (!props.isOpen) return null;
+  return <LogStudyModalContent {...props} />;
+}
+
+function LogStudyModalContent({
   isOpen,
   onClose,
   topics = [],
@@ -22,7 +29,6 @@ export function LogStudyModal({
   studySessions = [],
   onDeleteSession
 }) {
-  if (!isOpen) return null;
 
   const [activeTab, setActiveTab] = useState("new"); // "new" | "recent"
   const [selectedDate, setSelectedDate] = useState(() => {

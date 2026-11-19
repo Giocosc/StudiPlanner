@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { INITIAL_TOPICS } from "./data/defaultData.js";
 import { rebalanceStudyPlan, DEFAULT_SETTINGS, getLocalTodayDateStr } from "./services/rebalancerEngine.js";
 import { AlertBanner } from "./components/AlertBanner.js";
@@ -14,6 +14,7 @@ import { TopicDetailModal } from "./components/TopicDetailModal.js";
 import { MathFormulaDrawer } from "./components/MathFormulaDrawer.js";
 import { PdfSplitView } from "./components/PdfSplitView.js";
 import { WeeklyRetrospectiveModal } from "./components/WeeklyRetrospectiveModal.js";
+import { MathBugTracker, DEFAULT_MATH_BUGS } from "./components/MathBugTracker.js";
 import {
   LOCAL_STORAGE_KEY_GITLAB_CONFIG,
   DEFAULT_GITLAB_CONFIG,
@@ -152,7 +153,7 @@ export function App() {
     } catch (e) {
       console.warn("Could not load mathBugs from localStorage", e);
     }
-    return typeof DEFAULT_MATH_BUGS !== "undefined" ? DEFAULT_MATH_BUGS : [];
+    return DEFAULT_MATH_BUGS;
   });
 
   useEffect(() => {

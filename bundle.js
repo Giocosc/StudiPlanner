@@ -6567,15 +6567,7 @@ function WeeklyTodo({
     }
   }, [settings.currentSimulatedDate]);
 
-  if (!weeklyPlans || weeklyPlans.length === 0) {
-    return (
-      <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-8 text-center text-slate-400">
-        <p className="text-base">Nessun piano settimanale disponibile. Tutti gli argomenti potrebbero essere già completati!</p>
-      </div>
-    );
-  }
-
-  const currentWeek = weeklyPlans.find(w => w.weekNumber === selectedWeekIndex) || weeklyPlans[0];
+  const currentWeek = (weeklyPlans || []).find(w => w.weekNumber === selectedWeekIndex) || (weeklyPlans || [])[0];
 
   const handlePrevWeek = () => {
     if (selectedWeekIndex > 1) {
@@ -6652,6 +6644,15 @@ function WeeklyTodo({
     }
     onBatchUpdateDayCapacities(updates);
   };
+
+  // Early return solo DOPO tutti gli hook (Rules of Hooks)
+  if (!weeklyPlans || weeklyPlans.length === 0) {
+    return (
+      <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-8 text-center text-slate-400">
+        <p className="text-base">Nessun piano settimanale disponibile. Tutti gli argomenti potrebbero essere già completati!</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -9126,7 +9127,14 @@ function SettingsModal({
 
 
 
-function LogStudyModal({
+// Wrapper: monta il contenuto solo quando il modale è aperto, così gli hook
+// del contenuto vengono sempre chiamati nello stesso ordine (Rules of Hooks).
+function LogStudyModal(props) {
+  if (!props.isOpen) return null;
+  return <LogStudyModalContent {...props} />;
+}
+
+function LogStudyModalContent({
   isOpen,
   onClose,
   topics = [],
@@ -9136,7 +9144,6 @@ function LogStudyModal({
   studySessions = [],
   onDeleteSession
 }) {
-  if (!isOpen) return null;
 
   const [activeTab, setActiveTab] = useState("new"); // "new" | "recent"
   const [selectedDate, setSelectedDate] = useState(() => {
@@ -9963,7 +9970,14 @@ function LogStudyModal({
 
 
 
-function TopicDetailModal({
+// Wrapper: monta il contenuto solo quando il modale è aperto, così gli hook
+// del contenuto vengono sempre chiamati nello stesso ordine (Rules of Hooks).
+function TopicDetailModal(props) {
+  if (!props.isOpen || !props.topic) return null;
+  return <TopicDetailModalContent {...props} />;
+}
+
+function TopicDetailModalContent({
   isOpen,
   onClose,
   topic,
@@ -9972,7 +9986,6 @@ function TopicDetailModal({
   onUpdateTopic,
   studySessions = []
 }) {
-  if (!isOpen || !topic) return null;
 
   const [activeTab, setActiveTab] = useState("overview"); // "overview" | "theorems" | "sessions" | "notes"
   const [noteText, setNoteText] = useState(topic.scratchpadNotes || topic.note || "");
@@ -10813,7 +10826,14 @@ function PdfSplitView({ isOpen, onClose }) {
 
 
 
-function WeeklyRetrospectiveModal({
+// Wrapper: monta il contenuto solo quando il modale è aperto, così gli hook
+// del contenuto vengono sempre chiamati nello stesso ordine (Rules of Hooks).
+function WeeklyRetrospectiveModal(props) {
+  if (!props.isOpen) return null;
+  return <WeeklyRetrospectiveModalContent {...props} />;
+}
+
+function WeeklyRetrospectiveModalContent({
   isOpen,
   onClose,
   weeklyPlans = [],
@@ -10822,7 +10842,6 @@ function WeeklyRetrospectiveModal({
   customDayCapacities = {},
   onBatchUpdateDayCapacities
 }) {
-  if (!isOpen) return null;
 
   // Find the current active week
   const activeWeek = useMemo(() => {
@@ -11047,6 +11066,7 @@ function WeeklyRetrospectiveModal({
 
 
 
+
 const LOCAL_STORAGE_KEY_TOPICS = "unimore_rebalancer_topics_v2";
 const LOCAL_STORAGE_KEY_SETTINGS = "unimore_rebalancer_settings_v2";
 const LOCAL_STORAGE_KEY_CUSTOM_CAPACITIES = "unimore_rebalancer_custom_capacities_v2";
@@ -11162,7 +11182,7 @@ function App() {
     } catch (e) {
       console.warn("Could not load mathBugs from localStorage", e);
     }
-    return typeof DEFAULT_MATH_BUGS !== "undefined" ? DEFAULT_MATH_BUGS : [];
+    return DEFAULT_MATH_BUGS;
   });
 
   useEffect(() => {
