@@ -2082,6 +2082,36 @@ function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacities = {
   };
 }
 
+/**
+ * Dati del grafico Burndown.
+ * Confronta grandezze omogenee (ore STIMATE totali vs ore STIMATE residue, entrambe
+ * senza buffer) su un asse temporale FISSO: dall'inizio della roadmap al giorno d'esame.
+ */
+function calculateBurndown({ totalHours, remainingHours, roadmapStartDate, targetExamDate, currentSimulatedDate }) {
+  const toUtc = (s) => {
+    const [y, m, d] = String(s).split("-").map(Number);
+    return Date.UTC(y, m - 1, d);
+  };
+  const dayMs = 24 * 60 * 60 * 1000;
+  const totalDays = Math.max(1, Math.round((toUtc(targetExamDate) - toUtc(roadmapStartDate)) / dayMs));
+  const elapsedDays = Math.round((toUtc(currentSimulatedDate) - toUtc(roadmapStartDate)) / dayMs);
+  const fraction = Math.min(1, Math.max(0, elapsedDays / totalDays));
+  const total = Math.max(0, Number(totalHours) || 0);
+  const remaining = Math.max(0, Number(remainingHours) || 0);
+  const idealRemainingToday = Number((total * (1 - fraction)).toFixed(1));
+  const isAheadOfSchedule = remaining <= idealRemainingToday;
+  return {
+    totalDays,
+    elapsedDays: Math.max(0, Math.min(totalDays, elapsedDays)),
+    fraction,
+    totalHours: total,
+    remainingHours: remaining,
+    idealRemainingToday,
+    isAheadOfSchedule,
+    deltaHours: Math.abs(Number((remaining - idealRemainingToday).toFixed(1)))
+  };
+}
+
 
 // --- src/services/topicStateService.js ---
 /**
@@ -5303,16 +5333,29 @@ function Clarke9000Companion({ progress, metrics }) {
 
 
 
+
+const MONTHS_IT = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"];
+const formatShortDate = (s) => {
+  const [, m, d] = String(s).split("-").map(Number);
+  return `${d} ${MONTHS_IT[m - 1] || ""}`;
+};
+
 function BurndownChart({ metrics, progress, settings }) {
   if (!metrics || !progress) return null;
 
-  const totalHours = progress.global.totalHours || 150;
-  const remainingHours = metrics.totalRemainingEffectiveHours || 0;
+  const roadmapStartDate = metrics.roadmapStartDate || (settings && settings.roadmapStartDate) || DEFAULT_ROADMAP_START_DATE;
+  const targetExamDate = metrics.targetExamDate || (settings && settings.targetExamDate) || DEFAULT_TARGET_EXAM_DATE;
+  const burndown = calculateBurndown({
+    totalHours: progress.global.totalHours,
+    // Ore stimate residue (senza buffer), omogenee con le ore stimate totali
+    remainingHours: progress.global.remainingHours,
+    roadmapStartDate,
+    targetExamDate,
+    currentSimulatedDate: metrics.currentSimulatedDate || (settings && settings.currentSimulatedDate) || roadmapStartDate
+  });
+  const totalHours = burndown.totalHours || 1;
+  const remainingHours = burndown.remainingHours;
   const completedHours = progress.global.completedHours || 0;
-
-  // Total weeks in the session (e.g. 8 weeks from Nov 16 to Jan 10)
-  const totalWeeks = Math.max(1, metrics.remainingWeeks + (metrics.pastDaysStudied > 0 ? 1 : 0));
-  const currentWeekNum = Math.min(totalWeeks, Math.max(1, Math.ceil((metrics.pastDaysStudied + metrics.pastDaysSkipped) / 7)));
 
   // SVG Coordinates setup
   const width = 800;
@@ -5331,28 +5374,23 @@ function BurndownChart({ metrics, progress, settings }) {
     return padTop + chartH - (clamped / totalHours) * chartH;
   };
 
-  const getX = (weekIdx) => {
-    return padLeft + (weekIdx / (totalWeeks - 1 || 1)) * chartW;
-  };
+  // Asse X fisso: frazione [0, 1] del periodo inizio roadmap -> giorno d'esame
+  const getX = (fraction) => padLeft + fraction * chartW;
 
   // Generate data points
   // Ideal points: (0, totalHours) -> (totalWeeks-1, 0)
   const idealX1 = getX(0);
   const idealY1 = getY(totalHours);
-  const idealX2 = getX(totalWeeks - 1);
+  const idealX2 = getX(1);
   const idealY2 = getY(0);
 
   // Actual points:
   // Week 0: totalHours
   // Today's point: (currentWeekFraction, remainingHours)
-  const currentFraction = Math.min(totalWeeks - 1, (metrics.pastDaysStudied + metrics.pastDaysSkipped) / 7);
-  const todayX = padLeft + (currentFraction / (totalWeeks - 1 || 1)) * chartW;
+  const todayX = getX(burndown.fraction);
   const todayY = getY(remainingHours);
 
-  // Ideal value at today's fraction:
-  const idealRemainingToday = Math.max(0, totalHours - (currentFraction / (totalWeeks - 1 || 1)) * totalHours);
-  const isAheadOfSchedule = remainingHours <= idealRemainingToday;
-  const deltaHours = Math.abs(Number((remainingHours - idealRemainingToday).toFixed(1)));
+  const { isAheadOfSchedule, deltaHours } = burndown;
 
   return (
     <div className="bg-slate-900/90 border border-slate-800/90 rounded-3xl p-5 md:p-6 shadow-xl backdrop-blur-md">
@@ -5363,7 +5401,7 @@ function BurndownChart({ metrics, progress, settings }) {
               <IconFlame className="w-3 h-3 text-cyan-400" />
               Scrum / Agile Study Tracking
             </span>
-            <span className="text-xs text-slate-400">Target: 10 Gennaio 2027</span>
+            <span className="text-xs text-slate-400">Target: {formatShortDate(targetExamDate)} {String(targetExamDate).slice(0, 4)}</span>
           </div>
           <h3 className="text-lg font-bold text-white mt-1">
             Grafico Burndown: Ore Residue vs Linea Ideale
@@ -5494,13 +5532,13 @@ function BurndownChart({ metrics, progress, settings }) {
 
           {/* X Axis Labels */}
           <text x={idealX1} y={height - 12} fill="#94a3b8" fontSize="10" fontFamily="sans-serif">
-            Inizio (16 Nov)
+            Inizio ({formatShortDate(roadmapStartDate)})
           </text>
           <text x={todayX} y={height - 12} fill="#38bdf8" fontSize="10" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">
             Data Odierna
           </text>
           <text x={idealX2} y={height - 12} fill="#c084fc" fontSize="10" textAnchor="end" fontFamily="sans-serif">
-            Esame (10 Gen)
+            Esame ({formatShortDate(targetExamDate)})
           </text>
         </svg>
       </div>
@@ -5514,7 +5552,7 @@ function BurndownChart({ metrics, progress, settings }) {
           </div>
           <div className="flex items-center space-x-1.5">
             <span className={`w-3.5 h-1 rounded inline-block ${isAheadOfSchedule ? "bg-emerald-400" : "bg-amber-400"}`}></span>
-            <span>Ore Effettive Rimanenti</span>
+            <span>Ore Stimate Residue</span>
           </div>
         </div>
 

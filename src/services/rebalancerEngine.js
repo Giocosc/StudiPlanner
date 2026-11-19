@@ -927,3 +927,33 @@ export function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacit
     progress: calculateSubjectProgress(topics)
   };
 }
+
+/**
+ * Dati del grafico Burndown.
+ * Confronta grandezze omogenee (ore STIMATE totali vs ore STIMATE residue, entrambe
+ * senza buffer) su un asse temporale FISSO: dall'inizio della roadmap al giorno d'esame.
+ */
+export function calculateBurndown({ totalHours, remainingHours, roadmapStartDate, targetExamDate, currentSimulatedDate }) {
+  const toUtc = (s) => {
+    const [y, m, d] = String(s).split("-").map(Number);
+    return Date.UTC(y, m - 1, d);
+  };
+  const dayMs = 24 * 60 * 60 * 1000;
+  const totalDays = Math.max(1, Math.round((toUtc(targetExamDate) - toUtc(roadmapStartDate)) / dayMs));
+  const elapsedDays = Math.round((toUtc(currentSimulatedDate) - toUtc(roadmapStartDate)) / dayMs);
+  const fraction = Math.min(1, Math.max(0, elapsedDays / totalDays));
+  const total = Math.max(0, Number(totalHours) || 0);
+  const remaining = Math.max(0, Number(remainingHours) || 0);
+  const idealRemainingToday = Number((total * (1 - fraction)).toFixed(1));
+  const isAheadOfSchedule = remaining <= idealRemainingToday;
+  return {
+    totalDays,
+    elapsedDays: Math.max(0, Math.min(totalDays, elapsedDays)),
+    fraction,
+    totalHours: total,
+    remainingHours: remaining,
+    idealRemainingToday,
+    isAheadOfSchedule,
+    deltaHours: Math.abs(Number((remaining - idealRemainingToday).toFixed(1)))
+  };
+}

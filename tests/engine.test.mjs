@@ -136,3 +136,26 @@ test("streak: conta sessioni e giorni con argomenti spuntati, senza doppi conteg
   // 16, 17 (sessioni) e 18 (spunta) consecutivi; il 19 non ancora studiato
   assert.strictEqual(plan.metrics.studyStreak.currentStreak, 3);
 });
+
+test("burndown: grandezze omogenee e asse temporale fisso", async () => {
+  const { calculateBurndown } = await import("../src/services/rebalancerEngine.js");
+  const base = { totalHours: 166, roadmapStartDate: "2026-11-16", targetExamDate: "2027-01-11" }; // 56 giorni
+  // Giorno 0, niente fatto: esattamente sulla linea ideale (prima risultava "in ritardo")
+  const d0 = calculateBurndown({ ...base, remainingHours: 166, currentSimulatedDate: "2026-11-16" });
+  assert.strictEqual(d0.isAheadOfSchedule, true);
+  assert.strictEqual(d0.deltaHours, 0);
+  // A metà periodo con metà ore fatte: in linea
+  const mid = calculateBurndown({ ...base, remainingHours: 83, currentSimulatedDate: "2026-12-14" });
+  assert.strictEqual(mid.fraction, 0.5);
+  assert.strictEqual(mid.idealRemainingToday, 83);
+  assert.strictEqual(mid.isAheadOfSchedule, true);
+  // A metà periodo con 100h residue: in ritardo di 17h
+  const late = calculateBurndown({ ...base, remainingHours: 100, currentSimulatedDate: "2026-12-14" });
+  assert.strictEqual(late.isAheadOfSchedule, false);
+  assert.strictEqual(late.deltaHours, 17);
+});
+
+test("burndown: le ore residue del piano sono senza buffer come il totale", () => {
+  const plan = rebalanceStudyPlan(freshTopics(), { currentSimulatedDate: "2026-11-16" });
+  assert.strictEqual(plan.progress.global.remainingHours, plan.progress.global.totalHours);
+});
