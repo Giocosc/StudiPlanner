@@ -2,7 +2,20 @@ import React, { useState } from "react";
 import { IconSettings, IconClock, IconCalendar, IconBriefcase, IconFlame, IconSun, IconMoon } from "./Icons.js";
 import { getLocalTodayDateStr } from "../services/rebalancerEngine.js";
 
-export function SettingsModal({
+// Il contenuto viene montato a ogni apertura: il form parte sempre dalle impostazioni
+// CORRENTI (prima lo stato del form veniva creato una sola volta all'avvio dell'app e
+// salvando si ripristinavano data attiva e impostazioni ormai vecchie).
+export function SettingsModal(props) {
+  if (!props.isOpen) return null;
+  return <SettingsModalContent {...props} />;
+}
+
+const numberOr = (raw, fallback) => {
+  const n = parseFloat(raw);
+  return Number.isFinite(n) ? n : fallback;
+};
+
+function SettingsModalContent({
   isOpen,
   onClose,
   settings,
@@ -10,6 +23,7 @@ export function SettingsModal({
   customDayCapacities = {},
   onResetDayCapacities
 }) {
+  const [touchedFields, setTouchedFields] = useState({});
   const [formData, setFormData] = useState({
     ...settings,
     eveningStudyHours: settings.eveningStudyHours !== undefined ? settings.eveningStudyHours : (settings.weekdayStudyHours || 2.5),
@@ -18,9 +32,8 @@ export function SettingsModal({
     criticalWeeklyHoursThreshold: settings.criticalWeeklyHoursThreshold || 25.0
   });
 
-  if (!isOpen) return null;
-
   const handleChange = (field, val) => {
+    setTouchedFields(prev => ({ ...prev, [field]: true }));
     setFormData(prev => {
       const updated = {
         ...prev,
@@ -37,18 +50,23 @@ export function SettingsModal({
 
   const handleSave = (e) => {
     e.preventDefault();
-    const evening = Number(formData.eveningStudyHours || 2.5);
-    const toSave = {
-      ...formData,
-      weekdayStudyHours: evening,
-      eveningStudyHours: evening
-    };
-    onSaveSettings(toSave);
+    // Si salvano SOLO i campi modificati, sopra le impostazioni attuali: così una data
+    // avanzata nel frattempo (o arrivata dal sync) non viene sovrascritta.
+    const edits = {};
+    Object.keys(touchedFields).forEach(field => {
+      edits[field] = formData[field];
+    });
+    if (touchedFields.eveningStudyHours) {
+      const evening = numberOr(formData.eveningStudyHours, 2.5);
+      edits.eveningStudyHours = evening;
+      edits.weekdayStudyHours = evening;
+    }
+    onSaveSettings({ ...settings, ...edits });
     onClose();
   };
 
-  const currentWeekday = Number(formData.eveningStudyHours || 2.5);
-  const currentWeekend = Number(formData.weekendStudyHours || 4.5);
+  const currentWeekday = numberOr(formData.eveningStudyHours, 2.5);
+  const currentWeekend = numberOr(formData.weekendStudyHours, 4.5);
   const nominalWeeklyCapacity = Number(((currentWeekday * 5) + (currentWeekend * 2)).toFixed(1));
   const customOverridesCount = Object.keys(customDayCapacities || {}).length;
 
@@ -168,10 +186,10 @@ export function SettingsModal({
                   <input
                     type="number"
                     step="0.5"
-                    min="1"
+                    min="0"
                     max="6"
                     value={formData.eveningStudyHours}
-                    onChange={(e) => handleChange("eveningStudyHours", parseFloat(e.target.value) || 2.5)}
+                    onChange={(e) => handleChange("eveningStudyHours", Math.max(0, numberOr(e.target.value, 0)))}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-white font-mono focus:outline-none focus:border-cyan-500"
                   />
                   <span className="text-slate-500 font-mono">h/sera</span>
@@ -187,10 +205,10 @@ export function SettingsModal({
                   <input
                     type="number"
                     step="0.5"
-                    min="1"
+                    min="0"
                     max="10"
                     value={formData.weekendStudyHours}
-                    onChange={(e) => handleChange("weekendStudyHours", parseFloat(e.target.value) || 4.5)}
+                    onChange={(e) => handleChange("weekendStudyHours", Math.max(0, numberOr(e.target.value, 0)))}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-white font-mono focus:outline-none focus:border-cyan-500"
                   />
                   <span className="text-slate-500 font-mono">h/gg</span>
@@ -240,7 +258,7 @@ export function SettingsModal({
                   max="50"
                   value={Math.round((formData.bufferMultiplier - 1) * 100)}
                   onChange={(e) => {
-                    const pct = parseFloat(e.target.value) || 20;
+                    const pct = Math.max(0, numberOr(e.target.value, 0));
                     handleChange("bufferMultiplier", 1 + pct / 100);
                   }}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-cyan-500"

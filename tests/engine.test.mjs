@@ -177,3 +177,9 @@ test("retrospettiva: ore effettive reali e boost sulla settimana successiva", as
   assert.deepStrictEqual(Object.keys(boost), ["2026-11-23", "2026-11-24", "2026-11-25", "2026-11-26", "2026-11-27"]);
   Object.values(boost).forEach(h => assert.strictEqual(h, 3));
 });
+
+test("impostazioni: weekend a 0h è rispettato (non torna a 4.5h)", () => {
+  const plan = rebalanceStudyPlan(freshTopics(), { currentSimulatedDate: "2026-11-19", weekendStudyHours: 0 });
+  const sat = plan.calendarDays.find(d => d.date === "2026-11-21");
+  assert.strictEqual(sat.maxHours, 0);
+});

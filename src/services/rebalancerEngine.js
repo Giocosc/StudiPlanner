@@ -551,7 +551,10 @@ export function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacit
 
   // Baseline standard capacities (weekday evening & weekend blocks)
   const standardWeekdayHours = Number(settings.weekdayStudyHours !== undefined ? settings.weekdayStudyHours : (settings.eveningStudyHours || 2.5));
-  const standardWeekendHours = Number(settings.weekendStudyHours || 4.5);
+  // 0 è un valore valido (weekend libero): il default scatta solo se il dato manca
+  const standardWeekendHours = Number.isFinite(Number(settings.weekendStudyHours)) && settings.weekendStudyHours !== null && settings.weekendStudyHours !== ""
+    ? Number(settings.weekendStudyHours)
+    : 4.5;
 
   // Nominal baseline weekly capacity: (5 * feriali) + (2 * weekend)
   const nominalWeeklyCapacity = Number(((standardWeekdayHours * 5) + (standardWeekendHours * 2)).toFixed(1));
