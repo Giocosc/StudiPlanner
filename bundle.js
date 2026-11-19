@@ -2850,6 +2850,39 @@ function escapeIcsText(text) {
     .replace(/\r?\n/g, "\\n");
 }
 
+/**
+ * Spezza le righe oltre 75 ottetti come richiesto da RFC 5545 (§3.1).
+ */
+function foldIcsLine(line) {
+  const encoder = new TextEncoder();
+  if (encoder.encode(line).length <= 75) return line;
+  const parts = [];
+  let current = "";
+  for (const ch of line) {
+    const limit = parts.length === 0 ? 75 : 74; // le righe di continuazione iniziano con uno spazio
+    if (encoder.encode(current + ch).length > limit) {
+      parts.push(current);
+      current = ch;
+    } else {
+      current += ch;
+    }
+  }
+  parts.push(current);
+  return parts.join("\r\n ");
+}
+
+/** Orario di inizio dalla fascia del giorno (es. "Sera (19:00 - 21:30)"), altrimenti il default. */
+function getStartTime(day) {
+  const match = String(day.timeSlot || "").match(/(\d{1,2}):(\d{2})/);
+  if (match) return `${match[1].padStart(2, "0")}:${match[2]}`;
+  return day.isWeekend ? "10:00" : "19:30";
+}
+
+/** Blocchi di studio pianificati nel giorno (escluse sessioni già registrate e argomenti completati). */
+function getPlannedTopics(day) {
+  return (day.topics || []).filter(t => !t.isSessionLog && !(t.completato || t.isCompleted));
+}
+
 function generateIcsCalendar(calendarDays = []) {
   const now = new Date();
   const dtStamp = now.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
@@ -2865,32 +2898,36 @@ function generateIcsCalendar(calendarDays = []) {
     "X-WR-CALDESC:Programma di studio ottimizzato per studente lavoratore UNIMORE"
   ];
 
-  calendarDays.forEach((day, index) => {
-    if (!day.scheduledTopics || day.scheduledTopics.length === 0) return;
+  calendarDays.forEach(day => {
+    // Solo Oggi e giorni futuri: il passato è già nello Storico
+    if (day.isPast) return;
+    const planned = getPlannedTopics(day);
+    if (planned.length === 0) return;
 
-    // Determine start and end time based on weekday vs weekend
-    const startTimeStr = day.isWeekend ? "10:00" : "19:30";
-    const capacityHours = Number(day.effectiveCapacity) || (day.isWeekend ? 4.5 : 2.5);
-    const endTimeStr = addHoursToTime(startTimeStr, capacityHours);
+    const startTimeStr = getStartTime(day);
+    const plannedHours = Number(planned.reduce((acc, t) => acc + Number(t.effectiveHours || 0), 0).toFixed(2));
+    const durationHours = plannedHours > 0 ? plannedHours : Number(day.maxHours) || (day.isWeekend ? 4.5 : 2.5);
+    const endTimeStr = addHoursToTime(startTimeStr, durationHours);
 
     const startDt = formatIcsDateTime(day.date, startTimeStr);
-    const endDt = formatIcsDateTime(day.date, endTimeStr);
+    // Fine dopo la mezzanotte: si passa al giorno successivo
+    const [sh, sm] = startTimeStr.split(":").map(Number);
+    const endsNextDay = sh * 60 + sm + Math.round(durationHours * 60) >= 24 * 60;
+    const endDate = endsNextDay ? nextDateStr(day.date) : day.date;
+    const endDt = formatIcsDateTime(endDate, endTimeStr);
 
-    const topicsSummary = day.scheduledTopics
-      .map(t => `${t.id} ${t.argomento || t.titolo || ""}`.trim())
-      .join(" + ");
-
-    const topicsListDesc = day.scheduledTopics
-      .map(t => `• [${t.id}] ${t.argomento || t.titolo || ""} (${t.oreStimate}h stimate, ${t.materia})`)
+    const label = t => `${t.id} ${t.argomento || t.titolo || ""}`.trim() + (t.isSplit ? ` (Parte ${t.partIndex}/${t.partCount})` : "");
+    const topicsSummary = planned.map(label).join(" + ");
+    const topicsListDesc = planned
+      .map(t => `• [${t.id}] ${t.argomento || t.titolo || ""}${t.isSplit ? ` - Parte ${t.partIndex}/${t.partCount}` : ""} (${Number(t.effectiveHours || 0)}h, ${t.materia})`)
       .join("\n");
 
     const description = `Sessione di Studio StudiPlanner UNIMORE\n` +
       `Data: ${day.date} (${day.dayName})\n` +
-      `Ore assegnate: ${capacityHours}h\n\n` +
-      `Argomenti in programma:\n${topicsListDesc}\n\n` +
-      `Obiettivo Sessione Esami: 10 Gennaio 2027.`;
+      `Ore pianificate: ${durationHours}h\n\n` +
+      `Argomenti in programma:\n${topicsListDesc}`;
 
-    const uid = `sp-${day.date}-${index}@studiplanner.unimore.it`;
+    const uid = `studiplanner-${day.date}@studiplanner.local`;
 
     lines.push("BEGIN:VEVENT");
     lines.push(`UID:${uid}`);
@@ -2911,7 +2948,12 @@ function generateIcsCalendar(calendarDays = []) {
   });
 
   lines.push("END:VCALENDAR");
-  return lines.join("\r\n");
+  return lines.map(foldIcsLine).join("\r\n");
+}
+
+function nextDateStr(dateStr) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + 1)).toISOString().split("T")[0];
 }
 
 function downloadIcsCalendar(calendarDays = [], filename = "StudiPlanner_UNIMORE_Calendario.ics") {
