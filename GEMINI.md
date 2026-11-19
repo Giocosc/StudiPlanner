@@ -39,6 +39,12 @@ Questo documento definisce il contesto operativo, gli standard architetturali, i
 #### D. Meccanica del Rolling Rebalancer (Adattivo Continuo)
 - **Giorni saltati:** Se uno o più giorni non vengono dedicati allo studio, gli argomenti non svolti **non vengono mai cancellati**, ma slittano automaticamente a partire dalla data odierna ("Oggi").
 - **Anticipi:** Se lo studente spunta argomenti futuri in anticipo, i giorni successivi attingono immediatamente dagli argomenti a seguire, liberando tempo per il ripasso finale.
+- **Allocazione a blocchi:** nessun giorno supera il proprio budget; un argomento lungo viene diviso in parti su giorni consecutivi, senza mai alterare la sequenza.
+- **Saturazione:** se il programma non entra nei budget prima dell'esame, i budget vengono scalati uniformemente (`capacityScale`) e la situazione viene segnalata. Mai accumulare il residuo sugli ultimi giorni.
+- **Giorno d'esame:** nessuno studio pianificato in `targetExamDate`; la prova generale `A-32` solo negli ultimi 7 giorni.
+- **Time Shifter:** budget giornaliero limitato a 0–12 h (`clampDayCapacity`). Un budget di 0 h è valido e va rispettato.
+
+Algoritmo completo: [docs/02_REBALANCER_ENGINE.md](docs/02_REBALANCER_ENGINE.md).
 
 ---
 
@@ -50,8 +56,10 @@ Questo documento definisce il contesto operativo, gli standard architetturali, i
   - Geometria: Indaco / Viola (`#6366f1`)
   - Allerta: Rosa / Ambra (`#f43f5e`, `#f59e0b`)
 - **Icone:** Icone SVG native zero-dependency definite in `src/components/Icons.js`.
-- **Parsing Spreadsheet:** Libreria SheetJS (`XLSX`) caricata via CDN per lettura/scrittura di `.xlsx`, `.ods`, `.xls`.
-- **Persistenza:** `localStorage` (`unimore_rebalancer_topics_v2`, `unimore_rebalancer_settings_v2`) con supporto al download/ripristino di backup completi in JSON.
+- **Parsing Spreadsheet:** Libreria SheetJS (`XLSX`) caricata da `vendor/` (con fallback CDN) per lettura/scrittura di `.xlsx`, `.ods`, `.xls`.
+- **Persistenza:** `localStorage` (chiavi al §6) con backup JSON, file locale (File System Access API) e sync GitLab opzionale.
+- **Bundle:** `scripts/build_bundle.py` concatena i moduli di `src/` in un unico scope: niente nomi top-level duplicati tra file diversi; ogni nuovo file va aggiunto a `files_order`.
+- **Regole di business nei servizi puri** (`src/services/`), testati in Node con `npm test`. Le transizioni di stato degli argomenti passano da `topicStateService.js`.
 
 ---
 
@@ -68,8 +76,10 @@ L'applicazione in esecuzione in `index.html` consuma `bundle.js`.
 > ```
 > Dopo aver generato il bundle, verificare il corretto funzionamento eseguendo:
 > ```powershell
+> npm test
 > python scripts\test_rolling_rebalance.py
 > ```
+> `npm test` (Node ≥ 16, nessuna dipendenza) esegue i test unitari in `tests/` e verifica che il bundle venga transpilato. Ogni bug corretto in un servizio va coperto da un test.
 
 ---
 
@@ -80,8 +90,11 @@ L'applicazione in esecuzione in `index.html` consuma `bundle.js`.
 - `server.py`: Server di sviluppo Python locale (porta 3000, supporto CORS e no-cache).
 - `start-app.bat`: Script di avvio rapido con doppio clic su Windows.
 - `src/services/rebalancerEngine.js`: Motore matematico di ribilanciamento e calendario.
-- `src/services/parserService.js`: Parser client-side per CSV ed Excel con fuzzy matching.
-- `src/services/gitlabSyncService.js`: Servizio di sincronizzazione REST API v4 con GitLab Cloud (Auto-Pull & Auto-Push continuo).
+- `src/services/topicStateService.js`: Regole di completamento e ore degli argomenti (sessioni, cancellazioni, spunte, `updatedAt`).
+- `src/services/parserService.js`: Import CSV/TXT/Excel e fusione col catalogo senza perdere il progresso.
+- `src/services/calendarExportService.js`: Export iCalendar dei blocchi pianificati.
+- `src/services/gitlabSyncService.js`: Sync GitLab REST v4: pull → merge → push con `last_commit_id`.
+- `tests/`: Test unitari Node (`npm test`).
 - `src/components/WeeklyTodo.js`: Vista operativa to-do giorno per giorno con Time Shifter.
 - `src/components/HistoryLog.js`: Timeline e diario storico delle date passate con rollback delle sessioni.
 - `src/components/Dashboard.js`: Progress bar Analisi/Geometria, metriche KPI, telemetria e countdown esame.
@@ -102,11 +115,17 @@ Tutti i dati dell'applicazione persistono in parallelo su **HTML5 LocalStorage**
 
 | Chiave LocalStorage | Tipo | Descrizione |
 | :--- | :--- | :--- |
-| `unimore_rebalancer_topics_v2` | `Array<Topic>` | 63 argomenti (`id`, `materia`, `capitolo`, `argomento`, `oreStimate`, `oreEffettive`, `prioritaEsame`, `difficolta`, `completato`, `completedDate`, note) |
-| `unimore_rebalancer_settings_v2` | `Object` | Parametri globali (`targetExamDate: '2027-01-10'`, `currentSimulatedDate`, `weekdayHours: 2.5`, `weekendHours: 4.5`, `criticalWeeklyHours: 25`, `bufferMultiplier: 1.2`) |
-| `unimore_rebalancer_custom_capacities_v2` | `Object<string, number>` | Override giornalieri Time Shifter (`{"2026-11-18": 3.0, "2026-11-19": 1.5}`) |
-| `unimore_rebalancer_sessions_v2` | `Array<StudySession>` | Registro storico cronologico sessioni (`id`, `date`, `topicId`, `hours`, `completed`, `notes`, `timestamp`) |
-| `unimore_rebalancer_gitlab_config_v1` | `GitLabConfig` | Configurazione sincronizzazione GitLab (`enabled`, `autoSync`, `instanceUrl`, `projectId`, `branch`, `filePath`, `token`, `lastSynced`, `syncStatus`) |
+| `unimore_rebalancer_topics_v2` | `Array<Topic>` | 63 argomenti (`id`, `materia`, `capitolo`, `argomento`, `oreStimate`, `oreEffettive`, `prioritaEsame`, `difficolta`, `completato`/`isCompleted`, `completedDate`, `note` ufficiale, `scratchpadNotes`, `updatedAt`, …) |
+| `unimore_rebalancer_settings_v2` | `Object` | Parametri globali (`roadmapStartDate: '2026-11-16'`, `targetExamDate: '2027-01-10'`, `currentSimulatedDate`, `weekdayStudyHours: 2.5`, `weekendStudyHours: 4.5`, `criticalWeeklyHoursThreshold: 25`, `highPriorityThreshold: 4`, `bufferMultiplier: 1.2`, `studyDays`) |
+| `unimore_rebalancer_custom_capacities_v2` | `Object<string, number>` | Override giornalieri Time Shifter (`{"2026-11-18": 3.0, "2026-11-19": 1.5}`), 0–12 h |
+| `unimore_rebalancer_sessions_v2` | `Array<StudySession>` | Registro delle sessioni (`id`, `date`, `topicId`, `hours`, `completed`, `note`, `timestamp`) |
+| `unimore_rebalancer_deleted_sessions_v1` | `Array<string>` | Tombstone: ID delle sessioni cancellate |
+| `unimore_rebalancer_sync_meta_v1` | `Object` | `settingsUpdatedAt`, `capacitiesUpdatedAt`, `mathBugsUpdatedAt` |
+| `unimore_rebalancer_math_bugs_v1` | `Array<MathBug>` | Registro degli errori ricorrenti |
+| `unimore_rebalancer_pomodoro_v2` | `Object` | Stato dei timer Pomodoro per argomento |
+| `unimore_rebalancer_gitlab_config_v1` | `GitLabConfig` | Configurazione sincronizzazione GitLab (`enabled`, `autoSync`, `instanceUrl`, `projectId`, `branch`, `filePath`, `token`, `lastSynced`, `lastCommitId`, `syncStatus`) |
+
+Il campo `note` è il focus didattico **ufficiale** del dataset (usato da simulatore e flashcard): gli appunti dell'utente vanno solo in `scratchpadNotes`.
 
 ---
 
@@ -114,6 +133,10 @@ Tutti i dati dell'applicazione persistono in parallelo su **HTML5 LocalStorage**
 
 L'applicazione comunica direttamente dal browser client con GitLab senza alcun server middleware proprietario:
 1. **Endpoint Progetto:** `GET {instanceUrl}/api/v4/projects/{projectId}` con header `PRIVATE-TOKEN: {token}` per verificare i permessi (`api` o `read/write_repository`).
-2. **Auto-Pull all'Avvio:** All'apertura dell'applicazione, viene eseguita una `GET {instanceUrl}/api/v4/projects/{projectId}/repository/files/{filePath}?ref={branch}`. Il contenuto Base64 viene decodificato tramite `TextDecoder("utf-8")` per preservare i caratteri accentati e applicato allo stato React.
-3. **Auto-Push Debounced (2.5s):** Ad ogni modifica dello stato (registrazione sessione, completamento argomento, variazione orari), scatta un timer debounced che serializza lo snapshot globale e invia una `PUT` (o `POST` se il file è nuovo) all'endpoint GitLab.
-4. **Resilienza Offline:** In assenza di connettività, l'app opera al 100% su LocalStorage e sincronizza il cloud appena la rete ritorna disponibile.
+2. **Ogni sync è pull → merge → push** (`syncWithGitLab`): `GET .../repository/files/{filePath}?ref={branch}`, decodifica Base64 con `TextDecoder("utf-8")` per preservare gli accenti, fusione con lo stato locale (`mergeStudyPlannerStates`), poi `PUT` con `last_commit_id` (o `POST` se il file non esiste). Se un altro dispositivo ha scritto nel frattempo GitLab rifiuta: si rilegge e si rifonde (max 3 tentativi). Nessun commit se lo stato remoto è già allineato.
+3. **Quando:** all'avvio, 2,5 s dopo l'ultima modifica (debounce) e al rientro nell'app (focus/visibilità, max uno ogni 30 s).
+4. **Regole di fusione:** sessioni unite per ID meno i tombstone; stato degli argomenti per `updatedAt` più recente; `oreEffettive` = ore delle sessioni fuse + correzioni manuali; `note` e `scratchpadNotes` separati; Time Shifter, impostazioni e bug tracker per `syncMeta`; `currentSimulatedDate` sempre locale. La fusione deve restare idempotente.
+5. **Cache:** le chiamate `/api/` non devono mai essere servite dal Service Worker (`sw.js`) né dalla cache HTTP (`cache: "no-store"`).
+6. **Resilienza Offline:** In assenza di connettività, l'app opera al 100% su LocalStorage e sincronizza il cloud appena la rete ritorna disponibile.
+
+Dettagli: [docs/03_SERVICES_AND_SYNC.md](docs/03_SERVICES_AND_SYNC.md).

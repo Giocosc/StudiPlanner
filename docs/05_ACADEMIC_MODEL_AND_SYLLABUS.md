@@ -45,7 +45,7 @@ I vincoli primari del profilo sono:
 - **Finestra Utile per lo Studio nei Giorni Feriali:** 19:30 - 22:30 (massimo 3 ore continuative per non compromettere il ciclo sonno-veglia e il rendimento lavorativo).
 - **Sessioni Intensive del Weekend:** Sabato e Domenica dedicati all'approfondimento teorico, alla risoluzione di esercizi complessi e alle prove d'esame simulate cronometrate.
 
-Come documentato in [GEMINI.md](file:///c:/tmp/StudiPlanner/GEMINI.md#L10-L20) e [AGENTS.md](file:///c:/tmp/StudiPlanner/AGENTS.md#L10-L15), il modello rifiuta approcci accademici ingenui che pretendano 6-8 ore di studio giornaliere infra-settimanali. L'architettura accetta come postulato una capacità limitata ma costante, compensata da una severa disciplina di tracciamento e riallocazione automatica dei ritardi.
+Come documentato in [GEMINI.md](../GEMINI.md) e [AGENTS.md](../AGENTS.md), il modello rifiuta approcci accademici ingenui che pretendano 6-8 ore di studio giornaliere infra-settimanali. L'architettura accetta come postulato una capacità limitata ma costante, compensata da una severa disciplina di tracciamento e riallocazione automatica dei ritardi.
 
 ---
 
@@ -88,10 +88,10 @@ La vita professionale di un lavoratore non è uniforme: possono verificarsi gior
 
 Per gestire questa variabilità senza alterare i parametri globali del sistema, StudiPlanner integra il componente **Time Shifter**:
 1. **Override Giornaliero Puntuale:** Attraverso l'oggetto di stato persistente `unimore_rebalancer_custom_capacities_v2`, ogni singola data del calendario può avere una capacità allocata specifica (ad es. `{"2026-11-20": 4.0, "2026-11-21": 1.0}`).
-2. **Stepper Interattivo a Scatti di 30 Minuti:** L'interfaccia operativa in [WeeklyTodo.js](file:///c:/tmp/StudiPlanner/src/components/WeeklyTodo.js) offre pulsanti dedicati:
+2. **Stepper Interattivo a Scatti di 30 Minuti:** L'interfaccia operativa in [WeeklyTodo.js](../src/components/WeeklyTodo.js) offre pulsanti dedicati:
    - `[- 30m]`: Riduce la disponibilità in caso di emergenza lavorativa o stanchezza eccezionale (fino a 0h, marcando il giorno come riposo forzato).
-   - `[+ 30m]`: Incrementa la capacità giornaliera sfruttando pause pranzo (slot 13:00 - 14:00) o sessioni pre-lavoro (slot 07:30 - 08:30).
-3. **Impatto sul Rolling Rebalancer:** Qualsiasi incremento orario assorbe immediatamente il residuo dell'argomento in corso o anticipa lo studio del blocco successivo; qualsiasi decremento fa slittare fluidamente gli argomenti senza mai causare perdita di contenuti.
+   - `[+ 30m]`: Incrementa la capacità giornaliera sfruttando pause pranzo (slot 13:00 - 14:00) o sessioni pre-lavoro (slot 07:30 - 08:30), fino a un massimo di **12 h** per giorno.
+3. **Impatto sul Rolling Rebalancer:** Qualsiasi incremento orario assorbe immediatamente il residuo dell'argomento in corso o anticipa lo studio del blocco successivo; qualsiasi decremento fa slittare gli argomenti in avanti senza mai causare perdita di contenuti. Un argomento che non entra in un giorno viene diviso in parti sui giorni successivi, sempre rispettando la sequenza (vedi [02 §4](02_REBALANCER_ENGINE.md#4-allocazione-a-blocchi-allocatesequentialchunks)).
 
 ---
 
@@ -101,7 +101,8 @@ Per impedire il logoramento psicofisico (*burnout*) dello studente lavoratore, S
 - **Soglia Standard (Verde / Safe Zone):** Tra **18 e 22 ore/settimana**. Il carico è equilibrato con gli impegni d'ufficio e garantisce costanza ed efficacia mnemonica.
 - **Soglia di Allerta (Ambra / Warning Zone):** Tra **23 e 25 ore/settimana**. Il sistema segnala che il ritmo è serrato e richiede attenzione alla gestione del sonno.
 - **Soglia Critica di Sovraccarico (Rosso / Danger Zone):** **Superiore a 25 ore/settimana** (configurabile fino a 35 ore in casi eccezionali di permessi studio intensivi).
-- **Banner di Allarme Dinamico:** Quando la somma delle ore programmate in una settimana (incluse le ore residue slittate dal passato) eccede la soglia critica `criticalWeeklyHours` (default: 25h), compare l'alert persistente di sovraccarico che consiglia di utilizzare il Time Shifter per distribuire il carico o ripianificare la finestra d'esame.
+- **Indicatori di sovraccarico:** quando il ritmo richiesto (ore residue con buffer divise per le settimane residue) supera la soglia `criticalWeeklyHoursThreshold` (default 25 h), la Dashboard segnala il sovraccarico e suggerisce di usare il Time Shifter. Le settimane la cui somma pianificata supera la soglia sono marcate come sovraccariche nella vista settimanale.
+- **Calendario saturo:** se le ore residue non entrano nei budget giornalieri prima dell'esame, il motore scala uniformemente i budget (`capacityScale`) e lo segnala, invece di accumulare gli argomenti negli ultimi giorni.
 
 ---
 
@@ -112,7 +113,7 @@ Il piano di studi del Corso di Laurea in Ingegneria Informatica (D.M. 270/04) de
 1. **Analisi Matematica 1** (9 CFU) — Docenti titolari: Prof.ssa Serena Guarino Lo Bianco e Prof.ssa Maria Manfredini. Testo di riferimento: *P. Marcellini, C. Sbordone — Analisi Matematica 1*, Liguori Editore.
 2. **Geometria e Algebra Lineare** (6 CFU) — Docente titolare: Prof.ssa Maria Rita Casali; Esercitazioni: Dott.ssa Lucia Mazzali. Testo di riferimento: *M.R. Casali, C. Gagliardi, L. Grasselli — GEOMETRIA*, Esculapio Editore (4ª ed., 2022).
 
-Come stabilito nel documento programmatico [PIANO_NOTEBOOKLM_Gemini.md](file:///c:/tmp/StudiPlanner/PIANO_NOTEBOOKLM_Gemini.md#L14-L45) e nel registro didattico [Analisi/Analisi.csv](file:///c:/tmp/StudiPlanner/Analisi/Analisi.csv), il dataset ufficiale di StudiPlanner include **63 argomenti canonici**:
+Come stabilito nel documento programmatico [PIANO_NOTEBOOKLM_Gemini.md](../PIANO_NOTEBOOKLM_Gemini.md) e nel registro didattico [Analisi/Analisi.csv](../Analisi/Analisi.csv), il dataset ufficiale di StudiPlanner include **63 argomenti canonici**:
 - **32 argomenti per Analisi 1** (`A-01` fino a `A-32`)
 - **31 argomenti per Geometria** (`G-01` fino a `G-31`)
 
@@ -134,7 +135,7 @@ Come stabilito nel documento programmatico [PIANO_NOTEBOOKLM_Gemini.md](file:///
 - **Numeri Complessi (3%):** Forma algebrica, trigonometrica, esponenziale, De Moivre e radici $n$-esime.
 
 #### Tabella del Syllabus Ufficiale: Analisi Matematica 1 (A-01 -> A-32)
-Dati tratti fedelmente da [defaultData.js](file:///c:/tmp/StudiPlanner/src/data/defaultData.js#L4-L389) e [Analisi.csv](file:///c:/tmp/StudiPlanner/Analisi/Analisi.csv):
+Dati tratti fedelmente da [defaultData.js](../src/data/defaultData.js) e [Analisi.csv](../Analisi/Analisi.csv):
 
 | ID | Capitolo | Argomento Didattico Formale | Ore Stimate | Diff. (1-5) | Prio. (1-5) | Fonti Ufficiali UNIMORE | Deliverable Operativo & Obiettivo di Studio |
 | :---: | :--- | :--- | :---: | :---: | :---: | :--- | :--- |
@@ -185,7 +186,7 @@ Dati tratti fedelmente da [defaultData.js](file:///c:/tmp/StudiPlanner/src/data/
 - **Matrici, Determinanti e Strutture Algebriche (5%):** Operazioni algebriche, teorema di Laplace, teorema di Binet, matrice inversa con aggiunta, gruppi, campi e anelli.
 
 #### Tabella del Syllabus Ufficiale: Geometria e Algebra Lineare (G-01 -> G-31)
-Dati tratti fedelmente da [defaultData.js](file:///c:/tmp/StudiPlanner/src/data/defaultData.js#L391-L764) e [Geometria.txt](file:///c:/tmp/StudiPlanner/Geometria/Geometria.txt):
+Dati tratti fedelmente da [defaultData.js](../src/data/defaultData.js) e [Geometria.txt](../Geometria/Geometria.txt):
 
 | ID | Capitolo | Argomento Didattico Formale | Ore Stimate | Diff. (1-5) | Prio. (1-5) | Fonti Ufficiali UNIMORE | Deliverable Operativo & Obiettivo di Studio |
 | :---: | :--- | :--- | :---: | :---: | :---: | :--- | :--- |
@@ -346,7 +347,7 @@ flowchart TD
 ---
 
 ### 3.4 Simulatore d'Esame Integrato (ExamSimulator.js)
-StudiPlanner include un simulatore d'esame dinamico completo implementato in [ExamSimulator.js](file:///c:/tmp/StudiPlanner/src/components/ExamSimulator.js):
+StudiPlanner include un simulatore d'esame dinamico completo implementato in [ExamSimulator.js](../src/components/ExamSimulator.js):
 
 1. **Modalità 1 — Prova Cronometrata Live:**
    - Timer decrescente in tempo reale sincronizzato sui parametri ufficiali (120m per Analisi 1, 90m per Geometria).
@@ -368,7 +369,7 @@ StudiPlanner include un simulatore d'esame dinamico completo implementato in [Ex
 ## 4. Corpus dei Teoremi, Dimostrazioni "Cassaforte" e Formulario
 
 ### 4.1 Analisi 1: I 43 Teoremi "Cassaforte" per la Prova Orale e Scritta
-Tratti dall'analisi incrociata del Registro delle Lezioni e del syllabus ufficiale (documentati in [Analisi/Agisci come un professore e tutor di Analisi Mate....md](file:///c:/tmp/StudiPlanner/Analisi/Agisci%20come%20un%20professore%20e%20tutor%20di%20Analisi%20Mate....md#L61-L121)):
+Tratti dall'analisi incrociata del Registro delle Lezioni e del syllabus ufficiale (documentati in [Analisi/Agisci come un professore e tutor di Analisi Mate....md](../Analisi/Agisci%20come%20un%20professore%20e%20tutor%20di%20Analisi%20Mate....md)):
 
 #### Blocco A: Insiemi, Reali, Induzione e Complessi (Teoremi 1–5)
 1. **Teorema di densità dei razionali $\mathbb{Q}$ e irrazionali $\mathbb{R} \setminus \mathbb{Q}$ in $\mathbb{R}$:** *[NO DIM]* Proprietà di separazione topologica.
@@ -427,7 +428,7 @@ Tratti dall'analisi incrociata del Registro delle Lezioni e del syllabus ufficia
 ---
 
 ### 4.2 Geometria: L'Elenco Ufficiale delle Dimostrazioni Numerate
-Dalla lista d'esame ufficiale UNIMORE (testo *Casali-Gagliardi-Grasselli*), documentata in [Geometria/Agisci come un professore e tutor di Geometria e....md](file:///c:/tmp/StudiPlanner/Geometria/Agisci%20come%20un%20professore%20e%20tutor%20di%20Geometria%20e....md#L50-L107):
+Dalla lista d'esame ufficiale UNIMORE (testo *Casali-Gagliardi-Grasselli*), documentata in [Geometria/Agisci come un professore e tutor di Geometria e....md](../Geometria/Agisci%20come%20un%20professore%20e%20tutor%20di%20Geometria%20e....md):
 
 - **Capitolo 3 — Matrici e Determinanti:**
   - **Prop. 3.40:** Determinante di una matrice triangolare (prodotto degli elementi diagonali $\prod a_{ii}$).
@@ -492,7 +493,7 @@ Oltre alle dimostrazioni formali, la prova scritta richiede l'esecuzione impecca
 ---
 
 ### 4.4 La Checklist a 3 Livelli (Metodo Feynman) per le Dimostrazioni
-All'interno della scheda interattiva [TopicDetailModal.js](file:///c:/tmp/StudiPlanner/src/components/TopicDetailModal.js#L407-L490), ogni argomento didattico ad alta priorità integra una checklist basata sulla celebre Tecnica di Feynman per assicurare che lo studente non confonda la familiarità passiva con la reale padronanza:
+All'interno della scheda interattiva [TopicDetailModal.js](../src/components/TopicDetailModal.js), ogni argomento didattico ad alta priorità integra una checklist basata sulla celebre Tecnica di Feynman per assicurare che lo studente non confonda la familiarità passiva con la reale padronanza:
 
 ```mermaid
 flowchart TD
@@ -513,7 +514,7 @@ flowchart TD
 ---
 
 ### 4.5 Math Bug Tracker & Formulario Matematico di Emergenza
-In [MathBugTracker.js](file:///c:/tmp/StudiPlanner/src/components/MathBugTracker.js) e [MathFormulaDrawer.js](file:///c:/tmp/StudiPlanner/src/components/MathFormulaDrawer.js) sono codificati i 6 "Bug Matematici" più frequenti rilevati nelle prove d'esame UNIMORE, corredati dalla regola di correzione immediata:
+In [MathBugTracker.js](../src/components/MathBugTracker.js) e [MathFormulaDrawer.js](../src/components/MathFormulaDrawer.js) sono codificati i 6 "Bug Matematici" più frequenti rilevati nelle prove d'esame UNIMORE, corredati dalla regola di correzione immediata:
 
 | Bug ID | Materia | Descrizione dell'Errore Ricorrente | Regola Aurea di Correzione d'Emergenza |
 | :---: | :---: | :--- | :--- |
@@ -529,7 +530,7 @@ In [MathBugTracker.js](file:///c:/tmp/StudiPlanner/src/components/MathBugTracker
 ## 5. Integrazione Didattica: NotebookLM, NeuraDeck e Ripasso Spaziato
 
 ### 5.1 Architettura dei Notebook e Knowledge Base
-Come stabilito nei piani di organizzazione archivistica [PIANO_NOTEBOOKLM.md](file:///c:/tmp/StudiPlanner/PIANO_NOTEBOOKLM.md) e [PIANO_NOTEBOOKLM_Gemini.md](file:///c:/tmp/StudiPlanner/PIANO_NOTEBOOKLM_Gemini.md), il repository didattico dello studente è strutturato per alimentare istanze dedicate di **Google NotebookLM**:
+Come stabilito nei piani di organizzazione archivistica [PIANO_NOTEBOOKLM.md](../PIANO_NOTEBOOKLM.md) e [PIANO_NOTEBOOKLM_Gemini.md](../PIANO_NOTEBOOKLM_Gemini.md), il repository didattico dello studente è strutturato per alimentare istanze dedicate di **Google NotebookLM**:
 
 ```mermaid
 flowchart TD
@@ -569,7 +570,7 @@ flowchart TD
 ---
 
 ### 5.2 Generatore Flashcard NeuraDeck (NeuraDeckPromptGenerator.js)
-Nel componente [NeuraDeckPromptGenerator.js](file:///c:/tmp/StudiPlanner/src/components/NeuraDeckPromptGenerator.js), StudiPlanner offre uno strumento automatizzato di sintesi attiva:
+Nel componente [NeuraDeckPromptGenerator.js](../src/components/NeuraDeckPromptGenerator.js), StudiPlanner offre uno strumento automatizzato di sintesi attiva:
 
 1. **Filtro Intelligente della Finestra Temporale:**
    - Estrae automaticamente solo gli argomenti contrassegnati come completati negli **ultimi 7 giorni** (o 14 giorni o selezione libera) rispetto alla data di riferimento (`currentSimulatedDate` o data odierna).
@@ -588,7 +589,7 @@ Nel componente [NeuraDeckPromptGenerator.js](file:///c:/tmp/StudiPlanner/src/com
 ---
 
 ### 5.3 Esportazione Diretta Anki TSV
-Oltre all'integrazione con NotebookLM, [NeuraDeckPromptGenerator.js](file:///c:/tmp/StudiPlanner/src/components/NeuraDeckPromptGenerator.js#L141-L182) include la funzionalità nativa di esportazione diretta in formato compatibile con **Anki** (`.tsv`):
+Oltre all'integrazione con NotebookLM, [NeuraDeckPromptGenerator.js](../src/components/NeuraDeckPromptGenerator.js) include la funzionalità nativa di esportazione diretta in formato compatibile con **Anki** (`.tsv`):
 
 - **Header Metadati Anki:** `#separator:tab`, `#html:true`, `#tags column:3`.
 - **Generazione Doppia Card Intelligente:**

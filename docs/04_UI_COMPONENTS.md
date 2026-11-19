@@ -190,6 +190,7 @@ Costituisce il cuore dell'operatività quotidiana dello studente lavoratore. Vis
 | `weeklyPlans` | `Array<WeekPlan>` | Piani settimanali generati dal Rebalancer con giorni, ore e argomenti |
 | `calendarDays` | `Array<DaySchedule>` | Mappa di tutti i giorni dell'intero calendario per esportazione e telemetria |
 | `onToggleComplete` | `Function` | Callback `(topicId) => void` per invertire lo stato di completamento del tema |
+| `onMarkTopicCompleted` | `Function` | Callback `(topicId) => void` idempotente: completa senza mai invertire (usata dal Pomodoro) |
 | `onUpdateTopicHours` | `Function` | Callback `(topicId, deltaOrNew, isDelta) => void` per aggiornare le ore parziali |
 | `onLogStudySession` | `Function` | Callback per persistere formalmente una sessione di studio nel diario storico |
 | `settings` | `Object` | Parametri globali di studio |
@@ -218,19 +219,20 @@ Costituisce il cuore dell'operatività quotidiana dello studente lavoratore. Vis
      - *Bootcamp Natale (🎄):* Incrementa la capacità a 6.5h/giorno nel periodo 24 Dicembre - 6 Gennaio.
      - *Esporta .ics (📅):* Scarica il calendario iCalendar per Google Calendar/Apple Calendar.
      - *Review Domenica (📊):* Lancia la retrospettiva settimanale.
-     - *Sprint Pre-Esame (🎯):* Filtra esclusivamente argomenti con Priorità $\ge 4$ o Difficoltà $\ge 4$ e prove generali (`A-32`, `G-31`).
+     - *Sprint Pre-Esame (🎯):* Filtra esclusivamente argomenti con Priorità $\ge 4$ o Difficoltà $\ge 4$ e prove generali (`A-32`, `G-31`). La finestra (ultimi 7 giorni) e le date del Bootcamp sono calcolate dalla data d'esame impostata.
 2. **Time Shifter Stepper (`[- 30m]` / `[+ 30m]`):**
-   Permette allo studente lavoratore di rimodulare il budget orario di ogni singolo giorno (da 0h a 10h a step di 0.5h). In caso di override attivo, compare il pulsante di ripristino `↺`.
+   Permette allo studente lavoratore di rimodulare il budget orario di ogni singolo giorno (da 0 h a 12 h a step di 0,5 h; il pulsante `+30m` si disattiva al limite). In caso di override attivo, compare il pulsante di ripristino `↺`.
 3. **Card del Tema Didattico:**
    - Badge materia (`Analisi Matematica 1` in verde smeraldo, `Geometria e Algebra` in indaco).
    - ID tema con pulsante rapido `ℹ Info` per aprire la scheda dettagliata.
    - Badge di completamento con data o badge `⏳ In Corso (xh svolte)`.
    - Badge `+20% Buffer Priorità` se Priorità $\ge 4$ o Difficoltà $\ge 4$.
+   - Badge `Parte i/N` quando il motore ha diviso l'argomento su più giorni; le ore mostrate sono quelle del blocco del giorno.
    - Stepper rapido ore parziali: `[- 30m]`, `[+ 30m]`, `[+ 1h]`, `[+ Log]`.
    - Micro-barra di avanzamento percentuale basata sul rapporto tra ore effettive e stimate.
    - Pulsante dedicato di spunta completamento (`Completato ✓`).
 4. **Striscia Pomodoro 50/10 Interattiva:**
-   Ogni card argomento include un timer Pomodoro reale (50 minuti di focus intenso alternati a 10 minuti di pausa). Al completamento dei 50 minuti di studio, il timer accredita automaticamente +0.83h sulle ore effettive del tema, registra la sessione nel diario storico e notifica l'utente con un banner. Se le ore accumulate raggiungono la stima, il tema viene spuntato in automatico come completato.
+   Ogni card argomento include un timer Pomodoro (50 minuti di focus alternati a 10 di pausa). Il tempo è calcolato dai timestamp, quindi resta corretto anche se la scheda va in background. A fine ciclo di focus il tempo non ancora registrato diventa **una sessione** nel diario (tramite `onLogStudySession`, che aggiorna anche le ore dell'argomento) e compare un avviso. Quando il focus accumulato raggiunge l'obiettivo del timer, l'ultima quota viene registrata, il timer si ferma e l'argomento viene completato con `onMarkTopicCompleted`. Il timer non inverte mai lo stato di completamento e non registra due volte lo stesso tempo. Lo stato è salvato in `unimore_rebalancer_pomodoro_v2`.
 
 ---
 
@@ -277,7 +279,7 @@ Offre la visualizzazione tabellare esaustiva di tutti i 63 argomenti didattici u
 - **Filtro Materia:** Selettore a tendina (`Tutte`, `Analisi 1`, `Geometria`).
 - **Filtro Stato Didattico:** Selettore (`Tutti gli Stati`, `Da Fare (0h)`, `In Corso (Parziale)`, `Solo Completati`).
 - **Filtro Alta Priorità:** Tasto toggle che isola gli argomenti con Priorità $\ge 4$ o Difficoltà $\ge 4$ (quelli soggetti al buffer del +20%).
-- **Batch Controls:** Link per resettare tutti i temi a "Da fare" o simulare il superamento delle prime 2 settimane didattiche a fini di test.
+- **Batch Controls:** Link per resettare tutti i temi a "Da fare" o simulare il superamento delle prime 2 settimane didattiche a fini di test. Entrambi usano `withCompletion`, quindi `completato` e `isCompleted` restano sempre allineati.
 
 ---
 
@@ -300,16 +302,17 @@ Offre la visualizzazione tabellare esaustiva di tutti i 63 argomenti didattici u
 1. **Sincronizzazione GitLab Cloud (REST API v4):**
    - Campi configurabili: URL istanza (default `https://gitlab.com`), Project ID, Branch (default `main`), Path del file (`data/studiplanner-state.json`), Personal Access Token.
    - Pulsante *Verifica Connessione*: invia una `GET /api/v4/projects/:id` validando permessi e connettività.
-   - Tasti di *Pull Manuale* (download e merge intelligente) e *Push Manuale* (commit immediato con messaggio personalizzato).
-   - Toggle per l'Auto-Sync continuativo (pull all'avvio e push debounced a 2.5s ad ogni modifica dello stato).
+   - Tasti di *Pull Manuale* (scarica e fonde, senza scrivere) e *Push Manuale* (sync completo con messaggio di commit personalizzato; nessun commit se GitLab è già allineato).
+   - Toggle per l'Auto-Sync (sync all'avvio, 2,5 s dopo ogni modifica e al rientro nell'app). Ogni sync è pull → merge → push con `last_commit_id`: vedi [03 §4](03_SERVICES_AND_SYNC.md#4-sincronizzazione-gitlab-gitlabsyncservicejs).
 2. **File System Access API (Chrome / Edge):**
    - Consente di collegare direttamente un file locale `studiplanner-backup.json` sul disco del computer dello studente.
    - Ogni modifica viene salvata in modo trasparente in background tramite `FileSystemWritableFileStream`.
 3. **Backup Completo JSON:** Download di uno snapshot strutturato dell'intera applicazione e ripristino istantaneo via drag & drop o file picker.
 4. **Import Fogli di Calcolo (Excel XLSX, ODS, XLS e CSV):**
    - Utilizza SheetJS (`XLSX`) caricata localmente (con fallback CDN).
-   - Parser intelligente con **fuzzy matching** dei nomi delle colonne (riconosce variazioni come `Argomento`, `Tema`, `Topic`, `Ore_Stimate`, `Stima_Ore`, `Priorità`, `Difficoltà`).
-   - Schermata di anteprima delle differenze prima dell'applicazione effettiva allo stato.
+   - Riconoscimento delle colonne per alias (`Argomento`, `Titolo`, `Ore_Stimate`, `Stima`, `Priorità`, `Difficoltà`, `Stato`, …).
+   - Reimportare un CSV aggiorna i metadati degli argomenti esistenti **conservando** ore, appunti e completamenti.
+   - Da Excel/ODS si importano solo i completamenti: corrispondenza esatta dell'ID normalizzato o del titolo (dettagli in [03 §2](03_SERVICES_AND_SYNC.md#2-import-parserservicejs)).
 5. **Esportazione Calendario (.ics):** Generazione client-side di file iCalendar standard per l'importazione degli slot di studio serali su Google Calendar o smartphone.
 6. **Reset Dati Canonici UNIMORE:** Pulsante di ripristino sicuro che reimposta i 63 argomenti ufficiali definiti in `src/data/defaultData.js`.
 
@@ -347,7 +350,7 @@ flowchart LR
      - *Stadio 3 (Dimostrazione alla Lavagna):* Ricostruire i passaggi della dimostrazione a libro chiuso.
    - Sezione formule chiave con snippet matematici e notazione KaTeX/LaTeX.
 3. **Tab Diario Sessioni:** Elenca tutte le registrazioni temporali collegate a questo specifico ID, con data, ore svolte, note descrittive e opzione di cancellazione.
-4. **Tab Appunti Scratchpad:** Editor di testo rapido per formule e appunti con supporto a Markdown, modalità anteprima renderizzata e inserimento rapido di template (es. Teorema, Dimostrazione, Trabocchetto d'Esame).
+4. **Tab Appunti Scratchpad:** Editor di testo rapido per formule e appunti con supporto a Markdown, modalità anteprima renderizzata e inserimento rapido di template (es. Teorema, Dimostrazione, Trabocchetto d'Esame). Il salvataggio scrive solo `scratchpadNotes`: il campo `note` (focus didattico ufficiale, usato da simulatore e flashcard) non viene mai sovrascritto.
 
 ---
 
@@ -358,7 +361,7 @@ Aperto dal pulsante globale `+` o dai tasti `Registra Studio` posizionati sui gi
 - **Anti-Desync Protection:** Se l'utente applica un filtro che esclude il tema correntemente selezionato, il modal seleziona automaticamente il primo tema valido della lista filtrata, evitando incongruenze di stato.
 - **Calcolo Dinamico delle Ore Residue:** Quando si seleziona un argomento, il campo ore viene precompilato con il residuo mancante ($T_{\text{stimato}} - T_{\text{effettivo}}$).
 - **Preset Rapidi:** Pulsanti a selezione istantanea `+30m`, `+1h`, `+2h`, `🍅 Pomodoro (50m / 0.8h)`.
-- **Completamento Automatico Intelligente:** Se le ore inserite portano il monte ore effettivo a pareggiare o superare la stima didattica, la casella "Segna come completato" si attiva automaticamente (lasciando comunque la possibilità di override manuale).
+- **Completamento Automatico Intelligente:** Se le ore inserite portano il monte ore effettivo a pareggiare o superare la stima didattica, la casella "Segna come completato" si attiva automaticamente (lasciando comunque la possibilità di override manuale). Lasciare la casella vuota su un argomento già completato **non** lo riapre: una sessione può aggiungere ore o completare, mai togliere un completamento.
 - **Tab Sessioni Recenti:** Permette di ispezionare le ultime sessioni registrate ed eliminare eventuali inserimenti errati.
 
 ---
@@ -373,19 +376,20 @@ Permette di personalizzare i vincoli orari del modello lavoratore:
   - *Weekend (Sab-Dom):* Default `4.5h/giorno` (sessioni intensive diurne).
 - **Soglia Critica Settimanale:** Default `25.0h/settimana`. Se il fabbisogno calcolato dal rebalancer supera questa soglia, la UI attiva gli indicatori di allerta sovraccarico.
 - **Riepilogo Override Time Shifter:** Mostra il conteggio dei giorni che hanno un override orario personalizzato con pulsante di ripristino globale.
+- **Salvataggio:** vengono applicati solo i campi modificati nel modale, sopra le impostazioni correnti, così non si ripristinano valori vecchi (es. la data simulata cambiata con le frecce mentre il modale era aperto). `0` ore e buffer `0%` sono valori accettati.
 
 ---
 
 ### 5.4 `WeeklyRetrospectiveModal.js` — Diagnostica Domenicale
 
 Attivabile dalla barra settimanale (in particolare la domenica sera):
-- **Metriche di Efficienza Settimanale:** Calcola il rapporto percentuale fra le ore di studio effettivamente registrate e le ore target programmate nella settimana:
+- **Metriche di Efficienza Settimanale:** Calcola (con `calculateWeeklyRetrospective`) il rapporto fra le ore realmente studiate nei giorni già trascorsi (sessioni e argomenti completati, esclusi i blocchi solo pianificati) e il budget di quegli stessi giorni:
   $$\text{Efficienza} = \min\left(150\%, \frac{\text{OreEffettive}}{\text{OreTarget}} \times 100\right)$$
 - **Diagnostica Lavoratore a Tre Livelli:**
   - *Efficienza $\ge 95\%$ (Verde Smeraldo):* Settimana esemplare. Consiglio di preservare il riposo e mantenere il regime base di 2.5h.
   - *Efficienza $70\% - 94\%$ (Ciano):* Buon ritmo. Il rolling rebalancer ha assorbito il carico residuo senza picchi critici.
   - *Efficienza $< 70\%$ (Ambra):* Accumulo di carico dovuto a straordinari aziendali.
-- **Pulsante di Boost Automatizzato (+30m):** Applica istantaneamente un incremento di +30 minuti (portando le sere a 3.0h) su tutti i giorni feriali della settimana successiva tramite `onBatchUpdateDayCapacities`.
+- **Pulsante di Boost Automatizzato (+30m):** Applica un incremento di +30 minuti su tutti i giorni feriali della **settimana successiva** a quella visualizzata (`getNextWeekEveningBoost` → `onBatchUpdateDayCapacities`). Se la settimana successiva non esiste (ultima settimana prima dell'esame) il pulsante è disattivato.
 
 ---
 
@@ -448,10 +452,10 @@ Strumento per simulare l'appello d'esame scritto secondo gli standard del Dipart
 ### 5.9 `BurndownChart.js` — Grafico Agile Burndown Ore Residue
 
 Componente SVG reattivo integrato nella Dashboard:
-- Traccia sull'asse delle ascisse le settimane dall'inizio della roadmap (16 Novembre 2026) al 10 Gennaio 2027.
-- Sull'asse delle ordinate rappresenta il monte ore complessivo da bruciare (ore effettive residue).
-- **Linea Ideale (Tratteggiata Grigia):** Rappresenta la velocità teorica costante di completamento che converge a 0 ore il 10 Gennaio.
-- **Linea Effettiva (Verde/Ambra):** Mostra la traiettoria reale delle ore rimanenti calcolate dal rebalancer.
+- Asse delle ascisse **fisso** dall'inizio della roadmap al giorno d'esame (le etichette seguono le date impostate).
+- Asse delle ordinate: ore **stimate** (senza buffer) totali e residue, così le due grandezze sono confrontabili. Mescolare ore con e senza buffer segnalava un ritardo inesistente.
+- **Linea Ideale (Tratteggiata Grigia):** discesa costante da tutte le ore stimate a 0 ore nel giorno d'esame.
+- **Linea Effettiva (Verde/Ambra):** ore residue reali. I calcoli sono in `calculateBurndown` (vedi [02 §7](02_REBALANCER_ENGINE.md#7-funzioni-di-supporto-esportate)).
 - Badge di stato con calcolo del delta orario rispetto all'ideale (*In Anticipo* o *Lieve Ritardo*).
 
 ---
@@ -549,11 +553,11 @@ sequenceDiagram
     Studente->>Modal: Inserisce ore svolte (es. 2.5h) e note
     Studente->>Modal: Click "Salva Sessione nel Diario"
     Modal->>State: handleLogStudySession({ topicId, date, hours, completed, note })
-    Note over State: Aggiorna topics (oreEffettive, completato)<br/>Aggiunge elemento a studySessions
+    Note over State: applySessionToTopic (ore, completamento)<br/>Aggiunge la sessione a studySessions
     State->>Engine: rebalanceStudyPlan(topics, settings, capacities, sessions)
     Engine-->>State: Restituisce piano ribilanciato (metrics, weeklyPlans)
     State->>Storage: Auto-salvataggio localStorage (topics, sessions)
-    State->>Storage: Debounced auto-push su GitLab Cloud (data/studiplanner-state.json)
+    State->>Storage: Dopo 2,5 s: sync GitLab (pull → merge → push con last_commit_id)
     State-->>UI: Re-render reattivo di Dashboard e To-Do Settimanale
 ```
 
@@ -590,6 +594,10 @@ flowchart TD
    Dopo qualsiasi modifica apportata a file in `src/components/` o `src/app.js`, è obbligatorio sincronizzare il bundle eseguendo:
    ```powershell
    python scripts\build_bundle.py
+   npm test
    python scripts\test_rolling_rebalance.py
    ```
 4. **Accessibilità e Responsive Design:** Verificare sempre che le card e i pulsanti siano fruibili sia su schermi desktop (1920px) sia su smartphone touch (360px - 414px) sfruttando le classi responsive di Tailwind (`hidden md:flex`, `grid-cols-1 md:grid-cols-2 xl:grid-cols-3`).
+5. **Regole degli hook nei modali:** un modale si compone di un guscio (`if (!props.isOpen) return null;`) e di un componente interno che contiene tutti gli hook. Mai chiamare hook dopo un `return` condizionale: React lancia un errore al primo cambio di stato aperto/chiuso.
+6. **Regole di business nei servizi:** completamento, ore e fusione dei dati passano dalle funzioni di `topicStateService.js` e `parserService.js`, non da logica duplicata nei componenti. Le date di default vengono da `DEFAULT_ROADMAP_START_DATE` / `DEFAULT_TARGET_EXAM_DATE` o dalle impostazioni, mai scritte a mano.
+7. **Effetti collaterali fuori dagli updater:** dentro `setState(prev => ...)` solo calcoli puri. Registrazioni, notifiche e chiamate ad altri setter vanno fatte fuori (React può eseguire un updater due volte).
