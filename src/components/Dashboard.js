@@ -314,7 +314,11 @@ export function Dashboard({
             <div className="h-1.5 rounded-full bg-black/[0.07] overflow-hidden">
               <div className="h-full rounded-full bg-warn transition-all duration-500" style={{ width: `${tierProgressPct}%` }} />
             </div>
-            <span className="text-xs text-ink-2">Mancano {daysToNextTier} {daysToNextTier === 1 ? "sera" : "sere"}</span>
+            <span className="text-xs text-ink-2">
+              Mancano {daysToNextTier} {daysToNextTier === 1 ? "sera" : "sere"}
+              {streak.jokersPerMonth > 0 && ` · Jolly del mese: ${streak.jokersLeftThisMonth} su ${streak.jokersPerMonth}`}
+              {streak.isRestDayToday && " · Oggi riposo: la serie è al sicuro"}
+            </span>
           </div>
 
           <p className="text-[13px] text-[#3A3A3C] leading-relaxed border-t border-black/[0.06] pt-4">{dailyQuote}</p>

@@ -1302,6 +1302,7 @@ const DEFAULT_SETTINGS = {
   highPriorityThreshold: 4, // 4 or 5 triggers high priority buffer
   bufferMultiplier: 1.2, // +20% time buffer
   interleaveSubjects: true, // Alternate Analisi and Geometria across days
+  streakJokersPerMonth: 1, // Sere saltate "perdonate" ogni mese
   studyDays: {
     1: { name: "Lunedì", enabled: true, isWeekend: false, defaultSubject: "Analisi 1", timeSlot: "Sera (19:30 - 22:00)" },
     2: { name: "Martedì", enabled: true, isWeekend: false, defaultSubject: "Geometria", timeSlot: "Sera (19:30 - 22:00)" },
@@ -1431,7 +1432,22 @@ function sortBySequentialId(a, b) {
  */
 const STREAK_MIN_HOURS = 0.8;
 
-function calculateStudyStreak(historyDays = [], currentSimulatedDate, studySessions = []) {
+const DEFAULT_STREAK_JOKERS_PER_MONTH = 1;
+
+function calculateStudyStreak(historyDays = [], currentSimulatedDate, studySessions = [], options = {}) {
+  // Giorni di riposo pianificati (studyDays[dow].enabled === false) sono neutri: non
+  // spezzano la serie e non la allungano. Ogni mese concede inoltre un numero di
+  // "jolly" (default 1) che coprono una sera saltata senza azzerare la serie.
+  const studyDays = options.studyDays || null;
+  const jokersPerMonth = Number.isFinite(Number(options.jokersPerMonth))
+    ? Math.max(0, Math.floor(Number(options.jokersPerMonth)))
+    : DEFAULT_STREAK_JOKERS_PER_MONTH;
+  const isRestDay = (dateStr) => {
+    if (!studyDays || !dateStr) return false;
+    const [y, m, d] = dateStr.split("-").map(Number);
+    const cfg = studyDays[new Date(y, m - 1, d).getDay()];
+    return Boolean(cfg && cfg.enabled === false);
+  };
   // I giorni dello storico contengono già le ore delle sessioni registrate e degli
   // argomenti spuntati (allocatedHours). Le sessioni servono solo per le date fuori
   // dallo storico (es. prima dell'inizio della roadmap), per non contarle due volte.
@@ -1457,32 +1473,65 @@ function calculateStudyStreak(historyDays = [], currentSimulatedDate, studySessi
     checkDate = addDaysToDateStr(currentSimulatedDate, -1);
   }
 
-  while ((dailyHoursMap.get(checkDate) || 0) >= STREAK_MIN_HOURS) {
-    currentStreak += 1;
+  const usedJokersByMonth = {};
+  const jokerDates = [];
+  let pendingJokers = [];
+  const earliestDate = Array.from(dailyHoursMap.keys()).sort()[0] || checkDate;
+  for (let guard = 0; guard < 1000 && checkDate >= earliestDate; guard++) {
+    const hrs = dailyHoursMap.get(checkDate) || 0;
+    if (hrs >= STREAK_MIN_HOURS) {
+      currentStreak += 1;
+      // I jolly contano solo se dietro di loro la serie continua davvero
+      pendingJokers.forEach(dt => jokerDates.push(dt));
+      pendingJokers = [];
+    } else if (isRestDay(checkDate)) {
+      // giorno di riposo: neutro
+    } else {
+      const month = checkDate.slice(0, 7);
+      const used = usedJokersByMonth[month] || 0;
+      if (currentStreak > 0 && used < jokersPerMonth) {
+        usedJokersByMonth[month] = used + 1;
+        pendingJokers.push(checkDate);
+      } else {
+        break;
+      }
+    }
     checkDate = addDaysToDateStr(checkDate, -1);
   }
+  // I jolly "provvisori" non seguiti da studio non vengono consumati
+  pendingJokers.forEach(dt => {
+    const month = dt.slice(0, 7);
+    usedJokersByMonth[month] = Math.max(0, (usedJokersByMonth[month] || 0) - 1);
+  });
 
   // Calculate best streak across all recorded history
   const datesSorted = Array.from(dailyHoursMap.keys()).sort();
   let bestStreak = 0;
-  let tempStreak = 0;
-  let prevDate = null;
-  datesSorted.forEach(d => {
-    const hrs = dailyHoursMap.get(d) || 0;
-    if (hrs >= STREAK_MIN_HOURS) {
-      if (prevDate && addDaysToDateStr(prevDate, 1) === d) {
+  if (datesSorted.length > 0) {
+    let tempStreak = 0;
+    let bestJokers = {};
+    let d = datesSorted[0];
+    const last = datesSorted[datesSorted.length - 1];
+    for (let guard = 0; guard < 2000 && d <= last; guard++) {
+      const hrs = dailyHoursMap.get(d) || 0;
+      if (hrs >= STREAK_MIN_HOURS) {
         tempStreak += 1;
-      } else {
-        tempStreak = 1;
+        bestStreak = Math.max(bestStreak, tempStreak);
+      } else if (!isRestDay(d)) {
+        const month = d.slice(0, 7);
+        if (tempStreak > 0 && (bestJokers[month] || 0) < jokersPerMonth) {
+          bestJokers[month] = (bestJokers[month] || 0) + 1;
+        } else {
+          tempStreak = 0;
+          bestJokers = {};
+        }
       }
-      bestStreak = Math.max(bestStreak, tempStreak);
-      prevDate = d;
-    } else {
-      tempStreak = 0;
-      prevDate = null;
+      d = addDaysToDateStr(d, 1);
     }
-  });
+  }
   bestStreak = Math.max(bestStreak, currentStreak);
+  const currentMonth = String(currentSimulatedDate || "").slice(0, 7);
+  const jokersUsedThisMonth = usedJokersByMonth[currentMonth] || 0;
 
   // Resilience Badges calibrated for working students
   let badgeName = "Innesco Serale";
@@ -1511,7 +1560,12 @@ function calculateStudyStreak(historyDays = [], currentSimulatedDate, studySessi
     bestStreak,
     badgeName,
     badgeIcon,
-    badgeDesc
+    badgeDesc,
+    jokersPerMonth,
+    jokersUsedThisMonth,
+    jokersLeftThisMonth: Math.max(0, jokersPerMonth - jokersUsedThisMonth),
+    jokerDates: jokerDates.sort(),
+    isRestDayToday: isRestDay(currentSimulatedDate)
   };
 }
 
@@ -2081,7 +2135,10 @@ function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacities = {
         criticalWeeklyHoursThreshold: dynamicCriticalThreshold
       }),
       // Streak Counter & Resilience Indicators (Punto 17)
-      studyStreak: calculateStudyStreak(historyDays, settings.currentSimulatedDate, sessions),
+      studyStreak: calculateStudyStreak(historyDays, settings.currentSimulatedDate, sessions, {
+        studyDays: settings.studyDays,
+        jokersPerMonth: settings.streakJokersPerMonth
+      }),
       // Pre-Exam Express Review Window (Punto 20: 7 days prior to target exam date)
       isPreExamWindow: settings.currentSimulatedDate >= getPreExamWindowStart(settings.targetExamDate) && settings.currentSimulatedDate <= settings.targetExamDate
     },
@@ -6173,7 +6230,11 @@ function Dashboard({
             <div className="h-1.5 rounded-full bg-black/[0.07] overflow-hidden">
               <div className="h-full rounded-full bg-warn transition-all duration-500" style={{ width: `${tierProgressPct}%` }} />
             </div>
-            <span className="text-xs text-ink-2">Mancano {daysToNextTier} {daysToNextTier === 1 ? "sera" : "sere"}</span>
+            <span className="text-xs text-ink-2">
+              Mancano {daysToNextTier} {daysToNextTier === 1 ? "sera" : "sere"}
+              {streak.jokersPerMonth > 0 && ` · Jolly del mese: ${streak.jokersLeftThisMonth} su ${streak.jokersPerMonth}`}
+              {streak.isRestDayToday && " · Oggi riposo: la serie è al sicuro"}
+            </span>
           </div>
 
           <p className="text-[13px] text-[#3A3A3C] leading-relaxed border-t border-black/[0.06] pt-4">{dailyQuote}</p>
@@ -9516,6 +9577,22 @@ function SettingsModalContent({
     onClose();
   };
 
+  // Un solo giorno di riposo: il primo giorno disattivato in studyDays
+  const restDayValue = (() => {
+    const days = formData.studyDays || {};
+    const off = [1, 2, 3, 4, 5, 6, 0].find(dow => days[dow] && days[dow].enabled === false);
+    return off === undefined ? "none" : String(off);
+  })();
+
+  const handleRestDayChange = (value) => {
+    const base = formData.studyDays || {};
+    const next = {};
+    Object.keys(base).forEach(dow => {
+      next[dow] = { ...base[dow], enabled: value === "none" ? true : String(dow) !== value };
+    });
+    handleChange("studyDays", next);
+  };
+
   const currentWeekday = numberOr(formData.eveningStudyHours, 2.5);
   const currentWeekend = numberOr(formData.weekendStudyHours, 4.5);
   const nominalWeeklyCapacity = Number(((currentWeekday * 5) + (currentWeekend * 2)).toFixed(1));
@@ -9670,6 +9747,35 @@ function SettingsModalContent({
             <div className="text-[11px] text-slate-400 bg-slate-900/50 p-2 rounded-xl flex items-center justify-between">
               <span>Capacità nominale standard settimanale:</span>
               <strong className="text-cyan-300 font-mono">{nominalWeeklyCapacity}h / settimana</strong>
+            </div>
+          </div>
+
+          {/* Giorno di riposo e jolly della serie */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-slate-300 font-semibold mb-1">Giorno di riposo</label>
+              <select
+                value={restDayValue}
+                onChange={(e) => handleRestDayChange(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-cyan-500"
+              >
+                <option value="none">Nessuno (studio tutti i giorni)</option>
+                {[1, 2, 3, 4, 5, 6, 0].map(dow => (
+                  <option key={dow} value={String(dow)}>{(formData.studyDays?.[dow]?.name) || dow}</option>
+                ))}
+              </select>
+              <p className="text-[10px] text-slate-500 mt-1">Niente studio pianificato: la serie non si interrompe</p>
+            </div>
+            <div>
+              <label className="block text-slate-300 font-semibold mb-1">Jolly al mese</label>
+              <select
+                value={String(formData.streakJokersPerMonth ?? 1)}
+                onChange={(e) => handleChange("streakJokersPerMonth", Number(e.target.value))}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-cyan-500"
+              >
+                {[0, 1, 2, 3].map(n => <option key={n} value={String(n)}>{n}</option>)}
+              </select>
+              <p className="text-[10px] text-slate-500 mt-1">Sere saltate che non azzerano la serie</p>
             </div>
           </div>
 

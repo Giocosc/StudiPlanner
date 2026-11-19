@@ -137,6 +137,29 @@ test("streak: conta sessioni e giorni con argomenti spuntati, senza doppi conteg
   assert.strictEqual(plan.metrics.studyStreak.currentStreak, 3);
 });
 
+test("streak: il giorno di riposo è neutro e il jolly copre una sera saltata", async () => {
+  const { calculateStudyStreak } = await import("../src/services/rebalancerEngine.js");
+  const studyDays = { 0: { enabled: true }, 1: { enabled: true }, 2: { enabled: true }, 3: { enabled: false },
+    4: { enabled: true }, 5: { enabled: true }, 6: { enabled: true } };
+  const s = (date) => ({ id: date, date, topicId: "A-01", hours: 1 });
+  // 2026-11-18 è mercoledì (riposo): 16, 17, 19 studiati → serie 3 senza jolly
+  let r = calculateStudyStreak([], "2026-11-19", [s("2026-11-16"), s("2026-11-17"), s("2026-11-19")],
+    { studyDays, jokersPerMonth: 0 });
+  assert.strictEqual(r.currentStreak, 3);
+  // Senza giorno di riposo e senza jolly la serie si spezza
+  r = calculateStudyStreak([], "2026-11-19", [s("2026-11-16"), s("2026-11-17"), s("2026-11-19")], { jokersPerMonth: 0 });
+  assert.strictEqual(r.currentStreak, 1);
+  // Con un jolly la sera saltata viene coperta e il jolly risulta consumato
+  r = calculateStudyStreak([], "2026-11-19", [s("2026-11-16"), s("2026-11-17"), s("2026-11-19")], { jokersPerMonth: 1 });
+  assert.strictEqual(r.currentStreak, 3);
+  assert.strictEqual(r.jokersLeftThisMonth, 0);
+  assert.deepStrictEqual(r.jokerDates, ["2026-11-18"]);
+  // Un jolly non seguito da studio non viene consumato
+  r = calculateStudyStreak([], "2026-11-19", [s("2026-11-19")], { jokersPerMonth: 1 });
+  assert.strictEqual(r.currentStreak, 1);
+  assert.strictEqual(r.jokersLeftThisMonth, 1);
+});
+
 test("burndown: grandezze omogenee e asse temporale fisso", async () => {
   const { calculateBurndown } = await import("../src/services/rebalancerEngine.js");
   const base = { totalHours: 166, roadmapStartDate: "2026-11-16", targetExamDate: "2027-01-11" }; // 56 giorni

@@ -65,6 +65,22 @@ function SettingsModalContent({
     onClose();
   };
 
+  // Un solo giorno di riposo: il primo giorno disattivato in studyDays
+  const restDayValue = (() => {
+    const days = formData.studyDays || {};
+    const off = [1, 2, 3, 4, 5, 6, 0].find(dow => days[dow] && days[dow].enabled === false);
+    return off === undefined ? "none" : String(off);
+  })();
+
+  const handleRestDayChange = (value) => {
+    const base = formData.studyDays || {};
+    const next = {};
+    Object.keys(base).forEach(dow => {
+      next[dow] = { ...base[dow], enabled: value === "none" ? true : String(dow) !== value };
+    });
+    handleChange("studyDays", next);
+  };
+
   const currentWeekday = numberOr(formData.eveningStudyHours, 2.5);
   const currentWeekend = numberOr(formData.weekendStudyHours, 4.5);
   const nominalWeeklyCapacity = Number(((currentWeekday * 5) + (currentWeekend * 2)).toFixed(1));
@@ -219,6 +235,35 @@ function SettingsModalContent({
             <div className="text-[11px] text-slate-400 bg-slate-900/50 p-2 rounded-xl flex items-center justify-between">
               <span>Capacità nominale standard settimanale:</span>
               <strong className="text-cyan-300 font-mono">{nominalWeeklyCapacity}h / settimana</strong>
+            </div>
+          </div>
+
+          {/* Giorno di riposo e jolly della serie */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-slate-300 font-semibold mb-1">Giorno di riposo</label>
+              <select
+                value={restDayValue}
+                onChange={(e) => handleRestDayChange(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-cyan-500"
+              >
+                <option value="none">Nessuno (studio tutti i giorni)</option>
+                {[1, 2, 3, 4, 5, 6, 0].map(dow => (
+                  <option key={dow} value={String(dow)}>{(formData.studyDays?.[dow]?.name) || dow}</option>
+                ))}
+              </select>
+              <p className="text-[10px] text-slate-500 mt-1">Niente studio pianificato: la serie non si interrompe</p>
+            </div>
+            <div>
+              <label className="block text-slate-300 font-semibold mb-1">Jolly al mese</label>
+              <select
+                value={String(formData.streakJokersPerMonth ?? 1)}
+                onChange={(e) => handleChange("streakJokersPerMonth", Number(e.target.value))}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-cyan-500"
+              >
+                {[0, 1, 2, 3].map(n => <option key={n} value={String(n)}>{n}</option>)}
+              </select>
+              <p className="text-[10px] text-slate-500 mt-1">Sere saltate che non azzerano la serie</p>
             </div>
           </div>
 
