@@ -183,3 +183,12 @@ test("impostazioni: weekend a 0h è rispettato (non torna a 4.5h)", () => {
   const sat = plan.calendarDays.find(d => d.date === "2026-11-21");
   assert.strictEqual(sat.maxHours, 0);
 });
+
+test("time shifter: il budget giornaliero è limitato a 12h", async () => {
+  const { clampDayCapacity, MAX_DAY_CAPACITY_HOURS } = await import("../src/services/rebalancerEngine.js");
+  assert.strictEqual(clampDayCapacity(30), MAX_DAY_CAPACITY_HOURS);
+  assert.strictEqual(clampDayCapacity(-2), 0);
+  assert.strictEqual(clampDayCapacity(3.04), 3);
+  const plan = rebalanceStudyPlan(freshTopics(), { currentSimulatedDate: "2026-11-19" }, { "2026-11-20": 40 });
+  assert.strictEqual(plan.calendarDays.find(d => d.date === "2026-11-20").maxHours, 12);
+});

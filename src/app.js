@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { INITIAL_TOPICS } from "./data/defaultData.js";
-import { rebalanceStudyPlan, DEFAULT_SETTINGS, getLocalTodayDateStr } from "./services/rebalancerEngine.js";
+import { rebalanceStudyPlan, DEFAULT_SETTINGS, getLocalTodayDateStr, clampDayCapacity } from "./services/rebalancerEngine.js";
 import { applySessionToTopic, revertSessionFromTopic, restoreOfficialNotes } from "./services/topicStateService.js";
 import { AlertBanner } from "./components/AlertBanner.js";
 import { Dashboard } from "./components/Dashboard.js";
@@ -595,7 +595,7 @@ export function App() {
       if (newHours === null || newHours === undefined) {
         delete updated[dateStr];
       } else {
-        updated[dateStr] = Math.max(0, Number(Number(newHours).toFixed(1)));
+        updated[dateStr] = clampDayCapacity(newHours);
       }
       return updated;
     });
@@ -608,7 +608,7 @@ export function App() {
         if (hours === null || hours === undefined) {
           delete updated[dateStr];
         } else {
-          updated[dateStr] = Math.max(0, Number(Number(hours).toFixed(1)));
+          updated[dateStr] = clampDayCapacity(hours);
         }
       });
       return updated;

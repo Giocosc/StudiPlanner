@@ -1164,6 +1164,15 @@ function IconBug({ className = "w-5 h-5" }) {
  */
 
 const DEFAULT_ROADMAP_START_DATE = "2026-11-16";
+
+/** Tetto del Time Shifter: nessun giorno può superare questo budget di studio. */
+const MAX_DAY_CAPACITY_HOURS = 12;
+
+function clampDayCapacity(hours) {
+  const n = Number(hours);
+  if (!Number.isFinite(n)) return 0;
+  return Math.min(MAX_DAY_CAPACITY_HOURS, Math.max(0, Number(n.toFixed(1))));
+}
 const DEFAULT_TARGET_EXAM_DATE = "2027-01-10";
 
 /**
@@ -1755,7 +1764,7 @@ function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacities = {
       dayCapacities[dateStr] !== null &&
       dayCapacities[dateStr] !== undefined
     );
-    const maxDayHours = hasCustomOverride ? Math.max(0, Number(dayCapacities[dateStr])) : fallbackHours;
+    const maxDayHours = hasCustomOverride ? clampDayCapacity(dayCapacities[dateStr]) : fallbackHours;
 
     let timeSlotDescription = "";
     if (hasCustomOverride) {
@@ -7495,8 +7504,9 @@ function WeeklyTodo({
                     <button
                       type="button"
                       onClick={() => onUpdateDayCapacity && onUpdateDayCapacity(day.date, Number((day.maxHours + 0.5).toFixed(1)))}
+                      disabled={day.maxHours >= MAX_DAY_CAPACITY_HOURS}
                       className="px-2 py-0.5 rounded-lg bg-cyan-600/30 hover:bg-cyan-500/40 text-cyan-300 hover:text-cyan-200 text-xs font-mono font-bold border border-cyan-500/40 transition active:scale-95 shadow-sm"
-                      title="Slot Extra: Aumenta budget di 30 minuti (+0.5h)"
+                      title={day.maxHours >= MAX_DAY_CAPACITY_HOURS ? `Budget massimo raggiunto (${MAX_DAY_CAPACITY_HOURS}h)` : "Slot Extra: Aumenta budget di 30 minuti (+0.5h)"}
                     >
                       + 30m
                     </button>
@@ -12099,7 +12109,7 @@ function App() {
       if (newHours === null || newHours === undefined) {
         delete updated[dateStr];
       } else {
-        updated[dateStr] = Math.max(0, Number(Number(newHours).toFixed(1)));
+        updated[dateStr] = clampDayCapacity(newHours);
       }
       return updated;
     });
@@ -12112,7 +12122,7 @@ function App() {
         if (hours === null || hours === undefined) {
           delete updated[dateStr];
         } else {
-          updated[dateStr] = Math.max(0, Number(Number(hours).toFixed(1)));
+          updated[dateStr] = clampDayCapacity(hours);
         }
       });
       return updated;

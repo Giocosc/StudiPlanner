@@ -10,6 +10,15 @@
  */
 
 export const DEFAULT_ROADMAP_START_DATE = "2026-11-16";
+
+/** Tetto del Time Shifter: nessun giorno può superare questo budget di studio. */
+export const MAX_DAY_CAPACITY_HOURS = 12;
+
+export function clampDayCapacity(hours) {
+  const n = Number(hours);
+  if (!Number.isFinite(n)) return 0;
+  return Math.min(MAX_DAY_CAPACITY_HOURS, Math.max(0, Number(n.toFixed(1))));
+}
 export const DEFAULT_TARGET_EXAM_DATE = "2027-01-10";
 
 /**
@@ -601,7 +610,7 @@ export function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacit
       dayCapacities[dateStr] !== null &&
       dayCapacities[dateStr] !== undefined
     );
-    const maxDayHours = hasCustomOverride ? Math.max(0, Number(dayCapacities[dateStr])) : fallbackHours;
+    const maxDayHours = hasCustomOverride ? clampDayCapacity(dayCapacities[dateStr]) : fallbackHours;
 
     let timeSlotDescription = "";
     if (hasCustomOverride) {
