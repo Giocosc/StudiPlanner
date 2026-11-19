@@ -111,3 +111,16 @@ test("metriche: nell'ultima settimana il ritmo richiesto non è sottostimato", (
   const expected = Number((plan.metrics.totalRemainingEffectiveHours / (3 / 7)).toFixed(1));
   assert.strictEqual(plan.metrics.requiredWeeklyHours, expected);
 });
+
+test("date: finestra pre-esame e bootcamp seguono la data d'esame impostata", async () => {
+  const e = await import("../src/services/rebalancerEngine.js");
+  assert.strictEqual(e.getPreExamWindowStart("2027-02-15"), "2027-02-08");
+  const dates = e.getHolidayBootcampDates("2028-01-20");
+  assert.strictEqual(dates[0], "2027-12-24");
+  assert.strictEqual(dates[dates.length - 1], "2028-01-06");
+  assert.strictEqual(dates.length, 14);
+  const plan = rebalanceStudyPlan(freshTopics(), { currentSimulatedDate: "2027-01-12", targetExamDate: "2027-01-20" });
+  assert.strictEqual(plan.metrics.isPreExamWindow, false);
+  const plan2 = rebalanceStudyPlan(freshTopics(), { currentSimulatedDate: "2027-01-14", targetExamDate: "2027-01-20" });
+  assert.strictEqual(plan2.metrics.isPreExamWindow, true);
+});

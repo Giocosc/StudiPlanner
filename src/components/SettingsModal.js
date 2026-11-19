@@ -94,7 +94,7 @@ export function SettingsModal({
                 </label>
                 <button
                   type="button"
-                  onClick={() => handleChange("currentSimulatedDate", getLocalTodayDateStr())}
+                  onClick={() => handleChange("currentSimulatedDate", getLocalTodayDateStr(formData.roadmapStartDate, formData.targetExamDate))}
                   className="text-[10px] text-cyan-400 hover:text-cyan-300 underline font-mono"
                   title="Reimposta sulla data reale odierna del computer"
                 >

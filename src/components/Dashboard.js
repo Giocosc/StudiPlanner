@@ -13,14 +13,15 @@ import {
 import { NeuraDeckPromptGenerator } from "./NeuraDeckPromptGenerator.js";
 import { ExamSimulator } from "./ExamSimulator.js";
 import { BurndownChart } from "./BurndownChart.js";
+import { DEFAULT_ROADMAP_START_DATE, DEFAULT_TARGET_EXAM_DATE } from "../services/rebalancerEngine.js";
 
 /**
  * Calculates whether the student is ahead, on track, or behind schedule for a subject
  */
-function getSubjectPacing(subjectData, currentSimulatedDate, roadmapStartDate = "2026-11-16", targetExamDate = "2027-01-10") {
+function getSubjectPacing(subjectData, currentSimulatedDate, roadmapStartDate = DEFAULT_ROADMAP_START_DATE, targetExamDate = DEFAULT_TARGET_EXAM_DATE) {
   const start = new Date(roadmapStartDate + "T00:00:00");
   const end = new Date(targetExamDate + "T00:00:00");
-  const current = new Date((currentSimulatedDate || "2026-11-18") + "T00:00:00");
+  const current = new Date((currentSimulatedDate || roadmapStartDate) + "T00:00:00");
 
   const totalDays = Math.max(1, Math.round((end - start) / (1000 * 60 * 60 * 24)));
   const elapsedDays = Math.max(0, Math.round((current - start) / (1000 * 60 * 60 * 24)));

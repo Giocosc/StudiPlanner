@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { getLocalTodayDateStr } from "../services/rebalancerEngine.js";
 import {
   IconX,
   IconClock,
@@ -32,7 +33,7 @@ function LogStudyModalContent({
 
   const [activeTab, setActiveTab] = useState("new"); // "new" | "recent"
   const [selectedDate, setSelectedDate] = useState(() => {
-    return initialData.date || settings.currentSimulatedDate || "2026-11-18";
+    return initialData.date || settings.currentSimulatedDate || getLocalTodayDateStr(settings.roadmapStartDate, settings.targetExamDate);
   });
   const [selectedSubject, setSelectedSubject] = useState("all"); // "all" | "analisi" | "geometria"
   const [statusFilter, setStatusFilter] = useState("all"); // "uncompleted" | "all"

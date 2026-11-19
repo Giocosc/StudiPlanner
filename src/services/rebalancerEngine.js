@@ -9,16 +9,45 @@
  * - Full historical tracking of past dates (completed vs skipped days).
  */
 
-export function getLocalTodayDateStr() {
+export const DEFAULT_ROADMAP_START_DATE = "2026-11-16";
+export const DEFAULT_TARGET_EXAM_DATE = "2027-01-10";
+
+/**
+ * Data reale odierna (fuso locale) limitata all'intervallo della sessione.
+ * I limiti seguono le impostazioni correnti quando vengono passati.
+ */
+export function getLocalTodayDateStr(startDate = DEFAULT_ROADMAP_START_DATE, endDate = DEFAULT_TARGET_EXAM_DATE) {
   const now = new Date();
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, "0");
   const day = String(now.getDate()).padStart(2, "0");
   const dateStr = `${year}-${month}-${day}`;
-  // Clamp within session bounds if outside
-  if (dateStr < "2026-11-16") return "2026-11-16";
-  if (dateStr > "2027-01-10") return "2027-01-10";
+  const start = startDate || DEFAULT_ROADMAP_START_DATE;
+  const end = endDate || DEFAULT_TARGET_EXAM_DATE;
+  if (dateStr < start) return start;
+  if (dateStr > end) return end;
   return dateStr;
+}
+
+/** Inizio della finestra di ripasso express: 7 giorni prima dell'esame. */
+export function getPreExamWindowStart(targetExamDate = DEFAULT_TARGET_EXAM_DATE) {
+  return addDaysToDateStr(targetExamDate || DEFAULT_TARGET_EXAM_DATE, -7);
+}
+
+/**
+ * Date del profilo Bootcamp natalizio (24 dicembre -> 6 gennaio) relative
+ * all'anno dell'esame impostato.
+ */
+export function getHolidayBootcampDates(targetExamDate = DEFAULT_TARGET_EXAM_DATE) {
+  const examYear = Number(String(targetExamDate || DEFAULT_TARGET_EXAM_DATE).slice(0, 4));
+  const dates = [];
+  let cur = `${examYear - 1}-12-24`;
+  const end = `${examYear}-01-06`;
+  while (cur <= end) {
+    dates.push(cur);
+    cur = addDaysToDateStr(cur, 1);
+  }
+  return dates;
 }
 
 export function addDaysToDateStr(dateStr, days) {
@@ -100,8 +129,8 @@ export function calculateExamReadinessAndGrade(topics, metrics) {
 }
 
 export const DEFAULT_SETTINGS = {
-  roadmapStartDate: "2026-11-16", // Start of winter session roadmap
-  targetExamDate: "2027-01-10",
+  roadmapStartDate: DEFAULT_ROADMAP_START_DATE, // Start of winter session roadmap
+  targetExamDate: DEFAULT_TARGET_EXAM_DATE,
   currentSimulatedDate: getLocalTodayDateStr(), // Active date: synchronized with real today!
   criticalWeeklyHoursThreshold: 25.0, // Base lavoratore full-time
   eveningStudyHours: 2.5, // 19:30 - 22:00 (2.5h)
@@ -530,7 +559,7 @@ export function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacit
 
   // 2. Generate FULL calendar from roadmapStartDate to targetExamDate
   const allCalendarDays = [];
-  const startDate = new Date(settings.roadmapStartDate || "2026-11-16");
+  const startDate = new Date(settings.roadmapStartDate || DEFAULT_ROADMAP_START_DATE);
   const todayDate = new Date(settings.currentSimulatedDate);
   const targetDate = new Date(settings.targetExamDate);
 
@@ -880,7 +909,7 @@ export function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacit
       // Streak Counter & Resilience Indicators (Punto 17)
       studyStreak: calculateStudyStreak(historyDays, settings.currentSimulatedDate, sessions),
       // Pre-Exam Express Review Window (Punto 20: 7 days prior to target exam date)
-      isPreExamWindow: settings.currentSimulatedDate >= "2027-01-03" && settings.currentSimulatedDate <= settings.targetExamDate
+      isPreExamWindow: settings.currentSimulatedDate >= getPreExamWindowStart(settings.targetExamDate) && settings.currentSimulatedDate <= settings.targetExamDate
     },
     weeklyPlans,
     currentWeekPlan,

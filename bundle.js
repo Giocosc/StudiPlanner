@@ -1163,16 +1163,45 @@ function IconBug({ className = "w-5 h-5" }) {
  * - Full historical tracking of past dates (completed vs skipped days).
  */
 
-function getLocalTodayDateStr() {
+const DEFAULT_ROADMAP_START_DATE = "2026-11-16";
+const DEFAULT_TARGET_EXAM_DATE = "2027-01-10";
+
+/**
+ * Data reale odierna (fuso locale) limitata all'intervallo della sessione.
+ * I limiti seguono le impostazioni correnti quando vengono passati.
+ */
+function getLocalTodayDateStr(startDate = DEFAULT_ROADMAP_START_DATE, endDate = DEFAULT_TARGET_EXAM_DATE) {
   const now = new Date();
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, "0");
   const day = String(now.getDate()).padStart(2, "0");
   const dateStr = `${year}-${month}-${day}`;
-  // Clamp within session bounds if outside
-  if (dateStr < "2026-11-16") return "2026-11-16";
-  if (dateStr > "2027-01-10") return "2027-01-10";
+  const start = startDate || DEFAULT_ROADMAP_START_DATE;
+  const end = endDate || DEFAULT_TARGET_EXAM_DATE;
+  if (dateStr < start) return start;
+  if (dateStr > end) return end;
   return dateStr;
+}
+
+/** Inizio della finestra di ripasso express: 7 giorni prima dell'esame. */
+function getPreExamWindowStart(targetExamDate = DEFAULT_TARGET_EXAM_DATE) {
+  return addDaysToDateStr(targetExamDate || DEFAULT_TARGET_EXAM_DATE, -7);
+}
+
+/**
+ * Date del profilo Bootcamp natalizio (24 dicembre -> 6 gennaio) relative
+ * all'anno dell'esame impostato.
+ */
+function getHolidayBootcampDates(targetExamDate = DEFAULT_TARGET_EXAM_DATE) {
+  const examYear = Number(String(targetExamDate || DEFAULT_TARGET_EXAM_DATE).slice(0, 4));
+  const dates = [];
+  let cur = `${examYear - 1}-12-24`;
+  const end = `${examYear}-01-06`;
+  while (cur <= end) {
+    dates.push(cur);
+    cur = addDaysToDateStr(cur, 1);
+  }
+  return dates;
 }
 
 function addDaysToDateStr(dateStr, days) {
@@ -1254,8 +1283,8 @@ function calculateExamReadinessAndGrade(topics, metrics) {
 }
 
 const DEFAULT_SETTINGS = {
-  roadmapStartDate: "2026-11-16", // Start of winter session roadmap
-  targetExamDate: "2027-01-10",
+  roadmapStartDate: DEFAULT_ROADMAP_START_DATE, // Start of winter session roadmap
+  targetExamDate: DEFAULT_TARGET_EXAM_DATE,
   currentSimulatedDate: getLocalTodayDateStr(), // Active date: synchronized with real today!
   criticalWeeklyHoursThreshold: 25.0, // Base lavoratore full-time
   eveningStudyHours: 2.5, // 19:30 - 22:00 (2.5h)
@@ -1684,7 +1713,7 @@ function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacities = {
 
   // 2. Generate FULL calendar from roadmapStartDate to targetExamDate
   const allCalendarDays = [];
-  const startDate = new Date(settings.roadmapStartDate || "2026-11-16");
+  const startDate = new Date(settings.roadmapStartDate || DEFAULT_ROADMAP_START_DATE);
   const todayDate = new Date(settings.currentSimulatedDate);
   const targetDate = new Date(settings.targetExamDate);
 
@@ -2034,7 +2063,7 @@ function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacities = {
       // Streak Counter & Resilience Indicators (Punto 17)
       studyStreak: calculateStudyStreak(historyDays, settings.currentSimulatedDate, sessions),
       // Pre-Exam Express Review Window (Punto 20: 7 days prior to target exam date)
-      isPreExamWindow: settings.currentSimulatedDate >= "2027-01-03" && settings.currentSimulatedDate <= settings.targetExamDate
+      isPreExamWindow: settings.currentSimulatedDate >= getPreExamWindowStart(settings.targetExamDate) && settings.currentSimulatedDate <= settings.targetExamDate
     },
     weeklyPlans,
     currentWeekPlan,
@@ -5320,13 +5349,14 @@ function BurndownChart({ metrics, progress, settings }) {
 
 
 
+
 /**
  * Calculates whether the student is ahead, on track, or behind schedule for a subject
  */
-function getSubjectPacing(subjectData, currentSimulatedDate, roadmapStartDate = "2026-11-16", targetExamDate = "2027-01-10") {
+function getSubjectPacing(subjectData, currentSimulatedDate, roadmapStartDate = DEFAULT_ROADMAP_START_DATE, targetExamDate = DEFAULT_TARGET_EXAM_DATE) {
   const start = new Date(roadmapStartDate + "T00:00:00");
   const end = new Date(targetExamDate + "T00:00:00");
-  const current = new Date((currentSimulatedDate || "2026-11-18") + "T00:00:00");
+  const current = new Date((currentSimulatedDate || roadmapStartDate) + "T00:00:00");
 
   const totalDays = Math.max(1, Math.round((end - start) / (1000 * 60 * 60 * 24)));
   const elapsedDays = Math.max(0, Math.round((current - start) / (1000 * 60 * 60 * 24)));
@@ -6459,6 +6489,7 @@ function ActivityHeatmap({ calendarDays = [], historyDays = [], metrics = {}, on
 
 
 
+
 const LOCAL_STORAGE_KEY_POMODORO = "unimore_rebalancer_pomodoro_v2";
 
 function WeeklyTodo({
@@ -6484,9 +6515,18 @@ function WeeklyTodo({
 
   const [filterSubject, setFilterSubject] = useState("all");
   const [pomodoroAlert, setPomodoroAlert] = useState(null);
-  const [isExpressReviewActive, setIsExpressReviewActive] = useState(() => {
-    return Boolean(settings && settings.currentSimulatedDate >= "2027-01-03");
-  });
+  const isInPreExamWindow = Boolean(
+    settings &&
+    settings.currentSimulatedDate >= getPreExamWindowStart(settings.targetExamDate) &&
+    settings.currentSimulatedDate <= (settings.targetExamDate || "9999-12-31")
+  );
+  const [isExpressReviewActive, setIsExpressReviewActive] = useState(isInPreExamWindow);
+
+  // La modalità Sprint segue la data attiva: si attiva entrando negli ultimi 7 giorni
+  // e si spegne uscendone (resta comunque attivabile/disattivabile a mano).
+  useEffect(() => {
+    setIsExpressReviewActive(isInPreExamWindow);
+  }, [isInPreExamWindow]);
 
   // Pomodoro timer state for topic cards
   // { [topicId]: { accumulatedSeconds: number, isRunning: boolean, cycleRemaining: number, isBreak: boolean, completedByTimer: boolean } }
@@ -6749,16 +6789,8 @@ function WeeklyTodo({
   };
 
   // Punto 7: Holiday Bootcamp Profile (24 Dec - 6 Jan boosted to 6.5h/day)
-  const holidayDates = useMemo(() => {
-    const dates = [];
-    let cur = new Date("2026-12-24");
-    const end = new Date("2027-01-06");
-    while (cur <= end) {
-      dates.push(cur.toISOString().split("T")[0]);
-      cur.setDate(cur.getDate() + 1);
-    }
-    return dates;
-  }, []);
+  const examDateForHolidays = settings && settings.targetExamDate;
+  const holidayDates = useMemo(() => getHolidayBootcampDates(examDateForHolidays), [examDateForHolidays]);
 
   const isHolidayBootcampActive = useMemo(() => {
     return holidayDates.every(d => customDayCapacities[d] && customDayCapacities[d] >= 6.0);
@@ -9085,7 +9117,7 @@ function SettingsModal({
                 </label>
                 <button
                   type="button"
-                  onClick={() => handleChange("currentSimulatedDate", getLocalTodayDateStr())}
+                  onClick={() => handleChange("currentSimulatedDate", getLocalTodayDateStr(formData.roadmapStartDate, formData.targetExamDate))}
                   className="text-[10px] text-cyan-400 hover:text-cyan-300 underline font-mono"
                   title="Reimposta sulla data reale odierna del computer"
                 >
@@ -9269,6 +9301,7 @@ function SettingsModal({
 
 
 
+
 // Wrapper: monta il contenuto solo quando il modale è aperto, così gli hook
 // del contenuto vengono sempre chiamati nello stesso ordine (Rules of Hooks).
 function LogStudyModal(props) {
@@ -9289,7 +9322,7 @@ function LogStudyModalContent({
 
   const [activeTab, setActiveTab] = useState("new"); // "new" | "recent"
   const [selectedDate, setSelectedDate] = useState(() => {
-    return initialData.date || settings.currentSimulatedDate || "2026-11-18";
+    return initialData.date || settings.currentSimulatedDate || getLocalTodayDateStr(settings.roadmapStartDate, settings.targetExamDate);
   });
   const [selectedSubject, setSelectedSubject] = useState("all"); // "all" | "analisi" | "geometria"
   const [statusFilter, setStatusFilter] = useState("all"); // "uncompleted" | "all"
@@ -11209,6 +11242,9 @@ function WeeklyRetrospectiveModalContent({
 
 
 
+// Data reale odierna limitata all'intervallo della sessione configurata
+const todayForSettings = (s) => getLocalTodayDateStr(s && s.roadmapStartDate, s && s.targetExamDate);
+
 const LOCAL_STORAGE_KEY_TOPICS = "unimore_rebalancer_topics_v2";
 const LOCAL_STORAGE_KEY_SETTINGS = "unimore_rebalancer_settings_v2";
 const LOCAL_STORAGE_KEY_CUSTOM_CAPACITIES = "unimore_rebalancer_custom_capacities_v2";
@@ -11247,11 +11283,12 @@ function App() {
   });
 
   const [settings, setSettings] = useState(() => {
-    const todayStr = getLocalTodayDateStr();
+    let todayStr = getLocalTodayDateStr();
     try {
       const saved = localStorage.getItem(LOCAL_STORAGE_KEY_SETTINGS);
       if (saved) {
         const parsed = JSON.parse(saved);
+        todayStr = todayForSettings(parsed);
         // If the saved date is older than today or empty, automatically sync to today's real date!
         if (!parsed.currentSimulatedDate || parsed.currentSimulatedDate < todayStr) {
           return {
@@ -11411,8 +11448,8 @@ function App() {
   // Auto-sync date if day rolls over while tab is open or window receives focus
   useEffect(() => {
     const checkDateRoll = () => {
-      const todayStr = getLocalTodayDateStr();
       setSettings(prev => {
+        const todayStr = todayForSettings(prev);
         if (prev.currentSimulatedDate < todayStr) {
           return { ...prev, currentSimulatedDate: todayStr };
         }
@@ -11627,7 +11664,10 @@ function App() {
           if (merged.studySessions) setStudySessions(merged.studySessions);
           if (merged.customDayCapacities) setCustomDayCapacities(merged.customDayCapacities);
           if (merged.settings) {
-            setSettings(prev => ({ ...prev, ...merged.settings, currentSimulatedDate: getLocalTodayDateStr() }));
+            setSettings(prev => {
+            const next = { ...prev, ...merged.settings };
+            return { ...next, currentSimulatedDate: todayForSettings(next) };
+          });
           }
 
           setGitlabConfig(prev => ({
@@ -11704,7 +11744,10 @@ function App() {
         if (merged.studySessions) setStudySessions(merged.studySessions);
         if (merged.customDayCapacities) setCustomDayCapacities(merged.customDayCapacities);
         if (merged.settings) {
-          setSettings(prev => ({ ...prev, ...merged.settings, currentSimulatedDate: getLocalTodayDateStr() }));
+          setSettings(prev => {
+            const next = { ...prev, ...merged.settings };
+            return { ...next, currentSimulatedDate: todayForSettings(next) };
+          });
         }
 
         setGitlabConfig(prev => ({
@@ -12172,12 +12215,12 @@ function App() {
                 ▶
               </button>
 
-              {settings.currentSimulatedDate !== getLocalTodayDateStr() && (
+              {settings.currentSimulatedDate !== todayForSettings(settings) && (
                 <button
                   type="button"
-                  onClick={() => setSettings(prev => ({ ...prev, currentSimulatedDate: getLocalTodayDateStr() }))}
+                  onClick={() => setSettings(prev => ({ ...prev, currentSimulatedDate: todayForSettings(prev) }))}
                   className="ml-1 px-1.5 py-0.5 rounded bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 text-[10px] font-sans font-bold border border-cyan-500/40 transition"
-                  title={`Reimposta sulla data reale odierna (${formatDateDisplay(getLocalTodayDateStr())})`}
+                  title={`Reimposta sulla data reale odierna (${formatDateDisplay(todayForSettings(settings))})`}
                 >
                   Oggi Reale
                 </button>

@@ -14,6 +14,7 @@ import {
   IconCalendar
 } from "./Icons.js";
 import { downloadIcsCalendar } from "../services/calendarExportService.js";
+import { getPreExamWindowStart, getHolidayBootcampDates } from "../services/rebalancerEngine.js";
 
 const LOCAL_STORAGE_KEY_POMODORO = "unimore_rebalancer_pomodoro_v2";
 
@@ -40,9 +41,18 @@ export function WeeklyTodo({
 
   const [filterSubject, setFilterSubject] = useState("all");
   const [pomodoroAlert, setPomodoroAlert] = useState(null);
-  const [isExpressReviewActive, setIsExpressReviewActive] = useState(() => {
-    return Boolean(settings && settings.currentSimulatedDate >= "2027-01-03");
-  });
+  const isInPreExamWindow = Boolean(
+    settings &&
+    settings.currentSimulatedDate >= getPreExamWindowStart(settings.targetExamDate) &&
+    settings.currentSimulatedDate <= (settings.targetExamDate || "9999-12-31")
+  );
+  const [isExpressReviewActive, setIsExpressReviewActive] = useState(isInPreExamWindow);
+
+  // La modalità Sprint segue la data attiva: si attiva entrando negli ultimi 7 giorni
+  // e si spegne uscendone (resta comunque attivabile/disattivabile a mano).
+  useEffect(() => {
+    setIsExpressReviewActive(isInPreExamWindow);
+  }, [isInPreExamWindow]);
 
   // Pomodoro timer state for topic cards
   // { [topicId]: { accumulatedSeconds: number, isRunning: boolean, cycleRemaining: number, isBreak: boolean, completedByTimer: boolean } }
@@ -305,16 +315,8 @@ export function WeeklyTodo({
   };
 
   // Punto 7: Holiday Bootcamp Profile (24 Dec - 6 Jan boosted to 6.5h/day)
-  const holidayDates = useMemo(() => {
-    const dates = [];
-    let cur = new Date("2026-12-24");
-    const end = new Date("2027-01-06");
-    while (cur <= end) {
-      dates.push(cur.toISOString().split("T")[0]);
-      cur.setDate(cur.getDate() + 1);
-    }
-    return dates;
-  }, []);
+  const examDateForHolidays = settings && settings.targetExamDate;
+  const holidayDates = useMemo(() => getHolidayBootcampDates(examDateForHolidays), [examDateForHolidays]);
 
   const isHolidayBootcampActive = useMemo(() => {
     return holidayDates.every(d => customDayCapacities[d] && customDayCapacities[d] >= 6.0);

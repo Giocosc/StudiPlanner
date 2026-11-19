@@ -38,6 +38,9 @@ import {
   IconGitLab
 } from "./components/Icons.js";
 
+// Data reale odierna limitata all'intervallo della sessione configurata
+const todayForSettings = (s) => getLocalTodayDateStr(s && s.roadmapStartDate, s && s.targetExamDate);
+
 const LOCAL_STORAGE_KEY_TOPICS = "unimore_rebalancer_topics_v2";
 const LOCAL_STORAGE_KEY_SETTINGS = "unimore_rebalancer_settings_v2";
 const LOCAL_STORAGE_KEY_CUSTOM_CAPACITIES = "unimore_rebalancer_custom_capacities_v2";
@@ -76,11 +79,12 @@ export function App() {
   });
 
   const [settings, setSettings] = useState(() => {
-    const todayStr = getLocalTodayDateStr();
+    let todayStr = getLocalTodayDateStr();
     try {
       const saved = localStorage.getItem(LOCAL_STORAGE_KEY_SETTINGS);
       if (saved) {
         const parsed = JSON.parse(saved);
+        todayStr = todayForSettings(parsed);
         // If the saved date is older than today or empty, automatically sync to today's real date!
         if (!parsed.currentSimulatedDate || parsed.currentSimulatedDate < todayStr) {
           return {
@@ -240,8 +244,8 @@ export function App() {
   // Auto-sync date if day rolls over while tab is open or window receives focus
   useEffect(() => {
     const checkDateRoll = () => {
-      const todayStr = getLocalTodayDateStr();
       setSettings(prev => {
+        const todayStr = todayForSettings(prev);
         if (prev.currentSimulatedDate < todayStr) {
           return { ...prev, currentSimulatedDate: todayStr };
         }
@@ -456,7 +460,10 @@ export function App() {
           if (merged.studySessions) setStudySessions(merged.studySessions);
           if (merged.customDayCapacities) setCustomDayCapacities(merged.customDayCapacities);
           if (merged.settings) {
-            setSettings(prev => ({ ...prev, ...merged.settings, currentSimulatedDate: getLocalTodayDateStr() }));
+            setSettings(prev => {
+            const next = { ...prev, ...merged.settings };
+            return { ...next, currentSimulatedDate: todayForSettings(next) };
+          });
           }
 
           setGitlabConfig(prev => ({
@@ -533,7 +540,10 @@ export function App() {
         if (merged.studySessions) setStudySessions(merged.studySessions);
         if (merged.customDayCapacities) setCustomDayCapacities(merged.customDayCapacities);
         if (merged.settings) {
-          setSettings(prev => ({ ...prev, ...merged.settings, currentSimulatedDate: getLocalTodayDateStr() }));
+          setSettings(prev => {
+            const next = { ...prev, ...merged.settings };
+            return { ...next, currentSimulatedDate: todayForSettings(next) };
+          });
         }
 
         setGitlabConfig(prev => ({
@@ -1001,12 +1011,12 @@ export function App() {
                 ▶
               </button>
 
-              {settings.currentSimulatedDate !== getLocalTodayDateStr() && (
+              {settings.currentSimulatedDate !== todayForSettings(settings) && (
                 <button
                   type="button"
-                  onClick={() => setSettings(prev => ({ ...prev, currentSimulatedDate: getLocalTodayDateStr() }))}
+                  onClick={() => setSettings(prev => ({ ...prev, currentSimulatedDate: todayForSettings(prev) }))}
                   className="ml-1 px-1.5 py-0.5 rounded bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 text-[10px] font-sans font-bold border border-cyan-500/40 transition"
-                  title={`Reimposta sulla data reale odierna (${formatDateDisplay(getLocalTodayDateStr())})`}
+                  title={`Reimposta sulla data reale odierna (${formatDateDisplay(todayForSettings(settings))})`}
                 >
                   Oggi Reale
                 </button>
