@@ -579,7 +579,7 @@ export function WeeklyTodo({
             <button
               onClick={() => setFilterSubject("analisi")}
               className={`px-3 py-1 rounded-lg transition ${
-                filterSubject === "analisi" ? "bg-emerald-600/30 text-emerald-300 shadow" : "text-slate-400 hover:text-slate-200"
+                filterSubject === "analisi" ? "bg-indigo-600/30 text-indigo-300 shadow" : "text-slate-400 hover:text-slate-200"
               }`}
             >
               Analisi
@@ -587,7 +587,7 @@ export function WeeklyTodo({
             <button
               onClick={() => setFilterSubject("geometria")}
               className={`px-3 py-1 rounded-lg transition ${
-                filterSubject === "geometria" ? "bg-indigo-600/30 text-indigo-300 shadow" : "text-slate-400 hover:text-slate-200"
+                filterSubject === "geometria" ? "bg-teal-600/30 text-teal-300 shadow" : "text-slate-400 hover:text-slate-200"
               }`}
             >
               Geometria
@@ -821,7 +821,7 @@ export function WeeklyTodo({
 
               {/* Topics list for the day */}
               {isSkipped ? (
-                <div className="py-3 px-4 bg-black/30 rounded-2xl border border-slate-800 text-xs text-slate-400 flex items-center justify-between">
+                <div className="py-3 px-4 bg-slate-850 rounded-2xl border border-slate-800 text-xs text-slate-400 flex items-center justify-between">
                   <span>In questa data non è stato registrato studio. Gli argomenti sono stati riprogrammati a partire da oggi.</span>
                   <span className="text-amber-400/90 font-mono text-[11px]">0h svolte</span>
                 </div>
@@ -860,8 +860,8 @@ export function WeeklyTodo({
                             : topic.isSessionLog
                             ? "bg-slate-950/90 border-emerald-500/40 shadow-sm shadow-emerald-950/20"
                             : isAnalisi
-                            ? "bg-slate-950/80 hover:bg-slate-900 border-emerald-500/20 hover:border-emerald-500/40"
-                            : "bg-slate-950/80 hover:bg-slate-900 border-indigo-500/20 hover:border-indigo-500/40"
+                            ? "bg-slate-950/80 hover:bg-slate-900 border-indigo-500/20 hover:border-indigo-500/40"
+                            : "bg-slate-950/80 hover:bg-slate-900 border-teal-500/20 hover:border-teal-500/40"
                         }`}
                       >
                         {/* Upper row: Topic Header, Meta and Subject */}
@@ -871,8 +871,8 @@ export function WeeklyTodo({
                               {/* Subject Badge */}
                               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
                                 isAnalisi
-                                  ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                                  : "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                                  ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                                  : "bg-teal-500/20 text-teal-300 border border-teal-500/30"
                               }`}>
                                 {topic.materia}
                               </span>

@@ -107,16 +107,15 @@ export function BurndownChart({ metrics, progress, settings }) {
                   y1={y}
                   x2={width - padRight}
                   y2={y}
-                  stroke="#1e293b"
+                  stroke={pct === 1 ? "#E5E5EA" : "#F2F2F5"}
                   strokeWidth="1"
-                  strokeDasharray="4 4"
                 />
                 <text
                   x={padLeft - 10}
                   y={y + 4}
-                  fill="#64748b"
-                  fontSize="10"
-                  fontFamily="monospace"
+                  fill="#6E6E73"
+                  fontSize="11"
+                  fontFamily="inherit"
                   textAnchor="end"
                 >
                   {hrs}h
@@ -131,9 +130,9 @@ export function BurndownChart({ metrics, progress, settings }) {
             y1={idealY1}
             x2={idealX2}
             y2={idealY2}
-            stroke="#94a3b8"
-            strokeWidth="2.5"
-            strokeDasharray="6 6"
+            stroke="#C7C7CC"
+            strokeWidth="1.5"
+            strokeDasharray="4 5"
           />
 
           {/* Actual Line (Start to Today) */}
@@ -142,7 +141,7 @@ export function BurndownChart({ metrics, progress, settings }) {
             y1={idealY1}
             x2={todayX}
             y2={todayY}
-            stroke={isAheadOfSchedule ? "#10b981" : "#f59e0b"}
+            stroke="#0071E3"
             strokeWidth="3.5"
             strokeLinecap="round"
           />
@@ -153,59 +152,50 @@ export function BurndownChart({ metrics, progress, settings }) {
             y1={todayY}
             x2={idealX2}
             y2={idealY2}
-            stroke={isAheadOfSchedule ? "#065f46" : "#78350f"}
+            stroke="#0071E3"
             strokeWidth="2"
-            strokeDasharray="3 3"
+            strokeDasharray="1 6"
+            strokeLinecap="round"
           />
 
           {/* Start Point */}
-          <circle cx={idealX1} cy={idealY1} r="5" fill="#38bdf8" />
+          <circle cx={idealX1} cy={idealY1} r="4" fill="#0071E3" />
 
           {/* Today Point */}
           <circle
             cx={todayX}
             cy={todayY}
-            r="7"
-            fill={isAheadOfSchedule ? "#10b981" : "#f59e0b"}
-            stroke="#070b14"
+            r="6"
+            fill="#FFFFFF"
+            stroke="#0071E3"
             strokeWidth="3"
-            className="animate-pulse"
           />
 
           {/* Today Label Tag */}
-          <rect
-            x={todayX - 35}
-            y={todayY - 26}
-            width="70"
-            height="18"
-            rx="5"
-            fill="#0f172a"
-            stroke={isAheadOfSchedule ? "#10b981" : "#f59e0b"}
-            strokeWidth="1"
-          />
           <text
-            x={todayX}
-            y={todayY - 14}
-            fill="#f8fafc"
-            fontSize="9"
-            fontWeight="bold"
-            fontFamily="monospace"
-            textAnchor="middle"
+            x={todayX + 14}
+            y={todayY - 12}
+            fill="#1D1D1F"
+            fontSize="12"
+            fontWeight="600"
+            fontFamily="inherit"
           >
-            OGGI: {remainingHours}h
+            Oggi · {remainingHours} h
           </text>
 
           {/* End Point (10 Jan 2027) */}
-          <circle cx={idealX2} cy={idealY2} r="5" fill="#a855f7" />
+          <circle cx={idealX2} cy={idealY2} r="4" fill="#1D1D1F" />
 
           {/* X Axis Labels */}
-          <text x={idealX1} y={height - 12} fill="#94a3b8" fontSize="10" fontFamily="sans-serif">
+          <text x={idealX1} y={height - 12} fill="#6E6E73" fontSize="11" fontFamily="inherit">
             Inizio ({formatShortDate(roadmapStartDate)})
           </text>
-          <text x={todayX} y={height - 12} fill="#38bdf8" fontSize="10" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">
-            Data Odierna
-          </text>
-          <text x={idealX2} y={height - 12} fill="#c084fc" fontSize="10" textAnchor="end" fontFamily="sans-serif">
+          {todayX - idealX1 > 90 && idealX2 - todayX > 90 && (
+            <text x={todayX} y={height - 12} fill="#0062C4" fontSize="11" fontWeight="600" textAnchor="middle" fontFamily="inherit">
+              Oggi
+            </text>
+          )}
+          <text x={idealX2} y={height - 12} fill="#6E6E73" fontSize="11" textAnchor="end" fontFamily="inherit">
             Esame ({formatShortDate(targetExamDate)})
           </text>
         </svg>
@@ -219,7 +209,7 @@ export function BurndownChart({ metrics, progress, settings }) {
             <span>Traiettoria Ideale</span>
           </div>
           <div className="flex items-center space-x-1.5">
-            <span className={`w-3.5 h-1 rounded inline-block ${isAheadOfSchedule ? "bg-emerald-400" : "bg-amber-400"}`}></span>
+            <span className="w-3.5 h-1 rounded inline-block bg-accent"></span>
             <span>Ore Stimate Residue</span>
           </div>
         </div>

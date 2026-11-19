@@ -154,8 +154,8 @@ export function MathBugTracker({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-fade-in overflow-y-auto">
-      <div className="bg-[#0b1120] border border-rose-500/30 rounded-3xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl shadow-rose-950/40 overflow-hidden my-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/25 backdrop-blur-sm animate-fade-in overflow-y-auto">
+      <div className="bg-slate-900 border border-rose-500/30 rounded-3xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl shadow-rose-950/40 overflow-hidden my-auto">
         {/* Header */}
         <div className="px-6 py-4 bg-gradient-to-r from-slate-900 via-slate-900 to-rose-950/50 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -204,7 +204,7 @@ export function MathBugTracker({
                 type="button"
                 onClick={() => setFilterSubject("Analisi 1")}
                 className={`px-3 py-1 rounded-lg font-bold transition ${
-                  filterSubject === "Analisi 1" ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30" : "text-slate-400 hover:text-white"
+                  filterSubject === "Analisi 1" ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30" : "text-slate-400 hover:text-white"
                 }`}
               >
                 Analisi 1
@@ -213,7 +213,7 @@ export function MathBugTracker({
                 type="button"
                 onClick={() => setFilterSubject("Geometria")}
                 className={`px-3 py-1 rounded-lg font-bold transition ${
-                  filterSubject === "Geometria" ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30" : "text-slate-400 hover:text-white"
+                  filterSubject === "Geometria" ? "bg-teal-500/20 text-teal-300 border border-teal-500/30" : "text-slate-400 hover:text-white"
                 }`}
               >
                 Geometria

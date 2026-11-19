@@ -194,8 +194,8 @@ export function ExamSimulator({ isOpen, onClose, topics = [], settings = {} }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-fade-in overflow-y-auto">
-      <div className="bg-[#0b1120] border border-indigo-500/30 rounded-3xl w-full max-w-5xl max-h-[94vh] flex flex-col shadow-2xl shadow-indigo-950/40 overflow-hidden my-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/25 backdrop-blur-sm animate-fade-in overflow-y-auto">
+      <div className="bg-slate-900 border border-indigo-500/30 rounded-3xl w-full max-w-5xl max-h-[94vh] flex flex-col shadow-2xl shadow-indigo-950/40 overflow-hidden my-auto">
         {/* Header Modal */}
         <div className="px-6 py-4 bg-gradient-to-r from-slate-900 via-slate-900 to-indigo-950/60 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -262,7 +262,7 @@ export function ExamSimulator({ isOpen, onClose, topics = [], settings = {} }) {
                 onClick={() => setSelectedSubject("Analisi 1")}
                 className={`px-3 py-1 text-xs font-bold rounded-lg transition ${
                   isAnalisi
-                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                    ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/40"
                     : "text-slate-400 hover:text-white"
                 }`}
               >
@@ -273,7 +273,7 @@ export function ExamSimulator({ isOpen, onClose, topics = [], settings = {} }) {
                 onClick={() => setSelectedSubject("Geometria")}
                 className={`px-3 py-1 text-xs font-bold rounded-lg transition ${
                   !isAnalisi
-                    ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/40"
+                    ? "bg-teal-500/20 text-teal-300 border border-teal-500/40"
                     : "text-slate-400 hover:text-white"
                 }`}
               >
@@ -434,8 +434,8 @@ export function ExamSimulator({ isOpen, onClose, topics = [], settings = {} }) {
                               <div className="flex items-center space-x-2">
                                 <span className={`text-[10px] font-bold font-mono px-2 py-0.5 rounded-md ${
                                   isAnalisi
-                                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                                    : "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                                    ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                                    : "bg-teal-500/20 text-teal-300 border border-teal-500/30"
                                 }`}>
                                   {t.id}
                                 </span>

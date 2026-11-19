@@ -8,12 +8,14 @@ import {
   IconFlame,
   IconSparkles,
   IconDice,
-  IconBug
+  IconBug,
+  IconPlus,
+  IconCheck
 } from "./Icons.js";
 import { NeuraDeckPromptGenerator } from "./NeuraDeckPromptGenerator.js";
 import { ExamSimulator } from "./ExamSimulator.js";
 import { BurndownChart } from "./BurndownChart.js";
-import { DEFAULT_ROADMAP_START_DATE, DEFAULT_TARGET_EXAM_DATE } from "../services/rebalancerEngine.js";
+import { DEFAULT_ROADMAP_START_DATE, DEFAULT_TARGET_EXAM_DATE, calculateWeeklyRetrospective } from "../services/rebalancerEngine.js";
 
 /**
  * Calculates whether the student is ahead, on track, or behind schedule for a subject
@@ -85,7 +87,9 @@ export function Dashboard({
   onOpenTopicDetail,
   onToggleSpacedReview,
   mathBugs = [],
-  onOpenBugTracker
+  onOpenBugTracker,
+  currentWeekPlan = null,
+  todayPlan = null
 }) {
   const { analisi, geometria, global } = progress;
   const [isFlashcardsOpen, setIsFlashcardsOpen] = useState(false);
@@ -130,35 +134,127 @@ export function Dashboard({
   const quoteIndex = Math.abs((settings.currentSimulatedDate || "").split("-").reduce((acc, c) => acc + c.charCodeAt(0), 0)) % workerQuotes.length;
   const dailyQuote = workerQuotes[quoteIndex];
 
+  const achievements = [
+    { id: "first_topic", label: "Primo passo", unlocked: global.completedCount > 0, desc: "Primo argomento chiuso" },
+    { id: "dual_subject", label: "Doppio motore", unlocked: analisi.completedHours > 0 && geometria.completedHours > 0, desc: "Analisi e Geometria avviate" },
+    { id: "focus_master", label: "Focus", unlocked: metrics.pastDaysStudied > 0, desc: "Sessione di studio svolta" },
+    { id: "streak_warrior", label: "Costanza", unlocked: streak.currentStreak >= 3, desc: "Almeno 3 giorni consecutivi" }
+  ];
+
+  // --- Intestazione e anelli (tema "Calma, stile Apple") ---
+  const fmtNum = (n) => Number(n || 0).toLocaleString("it-IT", { maximumFractionDigits: 1 });
+  const parseDay = (s) => new Date(String(s || "") + "T00:00:00");
+  const todayStr = settings.currentSimulatedDate;
+  const examStr = settings.targetExamDate || DEFAULT_TARGET_EXAM_DATE;
+  const startStr = settings.roadmapStartDate || DEFAULT_ROADMAP_START_DATE;
+  const heroDateLabel = todayStr
+    ? parseDay(todayStr).toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long" })
+    : "";
+  const examDateLabel = parseDay(examStr).toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  const plannedToday = Number(todayPlan?.allocatedHours || 0);
+  let heroTitle;
+  if (todayStr && todayStr === examStr) heroTitle = "Oggi è il giorno dell'esame.";
+  else if (todayStr && todayStr > examStr) heroTitle = "Il periodo di studio è concluso.";
+  else if (!todayPlan || todayPlan.enabled === false || plannedToday <= 0) heroTitle = "Oggi non c'è studio in programma.";
+  else heroTitle = `Oggi, ${fmtNum(plannedToday)} ${plannedToday === 1 ? "ora" : "ore"} di studio.`;
+
+  const roadmapDays = Math.max(1, Math.round((parseDay(examStr) - parseDay(startStr)) / 86400000));
+  const elapsedRoadmapDays = Math.round((parseDay(todayStr || startStr) - parseDay(startStr)) / 86400000);
+  const elapsedRoadmapPct = Math.min(100, Math.max(0, Math.round((elapsedRoadmapDays / roadmapDays) * 100)));
+
+  const weekRetro = calculateWeeklyRetrospective(currentWeekPlan);
+  const weekBudget = Number(((currentWeekPlan?.days || [])
+    .filter(d => d.enabled !== false)
+    .reduce((acc, d) => acc + Number(d.maxHours || 0), 0)).toFixed(1));
+  const pctOf = (v, tot) => (tot > 0 ? Math.min(100, Math.round((v / tot) * 100)) : 0);
+  const heroRings = [
+    { key: "week", label: "Settimana", value: fmtNum(weekRetro.actualHours), unit: `di ${fmtNum(weekBudget)} h`,
+      pct: pctOf(weekRetro.actualHours, weekBudget), radius: 72, color: "#0071E3", track: "#E6F0FC", ink: "#0062C4" },
+    { key: "streak", label: "Costanza", value: streak.currentStreak, unit: streak.currentStreak === 1 ? "sera di fila" : "sere di fila",
+      pct: pctOf(streak.currentStreak, nextTierDays), radius: 54, color: "#FF9F0A", track: "#FFEBD1", ink: "#B86E00" },
+    { key: "program", label: "Programma", value: `${global.percent}%`, unit: `${global.completedCount}/${global.totalCount} argomenti`,
+      pct: global.percent, radius: 36, color: "#5E5CE6", track: "#E7E6FB", ink: "#4341C2" }
+  ];
+
   return (
     <div className="space-y-6">
-      {/* Quick Action Banner for Logging Study */}
-      <div className="bg-gradient-to-r from-emerald-950/40 via-slate-900/80 to-teal-950/40 border border-emerald-500/30 rounded-3xl p-4 md:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 backdrop-blur-md shadow-lg">
-        <div className="flex items-center space-x-3.5">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-500 flex items-center justify-center text-white font-black text-xl shadow-md shadow-emerald-500/20">
-            +
-          </div>
-          <div>
-            <h3 className="text-sm md:text-base font-bold text-white flex items-center gap-2">
-              <span>Registra Sessione di Studio</span>
-              <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-mono">
-                Adattamento Dinamico
-              </span>
-            </h3>
-            <p className="text-xs text-slate-300 mt-0.5">
-              Hai svolto ore di studio oggi o in una data passata? Clicca qui per indicare data, ore e argomento: il resto si adatterà in tempo reale!
-            </p>
-          </div>
+      {/* Intestazione in stile Apple: data, titolo grande e azione principale */}
+      <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div>
+          <div className="eyebrow">{heroDateLabel}</div>
+          <h2 className="large-title md:text-[40px] mt-1 text-ink">{heroTitle}</h2>
         </div>
-
         <button
           type="button"
           onClick={() => onOpenLogModal && onOpenLogModal({ date: settings.currentSimulatedDate })}
-          className="w-full sm:w-auto flex items-center justify-center space-x-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold px-4 py-2.5 rounded-2xl text-xs shadow-lg shadow-emerald-500/20 border border-emerald-400/30 transition transform active:scale-95 flex-shrink-0"
+          className="self-start sm:self-auto flex items-center gap-1.5 h-9 px-4 rounded-full bg-accent-tint text-accent-ink text-sm font-semibold hover:brightness-95 transition shrink-0"
+          title="Indica data, ore e argomento: il piano si ribilancia subito"
         >
-          <span className="text-base font-black leading-none">+</span>
-          <span>Registra Ore di Studio</span>
+          <IconPlus className="w-4 h-4" />
+          <span>Registra ore di studio</span>
         </button>
+      </header>
+
+      {/* Anelli, conto alla rovescia e ritmo richiesto */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[1.25fr_1fr_1fr] gap-4">
+        <div className="bg-paper rounded-[20px] p-5 md:p-6 shadow-card flex items-center gap-6 md:col-span-2 xl:col-span-1">
+          <svg width="152" height="152" viewBox="0 0 168 168" className="shrink-0" role="img"
+            aria-label={`Anelli: settimana ${heroRings[0].pct}%, costanza ${heroRings[1].pct}%, programma ${heroRings[2].pct}%`}>
+            <g transform="rotate(-90 84 84)" fill="none" strokeLinecap="round" strokeWidth="16">
+              {heroRings.map(r => {
+                const c = 2 * Math.PI * r.radius;
+                const len = Math.max(0.001, Math.min(1, r.pct / 100)) * c;
+                return (
+                  <g key={r.key}>
+                    <circle cx="84" cy="84" r={r.radius} stroke={r.track} />
+                    {r.pct > 0 && <circle cx="84" cy="84" r={r.radius} stroke={r.color} strokeDasharray={`${len} ${c}`} />}
+                  </g>
+                );
+              })}
+            </g>
+          </svg>
+          <div className="flex flex-col gap-3.5 min-w-0">
+            {heroRings.map(r => (
+              <div key={r.key} className="flex flex-col">
+                <span className="text-xs font-semibold text-ink-2">{r.label}</span>
+                <span className="text-[22px] font-bold tracking-tight tabular leading-tight" style={{ color: r.ink }}>
+                  {r.value}
+                  <span className="text-[13px] font-medium text-ink-2 ml-1">{r.unit}</span>
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-paper rounded-[20px] p-5 md:p-6 shadow-card flex flex-col justify-between gap-4">
+          <span className="text-[13px] font-semibold text-ink-2">All'esame</span>
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-[72px] md:text-[84px] font-extrabold tracking-[-0.06em] leading-[0.9] tabular">{metrics.remainingDays}</span>
+            <span className="text-xl font-semibold tracking-tight">{metrics.remainingDays === 1 ? "giorno" : "giorni"}</span>
+          </div>
+          <div className="flex flex-col gap-2">
+            <div className="h-1.5 rounded-full bg-black/[0.07] overflow-hidden">
+              <div className="h-full rounded-full bg-ink" style={{ width: `${elapsedRoadmapPct}%` }} />
+            </div>
+            <span className="text-[13px] text-ink-2 first-letter:uppercase">{examDateLabel}</span>
+          </div>
+        </div>
+
+        <div className={`rounded-[20px] p-5 md:p-6 flex flex-col justify-between gap-3 ${metrics.isCriticalOverload ? "bg-danger-tint" : "bg-accent-tint"}`}>
+          <div className={`flex items-center gap-2 text-[13px] font-semibold ${metrics.isCriticalOverload ? "text-danger-ink" : "text-accent-ink"}`}>
+            {metrics.isCriticalOverload ? <IconFlame className="w-4 h-4" /> : <IconClock className="w-4 h-4" />}
+            <span>{metrics.isCriticalOverload ? "Sopra la soglia" : "Ritmo richiesto"}</span>
+          </div>
+          <div className="text-[21px] font-bold tracking-tight leading-snug">
+            Servono {fmtNum(metrics.requiredWeeklyHours)} h a settimana.
+          </div>
+          <div className="text-[13px] text-[#3A3A3C] leading-relaxed">
+            {metrics.isCriticalOverload
+              ? `La soglia è ${fmtNum(metrics.criticalWeeklyHoursThreshold)} h: aggiungi tempo con il Time Shifter o accetta un margine più stretto.`
+              : `Sotto la soglia di ${fmtNum(metrics.criticalWeeklyHoursThreshold)} h.`}
+            {" "}Restano {fmtNum(metrics.totalRemainingEffectiveHours)} h, margine incluso (+{fmtNum(metrics.totalBufferHours)} h).
+          </div>
+        </div>
       </div>
 
       {/* Spaced Repetition Active Alert Banner if any due */}
@@ -191,319 +287,101 @@ export function Dashboard({
         </div>
       )}
 
-      {/* KPI Cards Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 2xl:gap-6">
-        {/* Days Left */}
-        <div className="bg-slate-900/80 border border-slate-800/80 p-4 rounded-2xl backdrop-blur-md relative overflow-hidden group hover:border-slate-700 transition">
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider">Target Esame</span>
-            <div className="p-1.5 bg-cyan-500/10 rounded-lg text-cyan-400">
-              <IconCalendar className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="flex items-baseline space-x-1.5">
-            <span className="text-2xl md:text-3xl font-extrabold text-white font-mono">
-              {metrics.remainingDays}
-            </span>
-            <span className="text-xs text-slate-400 font-medium">giorni</span>
-          </div>
-          <div className="mt-1 text-xs text-cyan-400 flex items-center gap-1 font-medium">
-            <span>10 Gennaio 2027</span>
-            <span className="text-slate-500">({metrics.remainingWeeks} sett.)</span>
-          </div>
-        </div>
 
-        {/* Weekly Pace */}
-        <div className={`p-4 rounded-2xl backdrop-blur-md relative overflow-hidden group transition border ${
-          metrics.isCriticalOverload
-            ? "bg-rose-950/40 border-rose-500/40 hover:border-rose-500/60"
-            : "bg-slate-900/80 border-slate-800/80 hover:border-slate-700"
-        }`}>
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider">Fabbisogno Sett.</span>
-            <div className={`p-1.5 rounded-lg ${
-              metrics.isCriticalOverload ? "bg-rose-500/20 text-rose-400" : "bg-indigo-500/10 text-indigo-400"
-            }`}>
-              <IconClock className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="flex items-baseline space-x-1.5">
-            <span className={`text-2xl md:text-3xl font-extrabold font-mono ${
-              metrics.isCriticalOverload ? "text-rose-300" : "text-white"
-            }`}>
-              {metrics.requiredWeeklyHours}
-            </span>
-            <span className="text-xs text-slate-400 font-medium">h / sett.</span>
-          </div>
-          <div className="mt-1 text-xs flex items-center gap-1 font-medium">
-            {metrics.isCriticalOverload ? (
-              <span className="text-rose-400 flex items-center gap-1">
-                <IconFlame className="w-3.5 h-3.5" /> Soglia max superata
-              </span>
-            ) : (
-              <span className="text-emerald-400">Ritmo sostenibile</span>
-            )}
-          </div>
-        </div>
-
-        {/* Remaining Hours */}
-        <div className="bg-slate-900/80 border border-slate-800/80 p-4 rounded-2xl backdrop-blur-md relative overflow-hidden group hover:border-slate-700 transition">
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider">Ore Residue</span>
-            <div className="p-1.5 bg-amber-500/10 rounded-lg text-amber-400">
-              <IconBarChart className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="flex items-baseline space-x-1.5">
-            <span className="text-2xl md:text-3xl font-extrabold text-white font-mono">
-              {metrics.totalRemainingEffectiveHours}
-            </span>
-            <span className="text-xs text-slate-400 font-medium">h effettive</span>
-          </div>
-          <div className="mt-1 text-xs text-amber-400/90 font-medium flex items-center gap-1">
-            <span>+{metrics.totalBufferHours}h buffer (+20%)</span>
-          </div>
-        </div>
-
-        {/* Progress Global */}
-        <div className="bg-slate-900/80 border border-slate-800/80 p-4 rounded-2xl backdrop-blur-md relative overflow-hidden group hover:border-slate-700 transition">
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider">Completamento</span>
-            <div className="p-1.5 bg-emerald-500/10 rounded-lg text-emerald-400">
-              <IconCheckCircle className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="flex items-baseline space-x-1.5">
-            <span className="text-2xl md:text-3xl font-extrabold text-white font-mono">
-              {global.percent}%
-            </span>
-            <span className="text-xs text-slate-400 font-medium">complessivo</span>
-          </div>
-          <div className="mt-1 text-xs text-slate-400 font-medium">
-            <span>{global.completedHours}h di {global.totalHours}h svolte</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Motivation & Streak Hub (Centrale della Costanza Lavoratore) */}
-      <div className="bg-gradient-to-r from-slate-900 via-amber-950/25 to-slate-900 border border-amber-500/40 p-5 md:p-6 rounded-3xl shadow-2xl backdrop-blur-md relative overflow-hidden">
-        {/* Subtle decorative glow */}
-        <div className="absolute -right-12 -top-12 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5">
-          {/* Left: Streak Icon & Big Number */}
-          <div className="flex items-center space-x-4">
-            <div className="relative flex-shrink-0">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-600 to-orange-500 border border-amber-400/50 flex items-center justify-center text-3xl shadow-lg shadow-amber-500/25">
-                🔥
-              </div>
-              {streak.currentStreak > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-4 w-4">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-4 w-4 bg-amber-500 border-2 border-slate-950"></span>
-                </span>
-              )}
-            </div>
-
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-mono font-black uppercase tracking-wider text-amber-400 bg-amber-500/15 border border-amber-500/30 px-2.5 py-0.5 rounded-full flex items-center gap-1">
-                  <span>STREAK DI STUDIO ATTIVA</span>
-                </span>
-                <span className="text-xs text-slate-400">
-                  Record: <strong className="text-white font-mono">{streak.bestStreak} gg</strong>
-                </span>
-              </div>
-              <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight mt-1">
-                {streak.currentStreak} {streak.currentStreak === 1 ? "Giorno Consecutivo" : "Giorni Consecutivi"}
+      {/* Costanza e previsione d'esame */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <section className="bg-paper rounded-[20px] p-5 md:p-6 shadow-card flex flex-col gap-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <span className="text-[13px] font-semibold text-ink-2">Costanza</span>
+              <h3 className="text-[22px] font-bold tracking-tight mt-0.5">
+                {streak.currentStreak} {streak.currentStreak === 1 ? "sera di fila" : "sere di fila"}
               </h3>
-              <p className="text-xs text-slate-300 mt-0.5 flex items-center gap-1.5">
-                <span className="text-base">{streak.badgeIcon}</span>
-                <strong className="text-amber-300 font-bold">{streak.badgeName}</strong>
-                <span className="text-slate-400 hidden sm:inline">• {streak.badgeDesc}</span>
+              <p className="text-[13px] text-ink-2 mt-0.5">
+                {streak.badgeName}{streak.badgeDesc ? ` · ${streak.badgeDesc}` : ""}
               </p>
             </div>
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-warn-tint text-warn-ink whitespace-nowrap tabular">
+              Record {streak.bestStreak} gg
+            </span>
           </div>
 
-          {/* Right: Next Level Progression Bar */}
-          <div className="w-full lg:w-auto flex flex-col sm:flex-row lg:flex-col gap-3 min-w-[280px]">
-            <div className="bg-slate-950/80 border border-slate-800 p-3 rounded-2xl flex-1">
-              <div className="flex items-center justify-between text-xs mb-1.5 font-medium">
-                <span className="text-slate-400">Prossimo Titolo:</span>
-                <span className="text-amber-300 font-bold flex items-center gap-1">
-                  {nextTierIcon} {nextTierName}
-                </span>
-              </div>
-              <div className="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-amber-500 to-orange-400 rounded-full transition-all duration-500"
-                  style={{ width: `${tierProgressPct}%` }}
-                />
-              </div>
-              <div className="text-[10px] text-slate-400 mt-1 flex justify-between font-mono">
-                <span>{streak.currentStreak} / {nextTierDays} giorni</span>
-                <span className="text-amber-400 font-bold">Mancano {daysToNextTier} {daysToNextTier === 1 ? "sera" : "sere"}</span>
-              </div>
+          <div className="flex flex-col gap-1.5">
+            <div className="flex justify-between gap-3 text-[13px]">
+              <span className="text-ink-2">Prossimo traguardo: <span className="text-ink font-medium">{nextTierName}</span></span>
+              <span className="text-ink-2 tabular">{streak.currentStreak}/{nextTierDays}</span>
             </div>
-          </div>
-        </div>
-
-        {/* Motivational Quote & 4 Achievement Badges */}
-        <div className="mt-5 pt-4 border-t border-slate-800/80 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          {/* Worker Daily Quote */}
-          <div className="flex items-start space-x-2 text-xs text-slate-300 italic max-w-2xl">
-            <span className="text-amber-400 text-lg leading-none font-serif flex-shrink-0">“</span>
-            <span>{dailyQuote}</span>
+            <div className="h-1.5 rounded-full bg-black/[0.07] overflow-hidden">
+              <div className="h-full rounded-full bg-warn transition-all duration-500" style={{ width: `${tierProgressPct}%` }} />
+            </div>
+            <span className="text-xs text-ink-2">Mancano {daysToNextTier} {daysToNextTier === 1 ? "sera" : "sere"}</span>
           </div>
 
-          {/* 4 Mini Achievement Badges */}
-          <div className="flex items-center gap-1.5 flex-wrap flex-shrink-0">
-            {[
-              {
-                id: "first_topic",
-                icon: "🌟",
-                label: "Primo Passo",
-                unlocked: global.completedCount > 0,
-                desc: "Primo argomento chiuso"
-              },
-              {
-                id: "dual_subject",
-                icon: "⚔️",
-                label: "Doppio Motore",
-                unlocked: analisi.completedHours > 0 && geometria.completedHours > 0,
-                desc: "Analisi e Geometria avviate"
-              },
-              {
-                id: "focus_master",
-                icon: "🍅",
-                label: "Focus Master",
-                unlocked: metrics.pastDaysStudied > 0,
-                desc: "Sessione di studio svolta"
-              },
-              {
-                id: "streak_warrior",
-                icon: "🛡️",
-                label: "Costanza",
-                unlocked: streak.currentStreak >= 3,
-                desc: "Almeno 3gg consecutivi"
-              }
-            ].map(ach => (
-              <div
+          <p className="text-[13px] text-[#3A3A3C] leading-relaxed border-t border-black/[0.06] pt-4">{dailyQuote}</p>
+
+          <div className="flex flex-wrap gap-1.5">
+            {achievements.map(ach => (
+              <span
                 key={ach.id}
-                className={`flex items-center space-x-1 px-2.5 py-1 rounded-xl text-[10px] font-bold border transition ${
-                  ach.unlocked
-                    ? "bg-amber-500/20 text-amber-200 border-amber-500/40 shadow-sm"
-                    : "bg-slate-950/40 text-slate-600 border-slate-800 opacity-60"
+                title={`${ach.label}: ${ach.desc} (${ach.unlocked ? "sbloccato" : "da sbloccare"})`}
+                className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full ${
+                  ach.unlocked ? "bg-ok-tint text-ok-ink" : "bg-black/[0.04] text-ink-3"
                 }`}
-                title={`${ach.label}: ${ach.desc} ${ach.unlocked ? '(Sbloccato! ✓)' : '(Da sbloccare)'}`}
               >
-                <span>{ach.icon}</span>
-                <span className="hidden sm:inline">{ach.label}</span>
-                {ach.unlocked && <span className="text-emerald-400">✓</span>}
-              </div>
+                {ach.unlocked && <IconCheck className="w-3 h-3" />}
+                {ach.label}
+              </span>
             ))}
           </div>
-        </div>
-      </div>
+        </section>
 
-      {/* Heuristic Exam Prediction & Grade Forecast (Punto 4) */}
-      {metrics?.examPrediction && (
-        <div className={`p-5 rounded-3xl border backdrop-blur-md shadow-xl transition ${
-          metrics.examPrediction.riskColor === "emerald"
-            ? "bg-gradient-to-r from-emerald-950/40 via-slate-900/90 to-teal-950/40 border-emerald-500/30 shadow-emerald-950/20"
-            : metrics.examPrediction.riskColor === "cyan"
-            ? "bg-gradient-to-r from-cyan-950/40 via-slate-900/90 to-indigo-950/40 border-cyan-500/30 shadow-cyan-950/20"
-            : metrics.examPrediction.riskColor === "amber"
-            ? "bg-gradient-to-r from-amber-950/40 via-slate-900/90 to-orange-950/40 border-amber-500/30 shadow-amber-950/20"
-            : "bg-gradient-to-r from-rose-950/50 via-slate-900/90 to-red-950/40 border-rose-500/40 shadow-rose-950/30"
-        }`}>
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-            <div className="flex items-center space-x-3.5">
-              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-xl border flex-shrink-0 ${
-                metrics.examPrediction.riskColor === "emerald"
-                  ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-300"
-                  : metrics.examPrediction.riskColor === "cyan"
-                  ? "bg-cyan-500/20 border-cyan-500/40 text-cyan-300"
-                  : metrics.examPrediction.riskColor === "amber"
-                  ? "bg-amber-500/20 border-amber-500/40 text-amber-300"
-                  : "bg-rose-500/20 border-rose-500/40 text-rose-300"
-              }`}>
-                🎯
-              </div>
-              <div>
-                <div className="flex items-center space-x-2">
-                  <h3 className="text-base font-extrabold text-white">
-                    Previsione Esame & Voto Atteso
-                  </h3>
-                  <span className={`text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full border ${
-                    metrics.examPrediction.riskColor === "emerald"
-                      ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
-                      : metrics.examPrediction.riskColor === "cyan"
-                      ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/40"
-                      : metrics.examPrediction.riskColor === "amber"
-                      ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
-                      : "bg-rose-500/20 text-rose-300 border-rose-500/40 animate-pulse"
-                  }`}>
-                    {metrics.examPrediction.riskLevel}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-300 mt-0.5">
-                  Algoritmo euristico predittivo basato su ritmo orario, costanza serale e completamento temi propedeutici.
+        {metrics?.examPrediction && (
+          <section className="bg-paper rounded-[20px] p-5 md:p-6 shadow-card flex flex-col gap-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <span className="text-[13px] font-semibold text-ink-2">Previsione d'esame</span>
+                <h3 className="text-[22px] font-bold tracking-tight mt-0.5">Voto stimato {metrics.examPrediction.gradeLabel}</h3>
+                <p className="text-[13px] text-ink-2 mt-0.5">
+                  Stima basata su ritmo orario, costanza serale e argomenti completati.
                 </p>
               </div>
+              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${
+                {
+                  emerald: "bg-ok-tint text-ok-ink",
+                  cyan: "bg-accent-tint text-accent-ink",
+                  amber: "bg-warn-tint text-warn-ink"
+                }[metrics.examPrediction.riskColor] || "bg-danger-tint text-danger-ink"
+              }`}>
+                {metrics.examPrediction.riskLevel}
+              </span>
             </div>
 
-            {/* Score & Probability Badges */}
-            <div className="flex items-center gap-3 w-full lg:w-auto justify-between lg:justify-end">
-              <div className="bg-slate-950/80 border border-slate-800 p-2.5 px-3.5 rounded-2xl text-center">
-                <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">
-                  Probabilità Superamento
-                </span>
-                <span className={`text-xl font-black font-mono ${
-                  metrics.examPrediction.passProbability >= 70 ? "text-emerald-400" : "text-amber-400"
-                }`}>
-                  {metrics.examPrediction.passProbability}%
-                </span>
-              </div>
-
-              <div className="bg-slate-950/80 border border-slate-800 p-2.5 px-3.5 rounded-2xl text-center">
-                <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">
-                  Voto Stimato
-                </span>
-                <span className="text-xl font-black text-cyan-300 font-mono">
-                  {metrics.examPrediction.gradeLabel}
-                </span>
-              </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-auto">
+              {[
+                { label: "Probabilità", value: `${metrics.examPrediction.passProbability}%` },
+                { label: "Ritmo richiesto", value: `${fmtNum(metrics.examPrediction.requiredWeeklyHours)} h/sett.` },
+                { label: "Sere attive", value: `${metrics.examPrediction.consistencyRate}%` },
+                { label: "Argomenti chiusi", value: `${metrics.examPrediction.completionPercent}%` }
+              ].map(tile => (
+                <div key={tile.label} className="bg-canvas rounded-xl p-3">
+                  <div className="text-xs text-ink-2">{tile.label}</div>
+                  <div className="text-lg font-bold tracking-tight tabular mt-0.5">{tile.value}</div>
+                </div>
+              ))}
             </div>
-          </div>
-
-          {/* Sub-metrics breakdown */}
-          <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-slate-800/80 text-xs">
-            <div className="p-2 bg-slate-950/60 rounded-xl border border-slate-800/60 text-center">
-              <span className="text-slate-400 text-[10px] block">Passo Richiesto</span>
-              <strong className="text-slate-200 font-mono">{metrics.examPrediction.requiredWeeklyHours}h / sett.</strong>
-            </div>
-            <div className="p-2 bg-slate-950/60 rounded-xl border border-slate-800/60 text-center">
-              <span className="text-slate-400 text-[10px] block">Indice di Costanza</span>
-              <strong className="text-slate-200 font-mono">{metrics.examPrediction.consistencyRate}% sere attive</strong>
-            </div>
-            <div className="p-2 bg-slate-950/60 rounded-xl border border-slate-800/60 text-center">
-              <span className="text-slate-400 text-[10px] block">Completamento Didattico</span>
-              <strong className="text-slate-200 font-mono">{metrics.examPrediction.completionPercent}% argomenti</strong>
-            </div>
-          </div>
-        </div>
-      )}
+          </section>
+        )}
+      </div>
 
       {/* Main Two Progress Bars with Real-Time Pacing Indicators (Analisi 1 & Geometria) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {/* Analisi 1 Progress Card with Pacing Indicator */}
-        <div className="bg-gradient-to-b from-slate-900/90 to-slate-950/90 border border-emerald-500/20 p-5 md:p-6 rounded-3xl shadow-xl shadow-emerald-950/10 relative overflow-hidden flex flex-col justify-between">
+        <div className="bg-gradient-to-b from-slate-900/90 to-slate-950/90 border border-indigo-500/20 p-5 md:p-6 rounded-3xl shadow-xl shadow-indigo-950/10 relative overflow-hidden flex flex-col justify-between">
           <div>
             <div className="flex items-start justify-between mb-3">
               <div>
                 <div className="flex items-center space-x-2">
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
                     ANALISI MATEMATICA 1
                   </span>
                   <span className="text-xs text-slate-400">UNIMORE</span>
@@ -511,7 +389,7 @@ export function Dashboard({
                 <h3 className="text-xl font-bold text-white mt-1">Stato Avanzamento Analisi</h3>
               </div>
               <div className="text-right flex flex-col items-end">
-                <span className="text-3xl font-black text-emerald-400 font-mono leading-none">
+                <span className="text-3xl font-black text-indigo-400 font-mono leading-none">
                   {analisi.percent}%
                 </span>
                 <span className={`text-[10px] font-bold font-mono px-2.5 py-0.5 rounded-full border mt-1.5 ${pacingAnalisi.badgeClass}`}>
@@ -535,7 +413,7 @@ export function Dashboard({
             <div className="space-y-1.5 mb-4">
               <div className="relative w-full h-4 bg-slate-800/90 rounded-full overflow-hidden p-0.5 border border-slate-700/50">
                 <div
-                  className="h-full bg-gradient-to-r from-teal-500 to-emerald-400 rounded-full transition-all duration-700 ease-out shadow-sm shadow-emerald-500/50"
+                  className="h-full bg-gradient-to-r from-indigo-500 to-indigo-400 rounded-full transition-all duration-700 ease-out shadow-sm shadow-indigo-500/50"
                   style={{ width: `${Math.max(2, analisi.percent)}%` }}
                 />
                 {/* Expected Target Tick Marker */}
@@ -563,7 +441,7 @@ export function Dashboard({
               </div>
               <div className="bg-slate-900/50 p-2.5 rounded-xl border border-slate-800">
                 <div className="text-xs text-slate-400">Ore Residue</div>
-                <div className="text-sm font-bold text-emerald-300 font-mono mt-0.5">
+                <div className="text-sm font-bold text-indigo-300 font-mono mt-0.5">
                   {analisi.remainingHours}h
                 </div>
               </div>
@@ -582,7 +460,7 @@ export function Dashboard({
             </span>
             <button
               onClick={() => onTabChange("weekly")}
-              className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition flex items-center gap-1"
+              className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition flex items-center gap-1"
             >
               Vedi orari Analisi →
             </button>
@@ -590,12 +468,12 @@ export function Dashboard({
         </div>
 
         {/* Geometria Progress Card with Pacing Indicator */}
-        <div className="bg-gradient-to-b from-slate-900/90 to-slate-950/90 border border-indigo-500/20 p-5 md:p-6 rounded-3xl shadow-xl shadow-indigo-950/10 relative overflow-hidden flex flex-col justify-between">
+        <div className="bg-gradient-to-b from-slate-900/90 to-slate-950/90 border border-teal-500/20 p-5 md:p-6 rounded-3xl shadow-xl shadow-teal-950/10 relative overflow-hidden flex flex-col justify-between">
           <div>
             <div className="flex items-start justify-between mb-3">
               <div>
                 <div className="flex items-center space-x-2">
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-teal-500/20 text-teal-300 border border-teal-500/30">
                     GEOMETRIA E ALGEBRA
                   </span>
                   <span className="text-xs text-slate-400">UNIMORE</span>
@@ -603,7 +481,7 @@ export function Dashboard({
                 <h3 className="text-xl font-bold text-white mt-1">Stato Avanzamento Geometria</h3>
               </div>
               <div className="text-right flex flex-col items-end">
-                <span className="text-3xl font-black text-indigo-400 font-mono leading-none">
+                <span className="text-3xl font-black text-teal-400 font-mono leading-none">
                   {geometria.percent}%
                 </span>
                 <span className={`text-[10px] font-bold font-mono px-2.5 py-0.5 rounded-full border mt-1.5 ${pacingGeometria.badgeClass}`}>
@@ -627,7 +505,7 @@ export function Dashboard({
             <div className="space-y-1.5 mb-4">
               <div className="relative w-full h-4 bg-slate-800/90 rounded-full overflow-hidden p-0.5 border border-slate-700/50">
                 <div
-                  className="h-full bg-gradient-to-r from-violet-500 to-indigo-400 rounded-full transition-all duration-700 ease-out shadow-sm shadow-indigo-500/50"
+                  className="h-full bg-gradient-to-r from-teal-500 to-teal-400 rounded-full transition-all duration-700 ease-out shadow-sm shadow-teal-500/50"
                   style={{ width: `${Math.max(2, geometria.percent)}%` }}
                 />
                 {/* Expected Target Tick Marker */}
@@ -655,7 +533,7 @@ export function Dashboard({
               </div>
               <div className="bg-slate-900/50 p-2.5 rounded-xl border border-slate-800">
                 <div className="text-xs text-slate-400">Ore Residue</div>
-                <div className="text-sm font-bold text-indigo-300 font-mono mt-0.5">
+                <div className="text-sm font-bold text-teal-300 font-mono mt-0.5">
                   {geometria.remainingHours}h
                 </div>
               </div>
@@ -674,7 +552,7 @@ export function Dashboard({
             </span>
             <button
               onClick={() => onTabChange("weekly")}
-              className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition flex items-center gap-1"
+              className="text-xs font-semibold text-teal-400 hover:text-teal-300 transition flex items-center gap-1"
             >
               Vedi orari Geometria →
             </button>

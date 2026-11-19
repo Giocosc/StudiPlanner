@@ -1,4 +1,4 @@
-const CACHE_NAME = 'studiplanner-v3'; // v3: elimina le risposte API GitLab messe in cache dalle versioni precedenti
+const CACHE_NAME = 'studiplanner-v4'; // v4: tema chiaro. v3: elimina le risposte API GitLab messe in cache dalle versioni precedenti
 const STATIC_ASSETS = [
   './',
   './index.html',

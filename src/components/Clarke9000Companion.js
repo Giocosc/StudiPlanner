@@ -335,7 +335,7 @@ export function Clarke9000Companion({ progress, metrics }) {
         <div
           onMouseEnter={handlePanelInteraction}
           onClick={handlePanelInteraction}
-          className="mb-3 w-80 sm:w-96 rounded-2xl bg-black/95 border border-rose-500/40 p-4 shadow-2xl shadow-rose-950/50 backdrop-blur-xl text-slate-200 animate-in fade-in slide-in-from-bottom-2 duration-300"
+          className="mb-3 w-80 sm:w-96 rounded-2xl bg-slate-900 border border-rose-500/30 p-4 shadow-2xl shadow-rose-950/50 backdrop-blur-xl text-slate-200 animate-in fade-in slide-in-from-bottom-2 duration-300"
         >
           {/* Header */}
           <div className="flex items-center justify-between pb-2 mb-2 border-b border-rose-900/40 text-[11px]">
@@ -426,7 +426,7 @@ export function Clarke9000Companion({ progress, metrics }) {
         {/* Chassis: Chrome & Glossy Black Ring */}
         <div className="relative w-12 h-12 md:w-14 md:h-14 rounded-full bg-gradient-to-br from-slate-700 via-slate-900 to-black p-1 shadow-2xl border border-slate-600 flex items-center justify-center">
           {/* Inner bezel */}
-          <div className="w-full h-full rounded-full bg-black p-1.5 flex items-center justify-center border border-slate-800">
+          <div className="w-full h-full rounded-full bg-[#1D1D1F] p-1.5 flex items-center justify-center border border-slate-800">
             {/* The Iconic HAL / CLARKE Glowing Red Eye */}
             <div
               className={`w-full h-full rounded-full transition-all duration-300 relative overflow-hidden flex items-center justify-center ${
@@ -439,7 +439,7 @@ export function Clarke9000Companion({ progress, metrics }) {
               }}
             >
               {/* Pupil point reflection */}
-              <div className="w-1.5 h-1.5 rounded-full bg-white/90 shadow-[0_0_4px_#fff]" />
+              <div className="w-1.5 h-1.5 rounded-full bg-paper/90" />
             </div>
           </div>
         </div>

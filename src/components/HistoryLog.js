@@ -228,7 +228,7 @@ export function HistoryLog({
                   {day.topics.map(t => (
                     <div
                       key={t.sessionId || (t.id + '_' + (t.isSessionLog ? 'log' : 'topic'))}
-                      className="flex items-center justify-between text-xs bg-black/30 p-2.5 rounded-xl border border-slate-800/60"
+                      className="flex items-center justify-between text-xs bg-slate-850 p-2.5 rounded-xl border border-slate-800/60"
                     >
                       <div className="flex items-center space-x-2 min-w-0 flex-1 pr-2">
                         <button

@@ -3511,8 +3511,8 @@ function NeuraDeckPromptGenerator({ isOpen, onClose, topics = [], settings = {} 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-fade-in overflow-y-auto">
-      <div className="bg-[#0b1120] border border-cyan-500/30 rounded-3xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl shadow-cyan-950/40 overflow-hidden my-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/25 backdrop-blur-sm animate-fade-in overflow-y-auto">
+      <div className="bg-slate-900 border border-cyan-500/30 rounded-3xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl shadow-cyan-950/40 overflow-hidden my-auto">
         {/* Header Modal */}
         <div className="px-6 py-4.5 bg-gradient-to-r from-slate-900 via-slate-900 to-cyan-950/60 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -3704,8 +3704,8 @@ function NeuraDeckPromptGenerator({ isOpen, onClose, topics = [], settings = {} 
                         <div className="flex items-center space-x-2 flex-wrap gap-y-1">
                           <span className={`text-[10px] font-bold font-mono px-2 py-0.5 rounded-md ${
                             isAnalisi
-                              ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                              : "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                              ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                              : "bg-teal-500/20 text-teal-300 border border-teal-500/30"
                           }`}>
                             {t.id}
                           </span>
@@ -4045,8 +4045,8 @@ function ExamSimulator({ isOpen, onClose, topics = [], settings = {} }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-fade-in overflow-y-auto">
-      <div className="bg-[#0b1120] border border-indigo-500/30 rounded-3xl w-full max-w-5xl max-h-[94vh] flex flex-col shadow-2xl shadow-indigo-950/40 overflow-hidden my-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/25 backdrop-blur-sm animate-fade-in overflow-y-auto">
+      <div className="bg-slate-900 border border-indigo-500/30 rounded-3xl w-full max-w-5xl max-h-[94vh] flex flex-col shadow-2xl shadow-indigo-950/40 overflow-hidden my-auto">
         {/* Header Modal */}
         <div className="px-6 py-4 bg-gradient-to-r from-slate-900 via-slate-900 to-indigo-950/60 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -4113,7 +4113,7 @@ function ExamSimulator({ isOpen, onClose, topics = [], settings = {} }) {
                 onClick={() => setSelectedSubject("Analisi 1")}
                 className={`px-3 py-1 text-xs font-bold rounded-lg transition ${
                   isAnalisi
-                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                    ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/40"
                     : "text-slate-400 hover:text-white"
                 }`}
               >
@@ -4124,7 +4124,7 @@ function ExamSimulator({ isOpen, onClose, topics = [], settings = {} }) {
                 onClick={() => setSelectedSubject("Geometria")}
                 className={`px-3 py-1 text-xs font-bold rounded-lg transition ${
                   !isAnalisi
-                    ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/40"
+                    ? "bg-teal-500/20 text-teal-300 border border-teal-500/40"
                     : "text-slate-400 hover:text-white"
                 }`}
               >
@@ -4285,8 +4285,8 @@ function ExamSimulator({ isOpen, onClose, topics = [], settings = {} }) {
                               <div className="flex items-center space-x-2">
                                 <span className={`text-[10px] font-bold font-mono px-2 py-0.5 rounded-md ${
                                   isAnalisi
-                                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                                    : "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                                    ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                                    : "bg-teal-500/20 text-teal-300 border border-teal-500/30"
                                 }`}>
                                   {t.id}
                                 </span>
@@ -4572,8 +4572,8 @@ function MathBugTracker({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-fade-in overflow-y-auto">
-      <div className="bg-[#0b1120] border border-rose-500/30 rounded-3xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl shadow-rose-950/40 overflow-hidden my-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/25 backdrop-blur-sm animate-fade-in overflow-y-auto">
+      <div className="bg-slate-900 border border-rose-500/30 rounded-3xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl shadow-rose-950/40 overflow-hidden my-auto">
         {/* Header */}
         <div className="px-6 py-4 bg-gradient-to-r from-slate-900 via-slate-900 to-rose-950/50 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -4622,7 +4622,7 @@ function MathBugTracker({
                 type="button"
                 onClick={() => setFilterSubject("Analisi 1")}
                 className={`px-3 py-1 rounded-lg font-bold transition ${
-                  filterSubject === "Analisi 1" ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30" : "text-slate-400 hover:text-white"
+                  filterSubject === "Analisi 1" ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30" : "text-slate-400 hover:text-white"
                 }`}
               >
                 Analisi 1
@@ -4631,7 +4631,7 @@ function MathBugTracker({
                 type="button"
                 onClick={() => setFilterSubject("Geometria")}
                 className={`px-3 py-1 rounded-lg font-bold transition ${
-                  filterSubject === "Geometria" ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30" : "text-slate-400 hover:text-white"
+                  filterSubject === "Geometria" ? "bg-teal-500/20 text-teal-300 border border-teal-500/30" : "text-slate-400 hover:text-white"
                 }`}
               >
                 Geometria
@@ -5067,7 +5067,7 @@ function MathFormulaDrawer({ isOpen, onClose }) {
       />
 
       {/* Slide-over panel */}
-      <div className="relative w-full max-w-2xl bg-[#0b101e] border-l border-slate-800 shadow-2xl flex flex-col h-full z-10 animate-in slide-in-from-right duration-300">
+      <div className="relative w-full max-w-2xl bg-slate-900 border-l border-slate-800 shadow-2xl flex flex-col h-full z-10 animate-in slide-in-from-right duration-300">
         {/* Header */}
         <div className="p-5 border-b border-slate-800/80 bg-slate-900/60 flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -5141,15 +5141,15 @@ function MathFormulaDrawer({ isOpen, onClose }) {
                 key={item.id}
                 className={`p-4 rounded-2xl border transition ${
                   item.category === "analisi"
-                    ? "bg-emerald-950/15 border-emerald-500/25 hover:border-emerald-500/40"
-                    : "bg-indigo-950/15 border-indigo-500/25 hover:border-indigo-500/40"
+                    ? "bg-indigo-950/15 border-indigo-500/25 hover:border-indigo-500/40"
+                    : "bg-teal-950/15 border-teal-500/25 hover:border-teal-500/40"
                 }`}
               >
                 <div className="flex items-center justify-between mb-1.5">
                   <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
                     item.category === "analisi"
-                      ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                      : "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                      ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                      : "bg-teal-500/20 text-teal-300 border border-teal-500/30"
                   }`}>
                     {item.topic}
                   </span>
@@ -5519,7 +5519,7 @@ function Clarke9000Companion({ progress, metrics }) {
         <div
           onMouseEnter={handlePanelInteraction}
           onClick={handlePanelInteraction}
-          className="mb-3 w-80 sm:w-96 rounded-2xl bg-black/95 border border-rose-500/40 p-4 shadow-2xl shadow-rose-950/50 backdrop-blur-xl text-slate-200 animate-in fade-in slide-in-from-bottom-2 duration-300"
+          className="mb-3 w-80 sm:w-96 rounded-2xl bg-slate-900 border border-rose-500/30 p-4 shadow-2xl shadow-rose-950/50 backdrop-blur-xl text-slate-200 animate-in fade-in slide-in-from-bottom-2 duration-300"
         >
           {/* Header */}
           <div className="flex items-center justify-between pb-2 mb-2 border-b border-rose-900/40 text-[11px]">
@@ -5610,7 +5610,7 @@ function Clarke9000Companion({ progress, metrics }) {
         {/* Chassis: Chrome & Glossy Black Ring */}
         <div className="relative w-12 h-12 md:w-14 md:h-14 rounded-full bg-gradient-to-br from-slate-700 via-slate-900 to-black p-1 shadow-2xl border border-slate-600 flex items-center justify-center">
           {/* Inner bezel */}
-          <div className="w-full h-full rounded-full bg-black p-1.5 flex items-center justify-center border border-slate-800">
+          <div className="w-full h-full rounded-full bg-[#1D1D1F] p-1.5 flex items-center justify-center border border-slate-800">
             {/* The Iconic HAL / CLARKE Glowing Red Eye */}
             <div
               className={`w-full h-full rounded-full transition-all duration-300 relative overflow-hidden flex items-center justify-center ${
@@ -5623,7 +5623,7 @@ function Clarke9000Companion({ progress, metrics }) {
               }}
             >
               {/* Pupil point reflection */}
-              <div className="w-1.5 h-1.5 rounded-full bg-white/90 shadow-[0_0_4px_#fff]" />
+              <div className="w-1.5 h-1.5 rounded-full bg-paper/90" />
             </div>
           </div>
         </div>
@@ -5750,16 +5750,15 @@ function BurndownChart({ metrics, progress, settings }) {
                   y1={y}
                   x2={width - padRight}
                   y2={y}
-                  stroke="#1e293b"
+                  stroke={pct === 1 ? "#E5E5EA" : "#F2F2F5"}
                   strokeWidth="1"
-                  strokeDasharray="4 4"
                 />
                 <text
                   x={padLeft - 10}
                   y={y + 4}
-                  fill="#64748b"
-                  fontSize="10"
-                  fontFamily="monospace"
+                  fill="#6E6E73"
+                  fontSize="11"
+                  fontFamily="inherit"
                   textAnchor="end"
                 >
                   {hrs}h
@@ -5774,9 +5773,9 @@ function BurndownChart({ metrics, progress, settings }) {
             y1={idealY1}
             x2={idealX2}
             y2={idealY2}
-            stroke="#94a3b8"
-            strokeWidth="2.5"
-            strokeDasharray="6 6"
+            stroke="#C7C7CC"
+            strokeWidth="1.5"
+            strokeDasharray="4 5"
           />
 
           {/* Actual Line (Start to Today) */}
@@ -5785,7 +5784,7 @@ function BurndownChart({ metrics, progress, settings }) {
             y1={idealY1}
             x2={todayX}
             y2={todayY}
-            stroke={isAheadOfSchedule ? "#10b981" : "#f59e0b"}
+            stroke="#0071E3"
             strokeWidth="3.5"
             strokeLinecap="round"
           />
@@ -5796,59 +5795,50 @@ function BurndownChart({ metrics, progress, settings }) {
             y1={todayY}
             x2={idealX2}
             y2={idealY2}
-            stroke={isAheadOfSchedule ? "#065f46" : "#78350f"}
+            stroke="#0071E3"
             strokeWidth="2"
-            strokeDasharray="3 3"
+            strokeDasharray="1 6"
+            strokeLinecap="round"
           />
 
           {/* Start Point */}
-          <circle cx={idealX1} cy={idealY1} r="5" fill="#38bdf8" />
+          <circle cx={idealX1} cy={idealY1} r="4" fill="#0071E3" />
 
           {/* Today Point */}
           <circle
             cx={todayX}
             cy={todayY}
-            r="7"
-            fill={isAheadOfSchedule ? "#10b981" : "#f59e0b"}
-            stroke="#070b14"
+            r="6"
+            fill="#FFFFFF"
+            stroke="#0071E3"
             strokeWidth="3"
-            className="animate-pulse"
           />
 
           {/* Today Label Tag */}
-          <rect
-            x={todayX - 35}
-            y={todayY - 26}
-            width="70"
-            height="18"
-            rx="5"
-            fill="#0f172a"
-            stroke={isAheadOfSchedule ? "#10b981" : "#f59e0b"}
-            strokeWidth="1"
-          />
           <text
-            x={todayX}
-            y={todayY - 14}
-            fill="#f8fafc"
-            fontSize="9"
-            fontWeight="bold"
-            fontFamily="monospace"
-            textAnchor="middle"
+            x={todayX + 14}
+            y={todayY - 12}
+            fill="#1D1D1F"
+            fontSize="12"
+            fontWeight="600"
+            fontFamily="inherit"
           >
-            OGGI: {remainingHours}h
+            Oggi · {remainingHours} h
           </text>
 
           {/* End Point (10 Jan 2027) */}
-          <circle cx={idealX2} cy={idealY2} r="5" fill="#a855f7" />
+          <circle cx={idealX2} cy={idealY2} r="4" fill="#1D1D1F" />
 
           {/* X Axis Labels */}
-          <text x={idealX1} y={height - 12} fill="#94a3b8" fontSize="10" fontFamily="sans-serif">
+          <text x={idealX1} y={height - 12} fill="#6E6E73" fontSize="11" fontFamily="inherit">
             Inizio ({formatShortDate(roadmapStartDate)})
           </text>
-          <text x={todayX} y={height - 12} fill="#38bdf8" fontSize="10" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">
-            Data Odierna
-          </text>
-          <text x={idealX2} y={height - 12} fill="#c084fc" fontSize="10" textAnchor="end" fontFamily="sans-serif">
+          {todayX - idealX1 > 90 && idealX2 - todayX > 90 && (
+            <text x={todayX} y={height - 12} fill="#0062C4" fontSize="11" fontWeight="600" textAnchor="middle" fontFamily="inherit">
+              Oggi
+            </text>
+          )}
+          <text x={idealX2} y={height - 12} fill="#6E6E73" fontSize="11" textAnchor="end" fontFamily="inherit">
             Esame ({formatShortDate(targetExamDate)})
           </text>
         </svg>
@@ -5862,7 +5852,7 @@ function BurndownChart({ metrics, progress, settings }) {
             <span>Traiettoria Ideale</span>
           </div>
           <div className="flex items-center space-x-1.5">
-            <span className={`w-3.5 h-1 rounded inline-block ${isAheadOfSchedule ? "bg-emerald-400" : "bg-amber-400"}`}></span>
+            <span className="w-3.5 h-1 rounded inline-block bg-accent"></span>
             <span>Ore Stimate Residue</span>
           </div>
         </div>
@@ -5956,7 +5946,9 @@ function Dashboard({
   onOpenTopicDetail,
   onToggleSpacedReview,
   mathBugs = [],
-  onOpenBugTracker
+  onOpenBugTracker,
+  currentWeekPlan = null,
+  todayPlan = null
 }) {
   const { analisi, geometria, global } = progress;
   const [isFlashcardsOpen, setIsFlashcardsOpen] = useState(false);
@@ -6001,35 +5993,127 @@ function Dashboard({
   const quoteIndex = Math.abs((settings.currentSimulatedDate || "").split("-").reduce((acc, c) => acc + c.charCodeAt(0), 0)) % workerQuotes.length;
   const dailyQuote = workerQuotes[quoteIndex];
 
+  const achievements = [
+    { id: "first_topic", label: "Primo passo", unlocked: global.completedCount > 0, desc: "Primo argomento chiuso" },
+    { id: "dual_subject", label: "Doppio motore", unlocked: analisi.completedHours > 0 && geometria.completedHours > 0, desc: "Analisi e Geometria avviate" },
+    { id: "focus_master", label: "Focus", unlocked: metrics.pastDaysStudied > 0, desc: "Sessione di studio svolta" },
+    { id: "streak_warrior", label: "Costanza", unlocked: streak.currentStreak >= 3, desc: "Almeno 3 giorni consecutivi" }
+  ];
+
+  // --- Intestazione e anelli (tema "Calma, stile Apple") ---
+  const fmtNum = (n) => Number(n || 0).toLocaleString("it-IT", { maximumFractionDigits: 1 });
+  const parseDay = (s) => new Date(String(s || "") + "T00:00:00");
+  const todayStr = settings.currentSimulatedDate;
+  const examStr = settings.targetExamDate || DEFAULT_TARGET_EXAM_DATE;
+  const startStr = settings.roadmapStartDate || DEFAULT_ROADMAP_START_DATE;
+  const heroDateLabel = todayStr
+    ? parseDay(todayStr).toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long" })
+    : "";
+  const examDateLabel = parseDay(examStr).toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  const plannedToday = Number(todayPlan?.allocatedHours || 0);
+  let heroTitle;
+  if (todayStr && todayStr === examStr) heroTitle = "Oggi è il giorno dell'esame.";
+  else if (todayStr && todayStr > examStr) heroTitle = "Il periodo di studio è concluso.";
+  else if (!todayPlan || todayPlan.enabled === false || plannedToday <= 0) heroTitle = "Oggi non c'è studio in programma.";
+  else heroTitle = `Oggi, ${fmtNum(plannedToday)} ${plannedToday === 1 ? "ora" : "ore"} di studio.`;
+
+  const roadmapDays = Math.max(1, Math.round((parseDay(examStr) - parseDay(startStr)) / 86400000));
+  const elapsedRoadmapDays = Math.round((parseDay(todayStr || startStr) - parseDay(startStr)) / 86400000);
+  const elapsedRoadmapPct = Math.min(100, Math.max(0, Math.round((elapsedRoadmapDays / roadmapDays) * 100)));
+
+  const weekRetro = calculateWeeklyRetrospective(currentWeekPlan);
+  const weekBudget = Number(((currentWeekPlan?.days || [])
+    .filter(d => d.enabled !== false)
+    .reduce((acc, d) => acc + Number(d.maxHours || 0), 0)).toFixed(1));
+  const pctOf = (v, tot) => (tot > 0 ? Math.min(100, Math.round((v / tot) * 100)) : 0);
+  const heroRings = [
+    { key: "week", label: "Settimana", value: fmtNum(weekRetro.actualHours), unit: `di ${fmtNum(weekBudget)} h`,
+      pct: pctOf(weekRetro.actualHours, weekBudget), radius: 72, color: "#0071E3", track: "#E6F0FC", ink: "#0062C4" },
+    { key: "streak", label: "Costanza", value: streak.currentStreak, unit: streak.currentStreak === 1 ? "sera di fila" : "sere di fila",
+      pct: pctOf(streak.currentStreak, nextTierDays), radius: 54, color: "#FF9F0A", track: "#FFEBD1", ink: "#B86E00" },
+    { key: "program", label: "Programma", value: `${global.percent}%`, unit: `${global.completedCount}/${global.totalCount} argomenti`,
+      pct: global.percent, radius: 36, color: "#5E5CE6", track: "#E7E6FB", ink: "#4341C2" }
+  ];
+
   return (
     <div className="space-y-6">
-      {/* Quick Action Banner for Logging Study */}
-      <div className="bg-gradient-to-r from-emerald-950/40 via-slate-900/80 to-teal-950/40 border border-emerald-500/30 rounded-3xl p-4 md:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 backdrop-blur-md shadow-lg">
-        <div className="flex items-center space-x-3.5">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-500 flex items-center justify-center text-white font-black text-xl shadow-md shadow-emerald-500/20">
-            +
-          </div>
-          <div>
-            <h3 className="text-sm md:text-base font-bold text-white flex items-center gap-2">
-              <span>Registra Sessione di Studio</span>
-              <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-mono">
-                Adattamento Dinamico
-              </span>
-            </h3>
-            <p className="text-xs text-slate-300 mt-0.5">
-              Hai svolto ore di studio oggi o in una data passata? Clicca qui per indicare data, ore e argomento: il resto si adatterà in tempo reale!
-            </p>
-          </div>
+      {/* Intestazione in stile Apple: data, titolo grande e azione principale */}
+      <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div>
+          <div className="eyebrow">{heroDateLabel}</div>
+          <h2 className="large-title md:text-[40px] mt-1 text-ink">{heroTitle}</h2>
         </div>
-
         <button
           type="button"
           onClick={() => onOpenLogModal && onOpenLogModal({ date: settings.currentSimulatedDate })}
-          className="w-full sm:w-auto flex items-center justify-center space-x-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold px-4 py-2.5 rounded-2xl text-xs shadow-lg shadow-emerald-500/20 border border-emerald-400/30 transition transform active:scale-95 flex-shrink-0"
+          className="self-start sm:self-auto flex items-center gap-1.5 h-9 px-4 rounded-full bg-accent-tint text-accent-ink text-sm font-semibold hover:brightness-95 transition shrink-0"
+          title="Indica data, ore e argomento: il piano si ribilancia subito"
         >
-          <span className="text-base font-black leading-none">+</span>
-          <span>Registra Ore di Studio</span>
+          <IconPlus className="w-4 h-4" />
+          <span>Registra ore di studio</span>
         </button>
+      </header>
+
+      {/* Anelli, conto alla rovescia e ritmo richiesto */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[1.25fr_1fr_1fr] gap-4">
+        <div className="bg-paper rounded-[20px] p-5 md:p-6 shadow-card flex items-center gap-6 md:col-span-2 xl:col-span-1">
+          <svg width="152" height="152" viewBox="0 0 168 168" className="shrink-0" role="img"
+            aria-label={`Anelli: settimana ${heroRings[0].pct}%, costanza ${heroRings[1].pct}%, programma ${heroRings[2].pct}%`}>
+            <g transform="rotate(-90 84 84)" fill="none" strokeLinecap="round" strokeWidth="16">
+              {heroRings.map(r => {
+                const c = 2 * Math.PI * r.radius;
+                const len = Math.max(0.001, Math.min(1, r.pct / 100)) * c;
+                return (
+                  <g key={r.key}>
+                    <circle cx="84" cy="84" r={r.radius} stroke={r.track} />
+                    {r.pct > 0 && <circle cx="84" cy="84" r={r.radius} stroke={r.color} strokeDasharray={`${len} ${c}`} />}
+                  </g>
+                );
+              })}
+            </g>
+          </svg>
+          <div className="flex flex-col gap-3.5 min-w-0">
+            {heroRings.map(r => (
+              <div key={r.key} className="flex flex-col">
+                <span className="text-xs font-semibold text-ink-2">{r.label}</span>
+                <span className="text-[22px] font-bold tracking-tight tabular leading-tight" style={{ color: r.ink }}>
+                  {r.value}
+                  <span className="text-[13px] font-medium text-ink-2 ml-1">{r.unit}</span>
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-paper rounded-[20px] p-5 md:p-6 shadow-card flex flex-col justify-between gap-4">
+          <span className="text-[13px] font-semibold text-ink-2">All'esame</span>
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-[72px] md:text-[84px] font-extrabold tracking-[-0.06em] leading-[0.9] tabular">{metrics.remainingDays}</span>
+            <span className="text-xl font-semibold tracking-tight">{metrics.remainingDays === 1 ? "giorno" : "giorni"}</span>
+          </div>
+          <div className="flex flex-col gap-2">
+            <div className="h-1.5 rounded-full bg-black/[0.07] overflow-hidden">
+              <div className="h-full rounded-full bg-ink" style={{ width: `${elapsedRoadmapPct}%` }} />
+            </div>
+            <span className="text-[13px] text-ink-2 first-letter:uppercase">{examDateLabel}</span>
+          </div>
+        </div>
+
+        <div className={`rounded-[20px] p-5 md:p-6 flex flex-col justify-between gap-3 ${metrics.isCriticalOverload ? "bg-danger-tint" : "bg-accent-tint"}`}>
+          <div className={`flex items-center gap-2 text-[13px] font-semibold ${metrics.isCriticalOverload ? "text-danger-ink" : "text-accent-ink"}`}>
+            {metrics.isCriticalOverload ? <IconFlame className="w-4 h-4" /> : <IconClock className="w-4 h-4" />}
+            <span>{metrics.isCriticalOverload ? "Sopra la soglia" : "Ritmo richiesto"}</span>
+          </div>
+          <div className="text-[21px] font-bold tracking-tight leading-snug">
+            Servono {fmtNum(metrics.requiredWeeklyHours)} h a settimana.
+          </div>
+          <div className="text-[13px] text-[#3A3A3C] leading-relaxed">
+            {metrics.isCriticalOverload
+              ? `La soglia è ${fmtNum(metrics.criticalWeeklyHoursThreshold)} h: aggiungi tempo con il Time Shifter o accetta un margine più stretto.`
+              : `Sotto la soglia di ${fmtNum(metrics.criticalWeeklyHoursThreshold)} h.`}
+            {" "}Restano {fmtNum(metrics.totalRemainingEffectiveHours)} h, margine incluso (+{fmtNum(metrics.totalBufferHours)} h).
+          </div>
+        </div>
       </div>
 
       {/* Spaced Repetition Active Alert Banner if any due */}
@@ -6062,319 +6146,101 @@ function Dashboard({
         </div>
       )}
 
-      {/* KPI Cards Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 2xl:gap-6">
-        {/* Days Left */}
-        <div className="bg-slate-900/80 border border-slate-800/80 p-4 rounded-2xl backdrop-blur-md relative overflow-hidden group hover:border-slate-700 transition">
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider">Target Esame</span>
-            <div className="p-1.5 bg-cyan-500/10 rounded-lg text-cyan-400">
-              <IconCalendar className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="flex items-baseline space-x-1.5">
-            <span className="text-2xl md:text-3xl font-extrabold text-white font-mono">
-              {metrics.remainingDays}
-            </span>
-            <span className="text-xs text-slate-400 font-medium">giorni</span>
-          </div>
-          <div className="mt-1 text-xs text-cyan-400 flex items-center gap-1 font-medium">
-            <span>10 Gennaio 2027</span>
-            <span className="text-slate-500">({metrics.remainingWeeks} sett.)</span>
-          </div>
-        </div>
 
-        {/* Weekly Pace */}
-        <div className={`p-4 rounded-2xl backdrop-blur-md relative overflow-hidden group transition border ${
-          metrics.isCriticalOverload
-            ? "bg-rose-950/40 border-rose-500/40 hover:border-rose-500/60"
-            : "bg-slate-900/80 border-slate-800/80 hover:border-slate-700"
-        }`}>
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider">Fabbisogno Sett.</span>
-            <div className={`p-1.5 rounded-lg ${
-              metrics.isCriticalOverload ? "bg-rose-500/20 text-rose-400" : "bg-indigo-500/10 text-indigo-400"
-            }`}>
-              <IconClock className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="flex items-baseline space-x-1.5">
-            <span className={`text-2xl md:text-3xl font-extrabold font-mono ${
-              metrics.isCriticalOverload ? "text-rose-300" : "text-white"
-            }`}>
-              {metrics.requiredWeeklyHours}
-            </span>
-            <span className="text-xs text-slate-400 font-medium">h / sett.</span>
-          </div>
-          <div className="mt-1 text-xs flex items-center gap-1 font-medium">
-            {metrics.isCriticalOverload ? (
-              <span className="text-rose-400 flex items-center gap-1">
-                <IconFlame className="w-3.5 h-3.5" /> Soglia max superata
-              </span>
-            ) : (
-              <span className="text-emerald-400">Ritmo sostenibile</span>
-            )}
-          </div>
-        </div>
-
-        {/* Remaining Hours */}
-        <div className="bg-slate-900/80 border border-slate-800/80 p-4 rounded-2xl backdrop-blur-md relative overflow-hidden group hover:border-slate-700 transition">
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider">Ore Residue</span>
-            <div className="p-1.5 bg-amber-500/10 rounded-lg text-amber-400">
-              <IconBarChart className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="flex items-baseline space-x-1.5">
-            <span className="text-2xl md:text-3xl font-extrabold text-white font-mono">
-              {metrics.totalRemainingEffectiveHours}
-            </span>
-            <span className="text-xs text-slate-400 font-medium">h effettive</span>
-          </div>
-          <div className="mt-1 text-xs text-amber-400/90 font-medium flex items-center gap-1">
-            <span>+{metrics.totalBufferHours}h buffer (+20%)</span>
-          </div>
-        </div>
-
-        {/* Progress Global */}
-        <div className="bg-slate-900/80 border border-slate-800/80 p-4 rounded-2xl backdrop-blur-md relative overflow-hidden group hover:border-slate-700 transition">
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider">Completamento</span>
-            <div className="p-1.5 bg-emerald-500/10 rounded-lg text-emerald-400">
-              <IconCheckCircle className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="flex items-baseline space-x-1.5">
-            <span className="text-2xl md:text-3xl font-extrabold text-white font-mono">
-              {global.percent}%
-            </span>
-            <span className="text-xs text-slate-400 font-medium">complessivo</span>
-          </div>
-          <div className="mt-1 text-xs text-slate-400 font-medium">
-            <span>{global.completedHours}h di {global.totalHours}h svolte</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Motivation & Streak Hub (Centrale della Costanza Lavoratore) */}
-      <div className="bg-gradient-to-r from-slate-900 via-amber-950/25 to-slate-900 border border-amber-500/40 p-5 md:p-6 rounded-3xl shadow-2xl backdrop-blur-md relative overflow-hidden">
-        {/* Subtle decorative glow */}
-        <div className="absolute -right-12 -top-12 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5">
-          {/* Left: Streak Icon & Big Number */}
-          <div className="flex items-center space-x-4">
-            <div className="relative flex-shrink-0">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-600 to-orange-500 border border-amber-400/50 flex items-center justify-center text-3xl shadow-lg shadow-amber-500/25">
-                🔥
-              </div>
-              {streak.currentStreak > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-4 w-4">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-4 w-4 bg-amber-500 border-2 border-slate-950"></span>
-                </span>
-              )}
-            </div>
-
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-mono font-black uppercase tracking-wider text-amber-400 bg-amber-500/15 border border-amber-500/30 px-2.5 py-0.5 rounded-full flex items-center gap-1">
-                  <span>STREAK DI STUDIO ATTIVA</span>
-                </span>
-                <span className="text-xs text-slate-400">
-                  Record: <strong className="text-white font-mono">{streak.bestStreak} gg</strong>
-                </span>
-              </div>
-              <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight mt-1">
-                {streak.currentStreak} {streak.currentStreak === 1 ? "Giorno Consecutivo" : "Giorni Consecutivi"}
+      {/* Costanza e previsione d'esame */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <section className="bg-paper rounded-[20px] p-5 md:p-6 shadow-card flex flex-col gap-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <span className="text-[13px] font-semibold text-ink-2">Costanza</span>
+              <h3 className="text-[22px] font-bold tracking-tight mt-0.5">
+                {streak.currentStreak} {streak.currentStreak === 1 ? "sera di fila" : "sere di fila"}
               </h3>
-              <p className="text-xs text-slate-300 mt-0.5 flex items-center gap-1.5">
-                <span className="text-base">{streak.badgeIcon}</span>
-                <strong className="text-amber-300 font-bold">{streak.badgeName}</strong>
-                <span className="text-slate-400 hidden sm:inline">• {streak.badgeDesc}</span>
+              <p className="text-[13px] text-ink-2 mt-0.5">
+                {streak.badgeName}{streak.badgeDesc ? ` · ${streak.badgeDesc}` : ""}
               </p>
             </div>
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-warn-tint text-warn-ink whitespace-nowrap tabular">
+              Record {streak.bestStreak} gg
+            </span>
           </div>
 
-          {/* Right: Next Level Progression Bar */}
-          <div className="w-full lg:w-auto flex flex-col sm:flex-row lg:flex-col gap-3 min-w-[280px]">
-            <div className="bg-slate-950/80 border border-slate-800 p-3 rounded-2xl flex-1">
-              <div className="flex items-center justify-between text-xs mb-1.5 font-medium">
-                <span className="text-slate-400">Prossimo Titolo:</span>
-                <span className="text-amber-300 font-bold flex items-center gap-1">
-                  {nextTierIcon} {nextTierName}
-                </span>
-              </div>
-              <div className="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-amber-500 to-orange-400 rounded-full transition-all duration-500"
-                  style={{ width: `${tierProgressPct}%` }}
-                />
-              </div>
-              <div className="text-[10px] text-slate-400 mt-1 flex justify-between font-mono">
-                <span>{streak.currentStreak} / {nextTierDays} giorni</span>
-                <span className="text-amber-400 font-bold">Mancano {daysToNextTier} {daysToNextTier === 1 ? "sera" : "sere"}</span>
-              </div>
+          <div className="flex flex-col gap-1.5">
+            <div className="flex justify-between gap-3 text-[13px]">
+              <span className="text-ink-2">Prossimo traguardo: <span className="text-ink font-medium">{nextTierName}</span></span>
+              <span className="text-ink-2 tabular">{streak.currentStreak}/{nextTierDays}</span>
             </div>
-          </div>
-        </div>
-
-        {/* Motivational Quote & 4 Achievement Badges */}
-        <div className="mt-5 pt-4 border-t border-slate-800/80 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          {/* Worker Daily Quote */}
-          <div className="flex items-start space-x-2 text-xs text-slate-300 italic max-w-2xl">
-            <span className="text-amber-400 text-lg leading-none font-serif flex-shrink-0">“</span>
-            <span>{dailyQuote}</span>
+            <div className="h-1.5 rounded-full bg-black/[0.07] overflow-hidden">
+              <div className="h-full rounded-full bg-warn transition-all duration-500" style={{ width: `${tierProgressPct}%` }} />
+            </div>
+            <span className="text-xs text-ink-2">Mancano {daysToNextTier} {daysToNextTier === 1 ? "sera" : "sere"}</span>
           </div>
 
-          {/* 4 Mini Achievement Badges */}
-          <div className="flex items-center gap-1.5 flex-wrap flex-shrink-0">
-            {[
-              {
-                id: "first_topic",
-                icon: "🌟",
-                label: "Primo Passo",
-                unlocked: global.completedCount > 0,
-                desc: "Primo argomento chiuso"
-              },
-              {
-                id: "dual_subject",
-                icon: "⚔️",
-                label: "Doppio Motore",
-                unlocked: analisi.completedHours > 0 && geometria.completedHours > 0,
-                desc: "Analisi e Geometria avviate"
-              },
-              {
-                id: "focus_master",
-                icon: "🍅",
-                label: "Focus Master",
-                unlocked: metrics.pastDaysStudied > 0,
-                desc: "Sessione di studio svolta"
-              },
-              {
-                id: "streak_warrior",
-                icon: "🛡️",
-                label: "Costanza",
-                unlocked: streak.currentStreak >= 3,
-                desc: "Almeno 3gg consecutivi"
-              }
-            ].map(ach => (
-              <div
+          <p className="text-[13px] text-[#3A3A3C] leading-relaxed border-t border-black/[0.06] pt-4">{dailyQuote}</p>
+
+          <div className="flex flex-wrap gap-1.5">
+            {achievements.map(ach => (
+              <span
                 key={ach.id}
-                className={`flex items-center space-x-1 px-2.5 py-1 rounded-xl text-[10px] font-bold border transition ${
-                  ach.unlocked
-                    ? "bg-amber-500/20 text-amber-200 border-amber-500/40 shadow-sm"
-                    : "bg-slate-950/40 text-slate-600 border-slate-800 opacity-60"
+                title={`${ach.label}: ${ach.desc} (${ach.unlocked ? "sbloccato" : "da sbloccare"})`}
+                className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full ${
+                  ach.unlocked ? "bg-ok-tint text-ok-ink" : "bg-black/[0.04] text-ink-3"
                 }`}
-                title={`${ach.label}: ${ach.desc} ${ach.unlocked ? '(Sbloccato! ✓)' : '(Da sbloccare)'}`}
               >
-                <span>{ach.icon}</span>
-                <span className="hidden sm:inline">{ach.label}</span>
-                {ach.unlocked && <span className="text-emerald-400">✓</span>}
-              </div>
+                {ach.unlocked && <IconCheck className="w-3 h-3" />}
+                {ach.label}
+              </span>
             ))}
           </div>
-        </div>
-      </div>
+        </section>
 
-      {/* Heuristic Exam Prediction & Grade Forecast (Punto 4) */}
-      {metrics?.examPrediction && (
-        <div className={`p-5 rounded-3xl border backdrop-blur-md shadow-xl transition ${
-          metrics.examPrediction.riskColor === "emerald"
-            ? "bg-gradient-to-r from-emerald-950/40 via-slate-900/90 to-teal-950/40 border-emerald-500/30 shadow-emerald-950/20"
-            : metrics.examPrediction.riskColor === "cyan"
-            ? "bg-gradient-to-r from-cyan-950/40 via-slate-900/90 to-indigo-950/40 border-cyan-500/30 shadow-cyan-950/20"
-            : metrics.examPrediction.riskColor === "amber"
-            ? "bg-gradient-to-r from-amber-950/40 via-slate-900/90 to-orange-950/40 border-amber-500/30 shadow-amber-950/20"
-            : "bg-gradient-to-r from-rose-950/50 via-slate-900/90 to-red-950/40 border-rose-500/40 shadow-rose-950/30"
-        }`}>
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-            <div className="flex items-center space-x-3.5">
-              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-xl border flex-shrink-0 ${
-                metrics.examPrediction.riskColor === "emerald"
-                  ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-300"
-                  : metrics.examPrediction.riskColor === "cyan"
-                  ? "bg-cyan-500/20 border-cyan-500/40 text-cyan-300"
-                  : metrics.examPrediction.riskColor === "amber"
-                  ? "bg-amber-500/20 border-amber-500/40 text-amber-300"
-                  : "bg-rose-500/20 border-rose-500/40 text-rose-300"
-              }`}>
-                🎯
-              </div>
-              <div>
-                <div className="flex items-center space-x-2">
-                  <h3 className="text-base font-extrabold text-white">
-                    Previsione Esame & Voto Atteso
-                  </h3>
-                  <span className={`text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full border ${
-                    metrics.examPrediction.riskColor === "emerald"
-                      ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
-                      : metrics.examPrediction.riskColor === "cyan"
-                      ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/40"
-                      : metrics.examPrediction.riskColor === "amber"
-                      ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
-                      : "bg-rose-500/20 text-rose-300 border-rose-500/40 animate-pulse"
-                  }`}>
-                    {metrics.examPrediction.riskLevel}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-300 mt-0.5">
-                  Algoritmo euristico predittivo basato su ritmo orario, costanza serale e completamento temi propedeutici.
+        {metrics?.examPrediction && (
+          <section className="bg-paper rounded-[20px] p-5 md:p-6 shadow-card flex flex-col gap-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <span className="text-[13px] font-semibold text-ink-2">Previsione d'esame</span>
+                <h3 className="text-[22px] font-bold tracking-tight mt-0.5">Voto stimato {metrics.examPrediction.gradeLabel}</h3>
+                <p className="text-[13px] text-ink-2 mt-0.5">
+                  Stima basata su ritmo orario, costanza serale e argomenti completati.
                 </p>
               </div>
+              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${
+                {
+                  emerald: "bg-ok-tint text-ok-ink",
+                  cyan: "bg-accent-tint text-accent-ink",
+                  amber: "bg-warn-tint text-warn-ink"
+                }[metrics.examPrediction.riskColor] || "bg-danger-tint text-danger-ink"
+              }`}>
+                {metrics.examPrediction.riskLevel}
+              </span>
             </div>
 
-            {/* Score & Probability Badges */}
-            <div className="flex items-center gap-3 w-full lg:w-auto justify-between lg:justify-end">
-              <div className="bg-slate-950/80 border border-slate-800 p-2.5 px-3.5 rounded-2xl text-center">
-                <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">
-                  Probabilità Superamento
-                </span>
-                <span className={`text-xl font-black font-mono ${
-                  metrics.examPrediction.passProbability >= 70 ? "text-emerald-400" : "text-amber-400"
-                }`}>
-                  {metrics.examPrediction.passProbability}%
-                </span>
-              </div>
-
-              <div className="bg-slate-950/80 border border-slate-800 p-2.5 px-3.5 rounded-2xl text-center">
-                <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">
-                  Voto Stimato
-                </span>
-                <span className="text-xl font-black text-cyan-300 font-mono">
-                  {metrics.examPrediction.gradeLabel}
-                </span>
-              </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-auto">
+              {[
+                { label: "Probabilità", value: `${metrics.examPrediction.passProbability}%` },
+                { label: "Ritmo richiesto", value: `${fmtNum(metrics.examPrediction.requiredWeeklyHours)} h/sett.` },
+                { label: "Sere attive", value: `${metrics.examPrediction.consistencyRate}%` },
+                { label: "Argomenti chiusi", value: `${metrics.examPrediction.completionPercent}%` }
+              ].map(tile => (
+                <div key={tile.label} className="bg-canvas rounded-xl p-3">
+                  <div className="text-xs text-ink-2">{tile.label}</div>
+                  <div className="text-lg font-bold tracking-tight tabular mt-0.5">{tile.value}</div>
+                </div>
+              ))}
             </div>
-          </div>
-
-          {/* Sub-metrics breakdown */}
-          <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-slate-800/80 text-xs">
-            <div className="p-2 bg-slate-950/60 rounded-xl border border-slate-800/60 text-center">
-              <span className="text-slate-400 text-[10px] block">Passo Richiesto</span>
-              <strong className="text-slate-200 font-mono">{metrics.examPrediction.requiredWeeklyHours}h / sett.</strong>
-            </div>
-            <div className="p-2 bg-slate-950/60 rounded-xl border border-slate-800/60 text-center">
-              <span className="text-slate-400 text-[10px] block">Indice di Costanza</span>
-              <strong className="text-slate-200 font-mono">{metrics.examPrediction.consistencyRate}% sere attive</strong>
-            </div>
-            <div className="p-2 bg-slate-950/60 rounded-xl border border-slate-800/60 text-center">
-              <span className="text-slate-400 text-[10px] block">Completamento Didattico</span>
-              <strong className="text-slate-200 font-mono">{metrics.examPrediction.completionPercent}% argomenti</strong>
-            </div>
-          </div>
-        </div>
-      )}
+          </section>
+        )}
+      </div>
 
       {/* Main Two Progress Bars with Real-Time Pacing Indicators (Analisi 1 & Geometria) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {/* Analisi 1 Progress Card with Pacing Indicator */}
-        <div className="bg-gradient-to-b from-slate-900/90 to-slate-950/90 border border-emerald-500/20 p-5 md:p-6 rounded-3xl shadow-xl shadow-emerald-950/10 relative overflow-hidden flex flex-col justify-between">
+        <div className="bg-gradient-to-b from-slate-900/90 to-slate-950/90 border border-indigo-500/20 p-5 md:p-6 rounded-3xl shadow-xl shadow-indigo-950/10 relative overflow-hidden flex flex-col justify-between">
           <div>
             <div className="flex items-start justify-between mb-3">
               <div>
                 <div className="flex items-center space-x-2">
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
                     ANALISI MATEMATICA 1
                   </span>
                   <span className="text-xs text-slate-400">UNIMORE</span>
@@ -6382,7 +6248,7 @@ function Dashboard({
                 <h3 className="text-xl font-bold text-white mt-1">Stato Avanzamento Analisi</h3>
               </div>
               <div className="text-right flex flex-col items-end">
-                <span className="text-3xl font-black text-emerald-400 font-mono leading-none">
+                <span className="text-3xl font-black text-indigo-400 font-mono leading-none">
                   {analisi.percent}%
                 </span>
                 <span className={`text-[10px] font-bold font-mono px-2.5 py-0.5 rounded-full border mt-1.5 ${pacingAnalisi.badgeClass}`}>
@@ -6406,7 +6272,7 @@ function Dashboard({
             <div className="space-y-1.5 mb-4">
               <div className="relative w-full h-4 bg-slate-800/90 rounded-full overflow-hidden p-0.5 border border-slate-700/50">
                 <div
-                  className="h-full bg-gradient-to-r from-teal-500 to-emerald-400 rounded-full transition-all duration-700 ease-out shadow-sm shadow-emerald-500/50"
+                  className="h-full bg-gradient-to-r from-indigo-500 to-indigo-400 rounded-full transition-all duration-700 ease-out shadow-sm shadow-indigo-500/50"
                   style={{ width: `${Math.max(2, analisi.percent)}%` }}
                 />
                 {/* Expected Target Tick Marker */}
@@ -6434,7 +6300,7 @@ function Dashboard({
               </div>
               <div className="bg-slate-900/50 p-2.5 rounded-xl border border-slate-800">
                 <div className="text-xs text-slate-400">Ore Residue</div>
-                <div className="text-sm font-bold text-emerald-300 font-mono mt-0.5">
+                <div className="text-sm font-bold text-indigo-300 font-mono mt-0.5">
                   {analisi.remainingHours}h
                 </div>
               </div>
@@ -6453,7 +6319,7 @@ function Dashboard({
             </span>
             <button
               onClick={() => onTabChange("weekly")}
-              className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition flex items-center gap-1"
+              className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition flex items-center gap-1"
             >
               Vedi orari Analisi →
             </button>
@@ -6461,12 +6327,12 @@ function Dashboard({
         </div>
 
         {/* Geometria Progress Card with Pacing Indicator */}
-        <div className="bg-gradient-to-b from-slate-900/90 to-slate-950/90 border border-indigo-500/20 p-5 md:p-6 rounded-3xl shadow-xl shadow-indigo-950/10 relative overflow-hidden flex flex-col justify-between">
+        <div className="bg-gradient-to-b from-slate-900/90 to-slate-950/90 border border-teal-500/20 p-5 md:p-6 rounded-3xl shadow-xl shadow-teal-950/10 relative overflow-hidden flex flex-col justify-between">
           <div>
             <div className="flex items-start justify-between mb-3">
               <div>
                 <div className="flex items-center space-x-2">
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-teal-500/20 text-teal-300 border border-teal-500/30">
                     GEOMETRIA E ALGEBRA
                   </span>
                   <span className="text-xs text-slate-400">UNIMORE</span>
@@ -6474,7 +6340,7 @@ function Dashboard({
                 <h3 className="text-xl font-bold text-white mt-1">Stato Avanzamento Geometria</h3>
               </div>
               <div className="text-right flex flex-col items-end">
-                <span className="text-3xl font-black text-indigo-400 font-mono leading-none">
+                <span className="text-3xl font-black text-teal-400 font-mono leading-none">
                   {geometria.percent}%
                 </span>
                 <span className={`text-[10px] font-bold font-mono px-2.5 py-0.5 rounded-full border mt-1.5 ${pacingGeometria.badgeClass}`}>
@@ -6498,7 +6364,7 @@ function Dashboard({
             <div className="space-y-1.5 mb-4">
               <div className="relative w-full h-4 bg-slate-800/90 rounded-full overflow-hidden p-0.5 border border-slate-700/50">
                 <div
-                  className="h-full bg-gradient-to-r from-violet-500 to-indigo-400 rounded-full transition-all duration-700 ease-out shadow-sm shadow-indigo-500/50"
+                  className="h-full bg-gradient-to-r from-teal-500 to-teal-400 rounded-full transition-all duration-700 ease-out shadow-sm shadow-teal-500/50"
                   style={{ width: `${Math.max(2, geometria.percent)}%` }}
                 />
                 {/* Expected Target Tick Marker */}
@@ -6526,7 +6392,7 @@ function Dashboard({
               </div>
               <div className="bg-slate-900/50 p-2.5 rounded-xl border border-slate-800">
                 <div className="text-xs text-slate-400">Ore Residue</div>
-                <div className="text-sm font-bold text-indigo-300 font-mono mt-0.5">
+                <div className="text-sm font-bold text-teal-300 font-mono mt-0.5">
                   {geometria.remainingHours}h
                 </div>
               </div>
@@ -6545,7 +6411,7 @@ function Dashboard({
             </span>
             <button
               onClick={() => onTabChange("weekly")}
-              className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition flex items-center gap-1"
+              className="text-xs font-semibold text-teal-400 hover:text-teal-300 transition flex items-center gap-1"
             >
               Vedi orari Geometria →
             </button>
@@ -7589,7 +7455,7 @@ function WeeklyTodo({
             <button
               onClick={() => setFilterSubject("analisi")}
               className={`px-3 py-1 rounded-lg transition ${
-                filterSubject === "analisi" ? "bg-emerald-600/30 text-emerald-300 shadow" : "text-slate-400 hover:text-slate-200"
+                filterSubject === "analisi" ? "bg-indigo-600/30 text-indigo-300 shadow" : "text-slate-400 hover:text-slate-200"
               }`}
             >
               Analisi
@@ -7597,7 +7463,7 @@ function WeeklyTodo({
             <button
               onClick={() => setFilterSubject("geometria")}
               className={`px-3 py-1 rounded-lg transition ${
-                filterSubject === "geometria" ? "bg-indigo-600/30 text-indigo-300 shadow" : "text-slate-400 hover:text-slate-200"
+                filterSubject === "geometria" ? "bg-teal-600/30 text-teal-300 shadow" : "text-slate-400 hover:text-slate-200"
               }`}
             >
               Geometria
@@ -7831,7 +7697,7 @@ function WeeklyTodo({
 
               {/* Topics list for the day */}
               {isSkipped ? (
-                <div className="py-3 px-4 bg-black/30 rounded-2xl border border-slate-800 text-xs text-slate-400 flex items-center justify-between">
+                <div className="py-3 px-4 bg-slate-850 rounded-2xl border border-slate-800 text-xs text-slate-400 flex items-center justify-between">
                   <span>In questa data non è stato registrato studio. Gli argomenti sono stati riprogrammati a partire da oggi.</span>
                   <span className="text-amber-400/90 font-mono text-[11px]">0h svolte</span>
                 </div>
@@ -7870,8 +7736,8 @@ function WeeklyTodo({
                             : topic.isSessionLog
                             ? "bg-slate-950/90 border-emerald-500/40 shadow-sm shadow-emerald-950/20"
                             : isAnalisi
-                            ? "bg-slate-950/80 hover:bg-slate-900 border-emerald-500/20 hover:border-emerald-500/40"
-                            : "bg-slate-950/80 hover:bg-slate-900 border-indigo-500/20 hover:border-indigo-500/40"
+                            ? "bg-slate-950/80 hover:bg-slate-900 border-indigo-500/20 hover:border-indigo-500/40"
+                            : "bg-slate-950/80 hover:bg-slate-900 border-teal-500/20 hover:border-teal-500/40"
                         }`}
                       >
                         {/* Upper row: Topic Header, Meta and Subject */}
@@ -7881,8 +7747,8 @@ function WeeklyTodo({
                               {/* Subject Badge */}
                               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
                                 isAnalisi
-                                  ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                                  : "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                                  ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                                  : "bg-teal-500/20 text-teal-300 border border-teal-500/30"
                               }`}>
                                 {topic.materia}
                               </span>
@@ -8430,7 +8296,7 @@ function HistoryLog({
                   {day.topics.map(t => (
                     <div
                       key={t.sessionId || (t.id + '_' + (t.isSessionLog ? 'log' : 'topic'))}
-                      className="flex items-center justify-between text-xs bg-black/30 p-2.5 rounded-xl border border-slate-800/60"
+                      className="flex items-center justify-between text-xs bg-slate-850 p-2.5 rounded-xl border border-slate-800/60"
                     >
                       <div className="flex items-center space-x-2 min-w-0 flex-1 pr-2">
                         <button
@@ -8691,8 +8557,8 @@ function TopicsTable({ topics, onToggleComplete, onUpdateTopicHours, onBatchUpda
                     <td className="py-3 px-3">
                       <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
                         isAnalisi
-                          ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                          : "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                          ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                          : "bg-teal-500/20 text-teal-300 border border-teal-500/30"
                       }`}>
                         {topic.materia}
                       </span>
@@ -9656,7 +9522,7 @@ function SettingsModalContent({
   const customOverridesCount = Object.keys(customDayCapacities || {}).length;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/25 backdrop-blur-sm animate-fade-in">
       <div className="bg-slate-900 border border-slate-700/80 rounded-3xl w-full max-w-xl p-6 shadow-2xl shadow-cyan-950/40 relative">
         <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-800">
           <div className="flex items-center space-x-2.5">
@@ -10120,8 +9986,8 @@ function LogStudyModalContent({
   const residuoPost = Math.max(0, Number((oreStimate - oreTotaliPost).toFixed(2)));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-md overflow-y-auto">
-      <div className="bg-[#0b101d] border border-slate-800 rounded-3xl w-full max-w-2xl 2xl:max-w-3xl shadow-2xl overflow-hidden my-auto flex flex-col max-h-[94vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/25 backdrop-blur-sm overflow-y-auto">
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-2xl 2xl:max-w-3xl shadow-2xl overflow-hidden my-auto flex flex-col max-h-[94vh]">
         {/* Modal Header */}
         <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-800/80 bg-gradient-to-r from-slate-900/95 via-slate-900/70 to-slate-950/90">
           <div className="flex items-center space-x-3">
@@ -10225,8 +10091,8 @@ function LogStudyModalContent({
                         <div className="flex items-start space-x-3">
                           <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold font-mono ${
                             isAnalisi
-                              ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                              : "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                              ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                              : "bg-teal-500/20 text-teal-300 border border-teal-500/30"
                           }`}>
                             {sess.topicId}
                           </span>
@@ -10349,7 +10215,7 @@ function LogStudyModalContent({
                         type="button"
                         onClick={() => handleFilterSubject("analisi")}
                         className={`px-2.5 py-1 rounded-lg transition font-medium ${
-                          selectedSubject === "analisi" ? "bg-emerald-600/30 text-emerald-300 font-bold shadow" : "text-slate-400 hover:text-slate-200"
+                          selectedSubject === "analisi" ? "bg-indigo-600/30 text-indigo-300 font-bold shadow" : "text-slate-400 hover:text-slate-200"
                         }`}
                       >
                         Analisi 1 (32)
@@ -10358,7 +10224,7 @@ function LogStudyModalContent({
                         type="button"
                         onClick={() => handleFilterSubject("geometria")}
                         className={`px-2.5 py-1 rounded-lg transition font-medium ${
-                          selectedSubject === "geometria" ? "bg-indigo-600/30 text-indigo-300 font-bold shadow" : "text-slate-400 hover:text-slate-200"
+                          selectedSubject === "geometria" ? "bg-teal-600/30 text-teal-300 font-bold shadow" : "text-slate-400 hover:text-slate-200"
                         }`}
                       >
                         Geometria (31)
@@ -10408,15 +10274,15 @@ function LogStudyModalContent({
                 {currentTopic && (
                   <div className={`p-3.5 rounded-2xl border transition-all ${
                     isCurrentAnalisi
-                      ? "bg-emerald-950/20 border-emerald-500/40 shadow-sm shadow-emerald-950/20"
-                      : "bg-indigo-950/20 border-indigo-500/40 shadow-sm shadow-indigo-950/20"
+                      ? "bg-indigo-950/20 border-indigo-500/40 shadow-sm shadow-indigo-950/20"
+                      : "bg-teal-950/20 border-teal-500/40 shadow-sm shadow-teal-950/20"
                   }`}>
                     <div className="flex items-center justify-between gap-2 mb-1">
                       <div className="flex items-center space-x-2">
                         <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
                           isCurrentAnalisi
-                            ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                            : "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                            ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                            : "bg-teal-500/20 text-teal-300 border border-teal-500/30"
                         }`}>
                           {currentTopic.materia}
                         </span>
@@ -10490,8 +10356,8 @@ function LogStudyModalContent({
                             className={`p-2.5 rounded-xl border text-xs cursor-pointer transition-all flex items-center justify-between gap-2.5 ${
                               isSelected
                                 ? isAnalisi
-                                  ? "bg-emerald-950/40 border-emerald-500/80 shadow-sm shadow-emerald-500/20"
-                                  : "bg-indigo-950/40 border-indigo-500/80 shadow-sm shadow-indigo-500/20"
+                                  ? "bg-indigo-950/40 border-indigo-500/80 shadow-sm shadow-indigo-500/20"
+                                  : "bg-teal-950/40 border-teal-500/80 shadow-sm shadow-teal-500/20"
                                 : "bg-slate-900/60 hover:bg-slate-850 border-slate-800/70 hover:border-slate-700"
                             }`}
                           >
@@ -10500,16 +10366,16 @@ function LogStudyModalContent({
                               <div className={`w-4 h-4 rounded-full border flex items-center justify-center flex-shrink-0 transition ${
                                 isSelected
                                   ? isAnalisi
-                                    ? "border-emerald-400 bg-emerald-500 text-white"
-                                    : "border-indigo-400 bg-indigo-500 text-white"
+                                    ? "border-indigo-400 bg-indigo-500 text-white"
+                                    : "border-teal-400 bg-teal-500 text-white"
                                   : "border-slate-600 bg-slate-950"
                               }`}>
-                                {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                                {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-paper" />}
                               </div>
 
                               {/* Topic ID */}
                               <span className={`font-mono font-bold px-1.5 py-0.5 rounded text-[11px] ${
-                                isAnalisi ? "bg-emerald-500/10 text-emerald-300" : "bg-indigo-500/10 text-indigo-300"
+                                isAnalisi ? "bg-indigo-500/10 text-indigo-300" : "bg-teal-500/10 text-teal-300"
                               }`}>
                                 {t.id}
                               </span>
@@ -10679,7 +10545,7 @@ function LogStudyModalContent({
                 </div>
                 <div className="text-slate-300 text-[11px] leading-relaxed">
                   Verranno registrate <strong>+{hours}h</strong> in data <strong>{formatDateDisplay(selectedDate)}</strong> sull'argomento:
-                  <div className="mt-1 p-2 bg-black/40 rounded-xl border border-slate-800 font-mono text-cyan-300 font-bold flex items-center gap-2">
+                  <div className="mt-1 p-2 bg-slate-850 rounded-xl border border-slate-800 font-mono text-cyan-300 font-bold flex items-center gap-2">
                     <span className="px-1.5 py-0.2 rounded bg-cyan-500/10 border border-cyan-500/30 text-white">
                       {currentTopic?.id}
                     </span>
@@ -10828,23 +10694,23 @@ function TopicDetailModalContent({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/80 backdrop-blur-md overflow-y-auto">
-      <div className={`bg-[#0b101d] border rounded-3xl w-full max-w-3xl 2xl:max-w-4xl shadow-2xl overflow-hidden my-auto flex flex-col max-h-[92vh] ${
-        isAnalisi ? "border-emerald-500/30" : "border-indigo-500/30"
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/25 backdrop-blur-sm overflow-y-auto">
+      <div className={`bg-slate-900 border rounded-3xl w-full max-w-3xl 2xl:max-w-4xl shadow-2xl overflow-hidden my-auto flex flex-col max-h-[92vh] ${
+        isAnalisi ? "border-indigo-500/30" : "border-teal-500/30"
       }`}>
         {/* Header */}
         <div className={`p-5 sm:p-6 border-b flex flex-col gap-3 relative overflow-hidden bg-gradient-to-r ${
           isAnalisi
-            ? "from-slate-900/95 via-emerald-950/30 to-slate-950/90 border-emerald-500/20"
-            : "from-slate-900/95 via-indigo-950/30 to-slate-950/90 border-indigo-500/20"
+            ? "from-slate-900/95 via-indigo-950/30 to-slate-950/90 border-indigo-500/20"
+            : "from-slate-900/95 via-teal-950/30 to-slate-950/90 border-teal-500/20"
         }`}>
           <div className="flex items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
               {/* Subject Badge */}
               <span className={`text-[11px] font-bold px-2.5 py-1 rounded-xl uppercase tracking-wider ${
                 isAnalisi
-                  ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                  : "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                  ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                  : "bg-teal-500/20 text-teal-300 border border-teal-500/30"
               }`}>
                 {topic.materia}
               </span>
@@ -10982,7 +10848,7 @@ function TopicDetailModalContent({
             onClick={() => setActiveTab("overview")}
             className={`pb-2.5 px-3 font-bold border-b-2 transition flex items-center gap-1.5 ${
               activeTab === "overview"
-                ? isAnalisi ? "border-emerald-400 text-emerald-300" : "border-indigo-400 text-indigo-300"
+                ? isAnalisi ? "border-indigo-400 text-indigo-300" : "border-teal-400 text-teal-300"
                 : "border-transparent text-slate-400 hover:text-slate-200"
             }`}
           >
@@ -10995,7 +10861,7 @@ function TopicDetailModalContent({
             onClick={() => setActiveTab("theorems")}
             className={`pb-2.5 px-3 font-bold border-b-2 transition flex items-center gap-1.5 ${
               activeTab === "theorems"
-                ? isAnalisi ? "border-emerald-400 text-emerald-300" : "border-indigo-400 text-indigo-300"
+                ? isAnalisi ? "border-indigo-400 text-indigo-300" : "border-teal-400 text-teal-300"
                 : "border-transparent text-slate-400 hover:text-slate-200"
             }`}
           >
@@ -11008,7 +10874,7 @@ function TopicDetailModalContent({
             onClick={() => setActiveTab("sessions")}
             className={`pb-2.5 px-3 font-bold border-b-2 transition flex items-center gap-1.5 ${
               activeTab === "sessions"
-                ? isAnalisi ? "border-emerald-400 text-emerald-300" : "border-indigo-400 text-indigo-300"
+                ? isAnalisi ? "border-indigo-400 text-indigo-300" : "border-teal-400 text-teal-300"
                 : "border-transparent text-slate-400 hover:text-slate-200"
             }`}
           >
@@ -11024,7 +10890,7 @@ function TopicDetailModalContent({
             onClick={() => setActiveTab("notes")}
             className={`pb-2.5 px-3 font-bold border-b-2 transition flex items-center gap-1.5 ${
               activeTab === "notes"
-                ? isAnalisi ? "border-emerald-400 text-emerald-300" : "border-indigo-400 text-indigo-300"
+                ? isAnalisi ? "border-indigo-400 text-indigo-300" : "border-teal-400 text-teal-300"
                 : "border-transparent text-slate-400 hover:text-slate-200"
             }`}
           >
@@ -11103,7 +10969,7 @@ function TopicDetailModalContent({
                   )}
                 </div>
 
-                <div className="p-3 bg-black/40 border border-slate-800 rounded-xl space-y-2 text-slate-300">
+                <div className="p-3 bg-slate-850 border border-slate-800 rounded-xl space-y-2 text-slate-300">
                   <p className="leading-relaxed">
                     {topic.note ? (
                       <>
@@ -11484,7 +11350,7 @@ function PdfSplitView({ isOpen, onClose }) {
   if (!isOpen) return null;
 
   return (
-    <div className="bg-[#0b101e] border border-slate-800 rounded-3xl p-4 md:p-5 flex flex-col h-[750px] shadow-2xl relative">
+    <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 md:p-5 flex flex-col h-[750px] shadow-2xl relative">
       {/* Top Controls Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
         <div className="flex items-center space-x-2.5">
@@ -11643,8 +11509,8 @@ function WeeklyRetrospectiveModalContent({
   const diag = getDiagnostics();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md overflow-y-auto">
-      <div className="bg-[#0b101e] border border-cyan-500/30 rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden my-auto flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/25 backdrop-blur-sm overflow-y-auto">
+      <div className="bg-slate-900 border border-cyan-500/30 rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden my-auto flex flex-col">
         {/* Header */}
         <div className="p-5 sm:p-6 border-b border-slate-800 bg-gradient-to-r from-slate-900 via-slate-900 to-indigo-950/60 flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -11825,6 +11691,23 @@ const settingsSyncKey = (s) => {
 const isGitLabReady = (cfg) => Boolean(cfg && cfg.enabled && cfg.token && cfg.projectId);
 const nowTimeLabel = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 const GITLAB_FOCUS_SYNC_THROTTLE_MS = 30000;
+
+// Voci di navigazione: etichetta completa (sidebar) e breve (tab bar iOS), colore dell'icona di sistema
+const NAV_ITEMS = [
+  { id: "dashboard", label: "Dashboard", short: "Oggi", Icon: IconBarChart, color: "#0071E3" },
+  { id: "weekly", label: "To-Do Settimanale", short: "Settimana", Icon: IconCalendar, color: "#FF3B30" },
+  { id: "history", label: "Storico & Diario", short: "Storico", Icon: IconHistory, color: "#AF52DE" },
+  { id: "topics", label: "Catalogo Argomenti", short: "Catalogo", Icon: IconLayers, color: "#34C759" },
+  { id: "import", label: "Import / Sync", short: "Sync", Icon: IconUpload, color: "#8E8E93" }
+];
+
+// Titoli grandi delle schede (la Dashboard ha la propria intestazione con la data)
+const PAGE_HEADINGS = {
+  weekly: { eyebrow: "Piano sera per sera", title: "Settimana" },
+  history: { eyebrow: "Cosa hai fatto e cosa è slittato", title: "Storico" },
+  topics: { eyebrow: "Analisi I e Geometria", title: "Catalogo argomenti" },
+  import: { eyebrow: "Backup, file e GitLab", title: "Importa e sincronizza" }
+};
 
 function App() {
   // Load saved state from localStorage if available, or use official UNIMORE defaults
@@ -12630,234 +12513,246 @@ function App() {
     return `${d}/${m}`;
   };
 
+  const renderTabBarItem = (item) => {
+    const active = activeTab === item.id;
+    const ItemIcon = item.Icon;
+    return (
+      <button
+        key={item.id}
+        type="button"
+        onClick={() => setActiveTab(item.id)}
+        aria-current={active ? "page" : undefined}
+        className={`flex flex-col items-center gap-0.5 py-1 transition ${active ? "text-accent" : "text-[#8E8E93]"}`}
+      >
+        <ItemIcon className="w-6 h-6" />
+        <span className="text-[10px] font-medium">{item.short}</span>
+      </button>
+    );
+  };
+
+  const isSimulatingDate = settings.currentSimulatedDate !== todayForSettings(settings);
+  const resetToRealToday = () => setSettings(prev => ({ ...prev, currentSimulatedDate: todayForSettings(prev) }));
+
+  // Stato della sincronizzazione mostrato in fondo alla sidebar
+  const syncSummary = (() => {
+    if (gitlabConfig?.enabled) {
+      if (gitlabConfig.syncStatus === "syncing") return { title: "Sincronizzazione…", detail: "GitLab", color: "#0071E3", spin: true };
+      if (gitlabConfig.syncStatus === "error") return { title: "Errore di sincronizzazione", detail: "GitLab · tocca per i dettagli", color: "#FF3B30" };
+      return { title: "Sincronizzato", detail: gitlabConfig.lastSynced ? `GitLab · ${gitlabConfig.lastSynced}` : "GitLab · attivo", color: "#34C759" };
+    }
+    if (fsSyncStatus.active) {
+      return { title: "File collegato", detail: `${fsSyncStatus.fileName}${fsSyncStatus.lastSaved ? " · " + fsSyncStatus.lastSaved : ""}`, color: "#34C759" };
+    }
+    return { title: "Solo su questo dispositivo", detail: "Configura GitLab o un file", color: "#8E8E93" };
+  })();
+
+  const navMeta = {
+    topics: `${progress.global.completedCount}/${progress.global.totalCount}`
+  };
+
+  const toolButtonClass = "flex items-center gap-2.5 h-8 px-2 rounded-lg text-[13px] text-ink text-left hover:bg-black/[0.04] transition";
+
   return (
-    <div className="min-h-screen bg-[#070b14] text-slate-100 flex flex-col font-sans selection:bg-cyan-500/30 selection:text-cyan-200">
-      {/* Top Header */}
-      <header className="sticky top-0 z-40 bg-[#070b14]/90 backdrop-blur-xl border-b border-slate-800/80 px-4 md:px-6 lg:px-8 2xl:px-12 py-3.5 shadow-md">
-        <div className="w-full max-w-[1920px] mx-auto flex items-center justify-between gap-4">
-          {/* Logo & Subtitle */}
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500 via-indigo-500 to-purple-600 p-0.5 shadow-lg shadow-cyan-500/20">
-              <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center text-cyan-400">
-                <IconBookOpen className="w-5 h-5" />
-              </div>
-            </div>
-
-            <div>
-              <div className="flex items-center space-x-2">
-                <h1 className="text-base md:text-lg font-black tracking-tight text-white">
-                  Studi<span className="bg-gradient-to-r from-cyan-400 to-indigo-400 bg-clip-text text-transparent">Planner</span>
-                </h1>
-                <span className="hidden sm:inline-block text-[10px] font-bold uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded-full">
-                  UNIMORE Ingegneria
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-400 hidden sm:block">
-                Analisi 1 & Geometria • Ribilanciamento dinamico fino al 10 Gennaio 2027
-              </p>
-            </div>
+    <div className="min-h-screen bg-canvas text-ink flex font-sans">
+      {/* Sidebar macOS (desktop) */}
+      <aside className="hidden lg:flex flex-col w-[248px] shrink-0 sticky top-0 h-screen bg-sidebar border-r border-black/10 px-3 pt-4 pb-3 gap-5 overflow-y-auto">
+        <div className="flex items-center gap-2.5 px-2">
+          <div className="w-8 h-8 rounded-[9px] bg-accent flex items-center justify-center text-paper shadow-seg">
+            <IconBookOpen className="w-4 h-4" />
           </div>
+          <div className="min-w-0">
+            <h1 className="text-[15px] font-semibold tracking-tight text-ink leading-tight">StudiPlanner</h1>
+            <p className="text-[11px] text-ink-2 truncate">UNIMORE · Ingegneria</p>
+          </div>
+        </div>
 
-          {/* Desktop Navigation Tabs */}
-          <nav className="hidden lg:flex items-center space-x-1 bg-slate-900/80 border border-slate-800 p-1 rounded-2xl">
-            <button
-              onClick={() => setActiveTab("dashboard")}
-              className={`flex items-center space-x-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
-                activeTab === "dashboard"
-                  ? "bg-gradient-to-r from-cyan-500/20 to-indigo-500/20 text-white border border-cyan-500/30 shadow-sm"
-                  : "text-slate-400 hover:text-white"
-              }`}
-            >
-              <IconBarChart className="w-4 h-4 text-cyan-400" />
-              <span>Dashboard</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab("weekly")}
-              className={`flex items-center space-x-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
-                activeTab === "weekly"
-                  ? "bg-gradient-to-r from-cyan-500/20 to-indigo-500/20 text-white border border-cyan-500/30 shadow-sm"
-                  : "text-slate-400 hover:text-white"
-              }`}
-            >
-              <IconCalendar className="w-4 h-4 text-emerald-400" />
-              <span>To-Do Settimanale</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab("history")}
-              className={`flex items-center space-x-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
-                activeTab === "history"
-                  ? "bg-gradient-to-r from-cyan-500/20 to-indigo-500/20 text-white border border-cyan-500/30 shadow-sm"
-                  : "text-slate-400 hover:text-white"
-              }`}
-            >
-              <IconHistory className="w-4 h-4 text-amber-400" />
-              <span>Storico & Diario</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab("topics")}
-              className={`flex items-center space-x-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
-                activeTab === "topics"
-                  ? "bg-gradient-to-r from-cyan-500/20 to-indigo-500/20 text-white border border-cyan-500/30 shadow-sm"
-                  : "text-slate-400 hover:text-white"
-              }`}
-            >
-              <IconLayers className="w-4 h-4 text-indigo-400" />
-              <span>Catalogo Argomenti</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab("import")}
-              className={`flex items-center space-x-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
-                activeTab === "import"
-                  ? "bg-gradient-to-r from-cyan-500/20 to-indigo-500/20 text-white border border-cyan-500/30 shadow-sm"
-                  : "text-slate-400 hover:text-white"
-              }`}
-            >
-              <IconUpload className="w-4 h-4 text-purple-400" />
-              <span>Import / Sync</span>
-            </button>
-          </nav>
-
-          {/* Right Action: Date Simulation Controls & Settings */}
-          <div className="flex items-center space-x-2.5">
-            {/* Quick Log Studio Action (+) */}
-            <button
-              type="button"
-              onClick={() => handleOpenLogModal({ date: settings.currentSimulatedDate })}
-              className="flex items-center space-x-1.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold px-3 py-1.5 rounded-xl text-xs shadow-md shadow-emerald-500/20 border border-emerald-400/40 transition transform active:scale-95 flex-shrink-0"
-              title="Registra ore di studio svolte (+)"
-            >
-              <span className="text-base font-black leading-none">+</span>
-              <span className="hidden sm:inline">Registra Studio</span>
-            </button>
-
-            {/* Quick Math Formula Cheat-Sheet Drawer (Punto 10) */}
-            <button
-              type="button"
-              onClick={() => setIsFormulaDrawerOpen(true)}
-              className="flex items-center space-x-1.5 bg-slate-900/90 hover:bg-slate-800 text-cyan-300 border border-cyan-500/40 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm transition transform active:scale-95 flex-shrink-0"
-              title="Apri il Formulario Rapido (Tasto F2)"
-            >
-              <span>📐 Formulario [F2]</span>
-            </button>
-
-            {/* Side-by-side PDF Viewer Toggle (Punto 11) */}
-            <button
-              type="button"
-              onClick={() => setIsPdfSplitOpen(prev => !prev)}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition transform active:scale-95 flex-shrink-0 ${
-                isPdfSplitOpen
-                  ? "bg-purple-600/30 text-purple-200 border-purple-500/50 shadow-md shadow-purple-950/40"
-                  : "bg-slate-900/90 hover:bg-slate-800 text-purple-300 border-purple-500/30"
-              }`}
-              title="Attiva/disattiva il visualizzatore affiancato di dispense PDF ed eserciziari (Split View)"
-            >
-              <span>📖 Split PDF {isPdfSplitOpen ? "✓" : ""}</span>
-            </button>
-
-            {/* Auto-Sync status badge if connected */}
-            {fsSyncStatus.active && (
+        <nav aria-label="Sezioni" className="flex flex-col gap-0.5">
+          <span className="text-[11px] font-semibold text-ink-2 px-2 pb-1.5">StudiPlanner</span>
+          {NAV_ITEMS.map(item => {
+            const active = activeTab === item.id;
+            const ItemIcon = item.Icon;
+            return (
               <button
+                key={item.id}
                 type="button"
-                onClick={() => setActiveTab("import")}
-                className="hidden lg:flex items-center space-x-1.5 bg-emerald-950/80 border border-emerald-500/40 px-2.5 py-1.5 rounded-xl text-xs font-mono text-emerald-300 hover:bg-emerald-900/60 transition"
-                title={`Sincronizzazione automatica attiva su: ${fsSyncStatus.fileName} (Ultimo salvataggio: ${fsSyncStatus.lastSaved || "In corso..."})`}
-              >
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                <span className="truncate max-w-[120px] font-bold">{fsSyncStatus.fileName}</span>
-              </button>
-            )}
-
-            {/* GitLab Cloud Sync status badge if configured */}
-            {gitlabConfig?.enabled && (
-              <button
-                type="button"
-                onClick={() => setActiveTab("import")}
-                className={`hidden lg:flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl text-xs font-mono border transition ${
-                  gitlabConfig.syncStatus === "syncing"
-                    ? "bg-orange-950/80 border-orange-500/40 text-orange-300"
-                    : gitlabConfig.syncStatus === "error"
-                    ? "bg-rose-950/80 border-rose-500/40 text-rose-300"
-                    : "bg-orange-950/50 hover:bg-orange-900/60 border-orange-500/30 text-orange-200"
+                onClick={() => setActiveTab(item.id)}
+                aria-current={active ? "page" : undefined}
+                className={`flex items-center gap-2.5 h-[34px] px-2 rounded-lg text-[13px] font-medium text-left text-ink transition ${
+                  active ? "bg-black/[0.07]" : "hover:bg-black/[0.04]"
                 }`}
-                title={`GitLab Cloud Sync: ${gitlabConfig.syncStatus === 'syncing' ? 'Sincronizzazione in corso...' : gitlabConfig.lastSynced ? 'Ultimo sync: ' + gitlabConfig.lastSynced : 'Attiva'}. Clicca per gestire.`}
               >
-                <IconGitLab className={`w-3.5 h-3.5 text-orange-400 ${gitlabConfig.syncStatus === "syncing" ? "animate-spin" : ""}`} />
-                <span className="truncate max-w-[120px] font-bold">
-                  {gitlabConfig.syncStatus === "syncing" ? "GitLab..." : gitlabConfig.lastSynced ? `GitLab: ${gitlabConfig.lastSynced}` : "GitLab"}
+                <span className="w-[22px] h-[22px] rounded-md flex items-center justify-center text-paper shrink-0" style={{ background: item.color }}>
+                  <ItemIcon className="w-3.5 h-3.5" />
                 </span>
+                <span className="flex-1 truncate">{item.label}</span>
+                {navMeta[item.id] && <span className="text-xs text-ink-2 tabular">{navMeta[item.id]}</span>}
               </button>
-            )}
+            );
+          })}
+        </nav>
 
-            {/* Quick date simulator pill */}
-            <div className="hidden sm:flex items-center bg-slate-900/90 border border-slate-800 rounded-xl p-1 text-xs font-mono">
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[11px] font-semibold text-ink-2 px-2 pb-1.5">Materie</span>
+          {[
+            { key: "analisi", label: "Analisi I", color: "#5E5CE6" },
+            { key: "geometria", label: "Geometria", color: "#0A9396" }
+          ].map(s => (
+            <button
+              key={s.key}
+              type="button"
+              onClick={() => setActiveTab("topics")}
+              className="flex items-center gap-2.5 h-8 px-2 rounded-lg text-[13px] text-ink text-left hover:bg-black/[0.04] transition"
+            >
+              <span className="w-2.5 h-2.5 rounded-full mx-1.5 shrink-0" style={{ background: s.color }}></span>
+              <span className="flex-1">{s.label}</span>
+              <span className="text-xs text-ink-2 tabular">{progress[s.key].completedCount}/{progress[s.key].totalCount}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[11px] font-semibold text-ink-2 px-2 pb-1.5">Strumenti</span>
+          <button type="button" onClick={() => setIsFormulaDrawerOpen(true)} className={toolButtonClass} title="Apri il Formulario Rapido (Tasto F2)">
+            <span className="w-[22px] text-center text-ink-2 font-semibold text-[13px]">∑</span>
+            <span className="flex-1">Formulario</span>
+            <kbd className="text-[11px] text-ink-2 font-sans">F2</kbd>
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsPdfSplitOpen(prev => !prev)}
+            className={toolButtonClass}
+            aria-pressed={isPdfSplitOpen}
+            title="Attiva/disattiva il visualizzatore affiancato di dispense PDF ed eserciziari (Split View)"
+          >
+            <IconBookOpen className="w-[22px] h-4 text-ink-2" />
+            <span className="flex-1">Dispense affiancate</span>
+            <span className={`w-7 h-4 rounded-full p-0.5 transition ${isPdfSplitOpen ? "bg-ok" : "bg-black/15"}`}>
+              <span className={`block w-3 h-3 rounded-full bg-paper shadow-seg transition ${isPdfSplitOpen ? "translate-x-3" : ""}`}></span>
+            </span>
+          </button>
+          <button type="button" onClick={() => setIsBugTrackerOpen(true)} className={toolButtonClass} title="Apri il registro degli errori ricorrenti">
+            <IconBug className="w-[22px] h-4 text-ink-2" />
+            <span className="flex-1">Errori ricorrenti</span>
+          </button>
+          <button type="button" onClick={() => setIsSettingsOpen(true)} className={toolButtonClass} title="Parametri di Ribilanciamento">
+            <IconSettings className="w-[22px] h-4 text-ink-2" />
+            <span className="flex-1">Impostazioni</span>
+          </button>
+          {!isStandalone && (
+            <button type="button" onClick={handleInstallClick} className={toolButtonClass} title="Installa StudiPlanner come app desktop nativa tramite Chrome o Edge">
+              <IconDownload className="w-[22px] h-4 text-ink-2" />
+              <span className="flex-1">Installa app</span>
+            </button>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("import")}
+          className="mt-auto flex items-center gap-2.5 px-2 pt-3 pb-1 border-t border-black/10 text-left"
+          title="Gestisci la sincronizzazione"
+        >
+          <span className={`shrink-0 ${syncSummary.spin ? "animate-pulse" : ""}`} style={{ color: syncSummary.color }}>
+            <IconCloud className="w-4 h-4" />
+          </span>
+          <span className="flex flex-col min-w-0">
+            <span className="text-xs font-semibold text-ink truncate">{syncSummary.title}</span>
+            <span className="text-[11px] text-ink-2 truncate">{syncSummary.detail}</span>
+          </span>
+        </button>
+      </aside>
+
+      <div className="flex-1 min-w-0 flex flex-col">
+        {/* Barra strumenti */}
+        <header className="sticky top-0 z-30 vibrancy border-b border-black/[0.08]">
+          <div className="h-[52px] px-4 md:px-6 flex items-center gap-2.5">
+            <div className="lg:hidden flex items-center gap-2 min-w-0">
+              <div className="w-7 h-7 rounded-lg bg-accent flex items-center justify-center text-paper shrink-0">
+                <IconBookOpen className="w-3.5 h-3.5" />
+              </div>
+              <span className="text-[15px] font-semibold tracking-tight truncate hidden min-[400px]:inline">StudiPlanner</span>
+            </div>
+
+            <div className="flex-1" />
+
+            <span className="hidden md:inline text-[13px] text-ink-2 tabular" title="Giorni che mancano all'esame">
+              <span className="font-semibold text-ink">{metrics.remainingDays}</span> giorni all'esame
+            </span>
+
+            <div className="flex items-center bg-fill rounded-lg p-0.5">
               <button
+                type="button"
                 onClick={handleRetrocedeDate}
-                className="px-1.5 py-0.5 hover:bg-slate-800 text-slate-400 hover:text-white rounded transition"
+                className="w-8 h-7 rounded-md flex items-center justify-center text-ink hover:bg-black/[0.05] transition"
                 title="Giorno precedente"
+                aria-label="Giorno precedente"
               >
-                ◀
+                <IconChevronLeft className="w-4 h-4" />
               </button>
-              <span className="px-2 font-bold text-cyan-300">
+              <span className="h-7 px-3 rounded-md bg-paper shadow-seg text-xs font-semibold flex items-center tabular whitespace-nowrap">
                 Oggi: {formatDateDisplay(settings.currentSimulatedDate)}
               </span>
               <button
+                type="button"
                 onClick={handleAdvanceDate}
-                className="px-1.5 py-0.5 hover:bg-slate-800 text-slate-400 hover:text-white rounded transition"
+                className="w-8 h-7 rounded-md flex items-center justify-center text-ink hover:bg-black/[0.05] transition"
                 title="Giorno successivo (simula giorno saltato o avanzamento)"
+                aria-label="Giorno successivo"
               >
-                ▶
+                <IconChevronRight className="w-4 h-4" />
               </button>
-
-              {settings.currentSimulatedDate !== todayForSettings(settings) && (
-                <button
-                  type="button"
-                  onClick={() => setSettings(prev => ({ ...prev, currentSimulatedDate: todayForSettings(prev) }))}
-                  className="ml-1 px-1.5 py-0.5 rounded bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 text-[10px] font-sans font-bold border border-cyan-500/40 transition"
-                  title={`Reimposta sulla data reale odierna (${formatDateDisplay(todayForSettings(settings))})`}
-                >
-                  Oggi Reale
-                </button>
-              )}
             </div>
 
-            {/* Countdown pill */}
-            <div className="hidden md:flex items-center space-x-1.5 bg-slate-900/90 border border-slate-800 px-2.5 py-1.5 rounded-xl text-xs font-mono">
-              <IconClock className="w-3.5 h-3.5 text-cyan-400" />
-              <span className="font-bold text-white">{metrics.remainingDays} gg</span>
-            </div>
-
-            {/* PWA Install Button (active when accessed via browser) */}
-            {!isStandalone && (
+            {isSimulatingDate && (
               <button
                 type="button"
-                onClick={handleInstallClick}
-                className="flex items-center space-x-1.5 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-bold px-2.5 py-1.5 rounded-xl text-xs shadow-md shadow-cyan-500/20 border border-cyan-400/30 transition transform active:scale-95"
-                title="Installa StudiPlanner come app desktop nativa su Windows tramite Chrome o Edge"
+                onClick={resetToRealToday}
+                className="h-7 px-3 rounded-full bg-accent-tint text-accent-ink text-xs font-semibold hover:brightness-95 transition whitespace-nowrap"
+                title={`Reimposta sulla data reale odierna (${formatDateDisplay(todayForSettings(settings))})`}
               >
-                <svg className="w-3.5 h-3.5 text-cyan-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-                <span className="hidden sm:inline">Installa PWA</span>
+                Oggi Reale
               </button>
             )}
 
             <button
+              type="button"
+              onClick={() => handleOpenLogModal({ date: settings.currentSimulatedDate })}
+              className="hidden sm:flex items-center gap-1.5 h-8 px-3.5 rounded-full bg-accent hover:bg-accent-hover text-paper text-[13px] font-semibold transition active:scale-[0.97] shrink-0"
+              title="Registra ore di studio svolte (+)"
+            >
+              <IconPlus className="w-3.5 h-3.5" />
+              <span>Registra studio</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsFormulaDrawerOpen(true)}
+              className="lg:hidden w-8 h-8 rounded-full flex items-center justify-center text-accent hover:bg-black/[0.05] font-semibold"
+              title="Formulario (F2)"
+              aria-label="Apri il formulario"
+            >
+              ∑
+            </button>
+            <button
+              type="button"
               onClick={() => setIsSettingsOpen(true)}
-              className="p-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-xl text-slate-300 hover:text-white transition"
+              className="lg:hidden w-8 h-8 rounded-full flex items-center justify-center text-accent hover:bg-black/[0.05]"
               title="Parametri di Ribilanciamento"
+              aria-label="Impostazioni"
             >
               <IconSettings className="w-5 h-5" />
             </button>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* Main Container */}
-      <main className="flex-1 w-full max-w-[1920px] mx-auto p-4 md:p-6 lg:p-8 2xl:px-12 space-y-6 pb-24 md:pb-12">
+        {/* Contenuto */}
+        <main className="flex-1 w-full max-w-[1600px] mx-auto px-4 md:px-8 2xl:px-10 py-6 md:py-8 space-y-6 pb-28 lg:pb-12">
+          {PAGE_HEADINGS[activeTab] && (
+            <div>
+              <div className="eyebrow">{PAGE_HEADINGS[activeTab].eyebrow}</div>
+              <h2 className="large-title mt-1 text-ink">{PAGE_HEADINGS[activeTab].title}</h2>
+            </div>
+          )}
         {/* Tab Content & Side-by-Side PDF Split View (Punto 11) */}
         <div className={isPdfSplitOpen ? "grid grid-cols-1 xl:grid-cols-12 gap-6 items-start" : ""}>
           <div className={isPdfSplitOpen ? "xl:col-span-7 space-y-6" : ""}>
@@ -12873,6 +12768,8 @@ function App() {
                 onToggleSpacedReview={handleToggleSpacedReview}
                 mathBugs={mathBugs}
                 onOpenBugTracker={() => setIsBugTrackerOpen(true)}
+                currentWeekPlan={rebalancedPlan.currentWeekPlan}
+                todayPlan={rebalancedPlan.calendarDays.find(d => d.isToday) || null}
               />
             )}
 
@@ -12943,78 +12840,32 @@ function App() {
           </div>
 
           {isPdfSplitOpen && (
-            <div className="xl:col-span-5 sticky top-24">
+            <div className="xl:col-span-5 sticky top-[68px]">
               <PdfSplitView isOpen={isPdfSplitOpen} onClose={() => setIsPdfSplitOpen(false)} />
             </div>
           )}
         </div>
-      </main>
-
-      {/* Mobile Bottom Navigation Bar */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#070b14]/95 backdrop-blur-xl border-t border-slate-800 px-3 py-2 flex items-center justify-around shadow-2xl">
-        <button
-          onClick={() => setActiveTab("dashboard")}
-          className={`flex flex-col items-center py-1 px-2 rounded-xl transition ${
-            activeTab === "dashboard" ? "text-cyan-400 font-bold" : "text-slate-500"
-          }`}
-        >
-          <IconBarChart className="w-5 h-5" />
-          <span className="text-[10px] mt-1">Dashboard</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab("weekly")}
-          className={`flex flex-col items-center py-1 px-2 rounded-xl transition ${
-            activeTab === "weekly" ? "text-emerald-400 font-bold" : "text-slate-500"
-          }`}
-        >
-          <IconCalendar className="w-5 h-5" />
-          <span className="text-[10px] mt-1">Settimanale</span>
-        </button>
-
-        {/* Center Mobile Quick Log Button (+) */}
-        <button
-          type="button"
-          onClick={() => handleOpenLogModal({ date: settings.currentSimulatedDate })}
-          className="flex flex-col items-center py-0.5 px-2 rounded-xl transition text-emerald-400 -mt-3"
-          title="Registra Sessione di Studio (+)"
-        >
-          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/30 border-2 border-[#070b14] active:scale-95 transition">
-            <span className="text-xl font-black leading-none">+</span>
-          </div>
-          <span className="text-[10px] mt-0.5 font-bold">Studio</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab("history")}
-          className={`flex flex-col items-center py-1 px-2 rounded-xl transition ${
-            activeTab === "history" ? "text-amber-400 font-bold" : "text-slate-500"
-          }`}
-        >
-          <IconHistory className="w-5 h-5" />
-          <span className="text-[10px] mt-1">Storico</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab("topics")}
-          className={`flex flex-col items-center py-1 px-2 rounded-xl transition ${
-            activeTab === "topics" ? "text-indigo-400 font-bold" : "text-slate-500"
-          }`}
-        >
-          <IconLayers className="w-5 h-5" />
-          <span className="text-[10px] mt-1">Argomenti</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab("import")}
-          className={`flex flex-col items-center py-1 px-2 rounded-xl transition ${
-            activeTab === "import" ? "text-purple-400 font-bold" : "text-slate-500"
-          }`}
-        >
-          <IconUpload className="w-5 h-5" />
-          <span className="text-[10px] mt-1">File</span>
-        </button>
+        </main>
       </div>
+
+      {/* Tab bar iOS (mobile e tablet) */}
+      <nav aria-label="Sezioni" className="lg:hidden fixed bottom-0 inset-x-0 z-40 vibrancy border-t border-black/10 pb-safe">
+        <div className="grid grid-cols-6 items-end px-1 pt-1.5">
+          {NAV_ITEMS.slice(0, 2).map(item => renderTabBarItem(item))}
+          <button
+            type="button"
+            onClick={() => handleOpenLogModal({ date: settings.currentSimulatedDate })}
+            className="flex flex-col items-center gap-0.5 text-accent"
+            title="Registra Sessione di Studio (+)"
+          >
+            <span className="w-11 h-11 -mt-4 rounded-full bg-accent text-paper flex items-center justify-center shadow-float active:scale-95 transition">
+              <IconPlus className="w-5 h-5" />
+            </span>
+            <span className="text-[10px] font-medium">Studio</span>
+          </button>
+          {NAV_ITEMS.slice(2).map(item => renderTabBarItem(item))}
+        </div>
+      </nav>
 
       {/* Settings Modal */}
       <SettingsModal

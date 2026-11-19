@@ -57,7 +57,7 @@ export function PdfSplitView({ isOpen, onClose }) {
   if (!isOpen) return null;
 
   return (
-    <div className="bg-[#0b101e] border border-slate-800 rounded-3xl p-4 md:p-5 flex flex-col h-[750px] shadow-2xl relative">
+    <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 md:p-5 flex flex-col h-[750px] shadow-2xl relative">
       {/* Top Controls Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
         <div className="flex items-center space-x-2.5">

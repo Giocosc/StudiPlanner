@@ -168,7 +168,7 @@ export function MathFormulaDrawer({ isOpen, onClose }) {
       />
 
       {/* Slide-over panel */}
-      <div className="relative w-full max-w-2xl bg-[#0b101e] border-l border-slate-800 shadow-2xl flex flex-col h-full z-10 animate-in slide-in-from-right duration-300">
+      <div className="relative w-full max-w-2xl bg-slate-900 border-l border-slate-800 shadow-2xl flex flex-col h-full z-10 animate-in slide-in-from-right duration-300">
         {/* Header */}
         <div className="p-5 border-b border-slate-800/80 bg-slate-900/60 flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -242,15 +242,15 @@ export function MathFormulaDrawer({ isOpen, onClose }) {
                 key={item.id}
                 className={`p-4 rounded-2xl border transition ${
                   item.category === "analisi"
-                    ? "bg-emerald-950/15 border-emerald-500/25 hover:border-emerald-500/40"
-                    : "bg-indigo-950/15 border-indigo-500/25 hover:border-indigo-500/40"
+                    ? "bg-indigo-950/15 border-indigo-500/25 hover:border-indigo-500/40"
+                    : "bg-teal-950/15 border-teal-500/25 hover:border-teal-500/40"
                 }`}
               >
                 <div className="flex items-center justify-between mb-1.5">
                   <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
                     item.category === "analisi"
-                      ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                      : "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                      ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                      : "bg-teal-500/20 text-teal-300 border border-teal-500/30"
                   }`}>
                     {item.topic}
                   </span>

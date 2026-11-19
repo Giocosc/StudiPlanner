@@ -193,8 +193,8 @@ export function TopicsTable({ topics, onToggleComplete, onUpdateTopicHours, onBa
                     <td className="py-3 px-3">
                       <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
                         isAnalisi
-                          ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                          : "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                          ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                          : "bg-teal-500/20 text-teal-300 border border-teal-500/30"
                       }`}>
                         {topic.materia}
                       </span>

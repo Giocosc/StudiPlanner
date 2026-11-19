@@ -37,7 +37,12 @@ import {
   IconSave,
   IconFileCheck,
   IconPlus,
-  IconGitLab
+  IconGitLab,
+  IconChevronLeft,
+  IconChevronRight,
+  IconBug,
+  IconCloud,
+  IconDownload
 } from "./components/Icons.js";
 
 // Data reale odierna limitata all'intervallo della sessione configurata
@@ -75,6 +80,23 @@ const settingsSyncKey = (s) => {
 const isGitLabReady = (cfg) => Boolean(cfg && cfg.enabled && cfg.token && cfg.projectId);
 const nowTimeLabel = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 const GITLAB_FOCUS_SYNC_THROTTLE_MS = 30000;
+
+// Voci di navigazione: etichetta completa (sidebar) e breve (tab bar iOS), colore dell'icona di sistema
+const NAV_ITEMS = [
+  { id: "dashboard", label: "Dashboard", short: "Oggi", Icon: IconBarChart, color: "#0071E3" },
+  { id: "weekly", label: "To-Do Settimanale", short: "Settimana", Icon: IconCalendar, color: "#FF3B30" },
+  { id: "history", label: "Storico & Diario", short: "Storico", Icon: IconHistory, color: "#AF52DE" },
+  { id: "topics", label: "Catalogo Argomenti", short: "Catalogo", Icon: IconLayers, color: "#34C759" },
+  { id: "import", label: "Import / Sync", short: "Sync", Icon: IconUpload, color: "#8E8E93" }
+];
+
+// Titoli grandi delle schede (la Dashboard ha la propria intestazione con la data)
+const PAGE_HEADINGS = {
+  weekly: { eyebrow: "Piano sera per sera", title: "Settimana" },
+  history: { eyebrow: "Cosa hai fatto e cosa è slittato", title: "Storico" },
+  topics: { eyebrow: "Analisi I e Geometria", title: "Catalogo argomenti" },
+  import: { eyebrow: "Backup, file e GitLab", title: "Importa e sincronizza" }
+};
 
 export function App() {
   // Load saved state from localStorage if available, or use official UNIMORE defaults
@@ -880,234 +902,246 @@ export function App() {
     return `${d}/${m}`;
   };
 
+  const renderTabBarItem = (item) => {
+    const active = activeTab === item.id;
+    const ItemIcon = item.Icon;
+    return (
+      <button
+        key={item.id}
+        type="button"
+        onClick={() => setActiveTab(item.id)}
+        aria-current={active ? "page" : undefined}
+        className={`flex flex-col items-center gap-0.5 py-1 transition ${active ? "text-accent" : "text-[#8E8E93]"}`}
+      >
+        <ItemIcon className="w-6 h-6" />
+        <span className="text-[10px] font-medium">{item.short}</span>
+      </button>
+    );
+  };
+
+  const isSimulatingDate = settings.currentSimulatedDate !== todayForSettings(settings);
+  const resetToRealToday = () => setSettings(prev => ({ ...prev, currentSimulatedDate: todayForSettings(prev) }));
+
+  // Stato della sincronizzazione mostrato in fondo alla sidebar
+  const syncSummary = (() => {
+    if (gitlabConfig?.enabled) {
+      if (gitlabConfig.syncStatus === "syncing") return { title: "Sincronizzazione…", detail: "GitLab", color: "#0071E3", spin: true };
+      if (gitlabConfig.syncStatus === "error") return { title: "Errore di sincronizzazione", detail: "GitLab · tocca per i dettagli", color: "#FF3B30" };
+      return { title: "Sincronizzato", detail: gitlabConfig.lastSynced ? `GitLab · ${gitlabConfig.lastSynced}` : "GitLab · attivo", color: "#34C759" };
+    }
+    if (fsSyncStatus.active) {
+      return { title: "File collegato", detail: `${fsSyncStatus.fileName}${fsSyncStatus.lastSaved ? " · " + fsSyncStatus.lastSaved : ""}`, color: "#34C759" };
+    }
+    return { title: "Solo su questo dispositivo", detail: "Configura GitLab o un file", color: "#8E8E93" };
+  })();
+
+  const navMeta = {
+    topics: `${progress.global.completedCount}/${progress.global.totalCount}`
+  };
+
+  const toolButtonClass = "flex items-center gap-2.5 h-8 px-2 rounded-lg text-[13px] text-ink text-left hover:bg-black/[0.04] transition";
+
   return (
-    <div className="min-h-screen bg-[#070b14] text-slate-100 flex flex-col font-sans selection:bg-cyan-500/30 selection:text-cyan-200">
-      {/* Top Header */}
-      <header className="sticky top-0 z-40 bg-[#070b14]/90 backdrop-blur-xl border-b border-slate-800/80 px-4 md:px-6 lg:px-8 2xl:px-12 py-3.5 shadow-md">
-        <div className="w-full max-w-[1920px] mx-auto flex items-center justify-between gap-4">
-          {/* Logo & Subtitle */}
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500 via-indigo-500 to-purple-600 p-0.5 shadow-lg shadow-cyan-500/20">
-              <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center text-cyan-400">
-                <IconBookOpen className="w-5 h-5" />
-              </div>
-            </div>
-
-            <div>
-              <div className="flex items-center space-x-2">
-                <h1 className="text-base md:text-lg font-black tracking-tight text-white">
-                  Studi<span className="bg-gradient-to-r from-cyan-400 to-indigo-400 bg-clip-text text-transparent">Planner</span>
-                </h1>
-                <span className="hidden sm:inline-block text-[10px] font-bold uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded-full">
-                  UNIMORE Ingegneria
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-400 hidden sm:block">
-                Analisi 1 & Geometria • Ribilanciamento dinamico fino al 10 Gennaio 2027
-              </p>
-            </div>
+    <div className="min-h-screen bg-canvas text-ink flex font-sans">
+      {/* Sidebar macOS (desktop) */}
+      <aside className="hidden lg:flex flex-col w-[248px] shrink-0 sticky top-0 h-screen bg-sidebar border-r border-black/10 px-3 pt-4 pb-3 gap-5 overflow-y-auto">
+        <div className="flex items-center gap-2.5 px-2">
+          <div className="w-8 h-8 rounded-[9px] bg-accent flex items-center justify-center text-paper shadow-seg">
+            <IconBookOpen className="w-4 h-4" />
           </div>
+          <div className="min-w-0">
+            <h1 className="text-[15px] font-semibold tracking-tight text-ink leading-tight">StudiPlanner</h1>
+            <p className="text-[11px] text-ink-2 truncate">UNIMORE · Ingegneria</p>
+          </div>
+        </div>
 
-          {/* Desktop Navigation Tabs */}
-          <nav className="hidden lg:flex items-center space-x-1 bg-slate-900/80 border border-slate-800 p-1 rounded-2xl">
-            <button
-              onClick={() => setActiveTab("dashboard")}
-              className={`flex items-center space-x-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
-                activeTab === "dashboard"
-                  ? "bg-gradient-to-r from-cyan-500/20 to-indigo-500/20 text-white border border-cyan-500/30 shadow-sm"
-                  : "text-slate-400 hover:text-white"
-              }`}
-            >
-              <IconBarChart className="w-4 h-4 text-cyan-400" />
-              <span>Dashboard</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab("weekly")}
-              className={`flex items-center space-x-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
-                activeTab === "weekly"
-                  ? "bg-gradient-to-r from-cyan-500/20 to-indigo-500/20 text-white border border-cyan-500/30 shadow-sm"
-                  : "text-slate-400 hover:text-white"
-              }`}
-            >
-              <IconCalendar className="w-4 h-4 text-emerald-400" />
-              <span>To-Do Settimanale</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab("history")}
-              className={`flex items-center space-x-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
-                activeTab === "history"
-                  ? "bg-gradient-to-r from-cyan-500/20 to-indigo-500/20 text-white border border-cyan-500/30 shadow-sm"
-                  : "text-slate-400 hover:text-white"
-              }`}
-            >
-              <IconHistory className="w-4 h-4 text-amber-400" />
-              <span>Storico & Diario</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab("topics")}
-              className={`flex items-center space-x-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
-                activeTab === "topics"
-                  ? "bg-gradient-to-r from-cyan-500/20 to-indigo-500/20 text-white border border-cyan-500/30 shadow-sm"
-                  : "text-slate-400 hover:text-white"
-              }`}
-            >
-              <IconLayers className="w-4 h-4 text-indigo-400" />
-              <span>Catalogo Argomenti</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab("import")}
-              className={`flex items-center space-x-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
-                activeTab === "import"
-                  ? "bg-gradient-to-r from-cyan-500/20 to-indigo-500/20 text-white border border-cyan-500/30 shadow-sm"
-                  : "text-slate-400 hover:text-white"
-              }`}
-            >
-              <IconUpload className="w-4 h-4 text-purple-400" />
-              <span>Import / Sync</span>
-            </button>
-          </nav>
-
-          {/* Right Action: Date Simulation Controls & Settings */}
-          <div className="flex items-center space-x-2.5">
-            {/* Quick Log Studio Action (+) */}
-            <button
-              type="button"
-              onClick={() => handleOpenLogModal({ date: settings.currentSimulatedDate })}
-              className="flex items-center space-x-1.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold px-3 py-1.5 rounded-xl text-xs shadow-md shadow-emerald-500/20 border border-emerald-400/40 transition transform active:scale-95 flex-shrink-0"
-              title="Registra ore di studio svolte (+)"
-            >
-              <span className="text-base font-black leading-none">+</span>
-              <span className="hidden sm:inline">Registra Studio</span>
-            </button>
-
-            {/* Quick Math Formula Cheat-Sheet Drawer (Punto 10) */}
-            <button
-              type="button"
-              onClick={() => setIsFormulaDrawerOpen(true)}
-              className="flex items-center space-x-1.5 bg-slate-900/90 hover:bg-slate-800 text-cyan-300 border border-cyan-500/40 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm transition transform active:scale-95 flex-shrink-0"
-              title="Apri il Formulario Rapido (Tasto F2)"
-            >
-              <span>📐 Formulario [F2]</span>
-            </button>
-
-            {/* Side-by-side PDF Viewer Toggle (Punto 11) */}
-            <button
-              type="button"
-              onClick={() => setIsPdfSplitOpen(prev => !prev)}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition transform active:scale-95 flex-shrink-0 ${
-                isPdfSplitOpen
-                  ? "bg-purple-600/30 text-purple-200 border-purple-500/50 shadow-md shadow-purple-950/40"
-                  : "bg-slate-900/90 hover:bg-slate-800 text-purple-300 border-purple-500/30"
-              }`}
-              title="Attiva/disattiva il visualizzatore affiancato di dispense PDF ed eserciziari (Split View)"
-            >
-              <span>📖 Split PDF {isPdfSplitOpen ? "✓" : ""}</span>
-            </button>
-
-            {/* Auto-Sync status badge if connected */}
-            {fsSyncStatus.active && (
+        <nav aria-label="Sezioni" className="flex flex-col gap-0.5">
+          <span className="text-[11px] font-semibold text-ink-2 px-2 pb-1.5">StudiPlanner</span>
+          {NAV_ITEMS.map(item => {
+            const active = activeTab === item.id;
+            const ItemIcon = item.Icon;
+            return (
               <button
+                key={item.id}
                 type="button"
-                onClick={() => setActiveTab("import")}
-                className="hidden lg:flex items-center space-x-1.5 bg-emerald-950/80 border border-emerald-500/40 px-2.5 py-1.5 rounded-xl text-xs font-mono text-emerald-300 hover:bg-emerald-900/60 transition"
-                title={`Sincronizzazione automatica attiva su: ${fsSyncStatus.fileName} (Ultimo salvataggio: ${fsSyncStatus.lastSaved || "In corso..."})`}
-              >
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                <span className="truncate max-w-[120px] font-bold">{fsSyncStatus.fileName}</span>
-              </button>
-            )}
-
-            {/* GitLab Cloud Sync status badge if configured */}
-            {gitlabConfig?.enabled && (
-              <button
-                type="button"
-                onClick={() => setActiveTab("import")}
-                className={`hidden lg:flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl text-xs font-mono border transition ${
-                  gitlabConfig.syncStatus === "syncing"
-                    ? "bg-orange-950/80 border-orange-500/40 text-orange-300"
-                    : gitlabConfig.syncStatus === "error"
-                    ? "bg-rose-950/80 border-rose-500/40 text-rose-300"
-                    : "bg-orange-950/50 hover:bg-orange-900/60 border-orange-500/30 text-orange-200"
+                onClick={() => setActiveTab(item.id)}
+                aria-current={active ? "page" : undefined}
+                className={`flex items-center gap-2.5 h-[34px] px-2 rounded-lg text-[13px] font-medium text-left text-ink transition ${
+                  active ? "bg-black/[0.07]" : "hover:bg-black/[0.04]"
                 }`}
-                title={`GitLab Cloud Sync: ${gitlabConfig.syncStatus === 'syncing' ? 'Sincronizzazione in corso...' : gitlabConfig.lastSynced ? 'Ultimo sync: ' + gitlabConfig.lastSynced : 'Attiva'}. Clicca per gestire.`}
               >
-                <IconGitLab className={`w-3.5 h-3.5 text-orange-400 ${gitlabConfig.syncStatus === "syncing" ? "animate-spin" : ""}`} />
-                <span className="truncate max-w-[120px] font-bold">
-                  {gitlabConfig.syncStatus === "syncing" ? "GitLab..." : gitlabConfig.lastSynced ? `GitLab: ${gitlabConfig.lastSynced}` : "GitLab"}
+                <span className="w-[22px] h-[22px] rounded-md flex items-center justify-center text-paper shrink-0" style={{ background: item.color }}>
+                  <ItemIcon className="w-3.5 h-3.5" />
                 </span>
+                <span className="flex-1 truncate">{item.label}</span>
+                {navMeta[item.id] && <span className="text-xs text-ink-2 tabular">{navMeta[item.id]}</span>}
               </button>
-            )}
+            );
+          })}
+        </nav>
 
-            {/* Quick date simulator pill */}
-            <div className="hidden sm:flex items-center bg-slate-900/90 border border-slate-800 rounded-xl p-1 text-xs font-mono">
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[11px] font-semibold text-ink-2 px-2 pb-1.5">Materie</span>
+          {[
+            { key: "analisi", label: "Analisi I", color: "#5E5CE6" },
+            { key: "geometria", label: "Geometria", color: "#0A9396" }
+          ].map(s => (
+            <button
+              key={s.key}
+              type="button"
+              onClick={() => setActiveTab("topics")}
+              className="flex items-center gap-2.5 h-8 px-2 rounded-lg text-[13px] text-ink text-left hover:bg-black/[0.04] transition"
+            >
+              <span className="w-2.5 h-2.5 rounded-full mx-1.5 shrink-0" style={{ background: s.color }}></span>
+              <span className="flex-1">{s.label}</span>
+              <span className="text-xs text-ink-2 tabular">{progress[s.key].completedCount}/{progress[s.key].totalCount}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[11px] font-semibold text-ink-2 px-2 pb-1.5">Strumenti</span>
+          <button type="button" onClick={() => setIsFormulaDrawerOpen(true)} className={toolButtonClass} title="Apri il Formulario Rapido (Tasto F2)">
+            <span className="w-[22px] text-center text-ink-2 font-semibold text-[13px]">∑</span>
+            <span className="flex-1">Formulario</span>
+            <kbd className="text-[11px] text-ink-2 font-sans">F2</kbd>
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsPdfSplitOpen(prev => !prev)}
+            className={toolButtonClass}
+            aria-pressed={isPdfSplitOpen}
+            title="Attiva/disattiva il visualizzatore affiancato di dispense PDF ed eserciziari (Split View)"
+          >
+            <IconBookOpen className="w-[22px] h-4 text-ink-2" />
+            <span className="flex-1">Dispense affiancate</span>
+            <span className={`w-7 h-4 rounded-full p-0.5 transition ${isPdfSplitOpen ? "bg-ok" : "bg-black/15"}`}>
+              <span className={`block w-3 h-3 rounded-full bg-paper shadow-seg transition ${isPdfSplitOpen ? "translate-x-3" : ""}`}></span>
+            </span>
+          </button>
+          <button type="button" onClick={() => setIsBugTrackerOpen(true)} className={toolButtonClass} title="Apri il registro degli errori ricorrenti">
+            <IconBug className="w-[22px] h-4 text-ink-2" />
+            <span className="flex-1">Errori ricorrenti</span>
+          </button>
+          <button type="button" onClick={() => setIsSettingsOpen(true)} className={toolButtonClass} title="Parametri di Ribilanciamento">
+            <IconSettings className="w-[22px] h-4 text-ink-2" />
+            <span className="flex-1">Impostazioni</span>
+          </button>
+          {!isStandalone && (
+            <button type="button" onClick={handleInstallClick} className={toolButtonClass} title="Installa StudiPlanner come app desktop nativa tramite Chrome o Edge">
+              <IconDownload className="w-[22px] h-4 text-ink-2" />
+              <span className="flex-1">Installa app</span>
+            </button>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("import")}
+          className="mt-auto flex items-center gap-2.5 px-2 pt-3 pb-1 border-t border-black/10 text-left"
+          title="Gestisci la sincronizzazione"
+        >
+          <span className={`shrink-0 ${syncSummary.spin ? "animate-pulse" : ""}`} style={{ color: syncSummary.color }}>
+            <IconCloud className="w-4 h-4" />
+          </span>
+          <span className="flex flex-col min-w-0">
+            <span className="text-xs font-semibold text-ink truncate">{syncSummary.title}</span>
+            <span className="text-[11px] text-ink-2 truncate">{syncSummary.detail}</span>
+          </span>
+        </button>
+      </aside>
+
+      <div className="flex-1 min-w-0 flex flex-col">
+        {/* Barra strumenti */}
+        <header className="sticky top-0 z-30 vibrancy border-b border-black/[0.08]">
+          <div className="h-[52px] px-4 md:px-6 flex items-center gap-2.5">
+            <div className="lg:hidden flex items-center gap-2 min-w-0">
+              <div className="w-7 h-7 rounded-lg bg-accent flex items-center justify-center text-paper shrink-0">
+                <IconBookOpen className="w-3.5 h-3.5" />
+              </div>
+              <span className="text-[15px] font-semibold tracking-tight truncate hidden min-[400px]:inline">StudiPlanner</span>
+            </div>
+
+            <div className="flex-1" />
+
+            <span className="hidden md:inline text-[13px] text-ink-2 tabular" title="Giorni che mancano all'esame">
+              <span className="font-semibold text-ink">{metrics.remainingDays}</span> giorni all'esame
+            </span>
+
+            <div className="flex items-center bg-fill rounded-lg p-0.5">
               <button
+                type="button"
                 onClick={handleRetrocedeDate}
-                className="px-1.5 py-0.5 hover:bg-slate-800 text-slate-400 hover:text-white rounded transition"
+                className="w-8 h-7 rounded-md flex items-center justify-center text-ink hover:bg-black/[0.05] transition"
                 title="Giorno precedente"
+                aria-label="Giorno precedente"
               >
-                ◀
+                <IconChevronLeft className="w-4 h-4" />
               </button>
-              <span className="px-2 font-bold text-cyan-300">
+              <span className="h-7 px-3 rounded-md bg-paper shadow-seg text-xs font-semibold flex items-center tabular whitespace-nowrap">
                 Oggi: {formatDateDisplay(settings.currentSimulatedDate)}
               </span>
               <button
+                type="button"
                 onClick={handleAdvanceDate}
-                className="px-1.5 py-0.5 hover:bg-slate-800 text-slate-400 hover:text-white rounded transition"
+                className="w-8 h-7 rounded-md flex items-center justify-center text-ink hover:bg-black/[0.05] transition"
                 title="Giorno successivo (simula giorno saltato o avanzamento)"
+                aria-label="Giorno successivo"
               >
-                ▶
+                <IconChevronRight className="w-4 h-4" />
               </button>
-
-              {settings.currentSimulatedDate !== todayForSettings(settings) && (
-                <button
-                  type="button"
-                  onClick={() => setSettings(prev => ({ ...prev, currentSimulatedDate: todayForSettings(prev) }))}
-                  className="ml-1 px-1.5 py-0.5 rounded bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 text-[10px] font-sans font-bold border border-cyan-500/40 transition"
-                  title={`Reimposta sulla data reale odierna (${formatDateDisplay(todayForSettings(settings))})`}
-                >
-                  Oggi Reale
-                </button>
-              )}
             </div>
 
-            {/* Countdown pill */}
-            <div className="hidden md:flex items-center space-x-1.5 bg-slate-900/90 border border-slate-800 px-2.5 py-1.5 rounded-xl text-xs font-mono">
-              <IconClock className="w-3.5 h-3.5 text-cyan-400" />
-              <span className="font-bold text-white">{metrics.remainingDays} gg</span>
-            </div>
-
-            {/* PWA Install Button (active when accessed via browser) */}
-            {!isStandalone && (
+            {isSimulatingDate && (
               <button
                 type="button"
-                onClick={handleInstallClick}
-                className="flex items-center space-x-1.5 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-bold px-2.5 py-1.5 rounded-xl text-xs shadow-md shadow-cyan-500/20 border border-cyan-400/30 transition transform active:scale-95"
-                title="Installa StudiPlanner come app desktop nativa su Windows tramite Chrome o Edge"
+                onClick={resetToRealToday}
+                className="h-7 px-3 rounded-full bg-accent-tint text-accent-ink text-xs font-semibold hover:brightness-95 transition whitespace-nowrap"
+                title={`Reimposta sulla data reale odierna (${formatDateDisplay(todayForSettings(settings))})`}
               >
-                <svg className="w-3.5 h-3.5 text-cyan-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-                <span className="hidden sm:inline">Installa PWA</span>
+                Oggi Reale
               </button>
             )}
 
             <button
+              type="button"
+              onClick={() => handleOpenLogModal({ date: settings.currentSimulatedDate })}
+              className="hidden sm:flex items-center gap-1.5 h-8 px-3.5 rounded-full bg-accent hover:bg-accent-hover text-paper text-[13px] font-semibold transition active:scale-[0.97] shrink-0"
+              title="Registra ore di studio svolte (+)"
+            >
+              <IconPlus className="w-3.5 h-3.5" />
+              <span>Registra studio</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsFormulaDrawerOpen(true)}
+              className="lg:hidden w-8 h-8 rounded-full flex items-center justify-center text-accent hover:bg-black/[0.05] font-semibold"
+              title="Formulario (F2)"
+              aria-label="Apri il formulario"
+            >
+              ∑
+            </button>
+            <button
+              type="button"
               onClick={() => setIsSettingsOpen(true)}
-              className="p-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-xl text-slate-300 hover:text-white transition"
+              className="lg:hidden w-8 h-8 rounded-full flex items-center justify-center text-accent hover:bg-black/[0.05]"
               title="Parametri di Ribilanciamento"
+              aria-label="Impostazioni"
             >
               <IconSettings className="w-5 h-5" />
             </button>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* Main Container */}
-      <main className="flex-1 w-full max-w-[1920px] mx-auto p-4 md:p-6 lg:p-8 2xl:px-12 space-y-6 pb-24 md:pb-12">
+        {/* Contenuto */}
+        <main className="flex-1 w-full max-w-[1600px] mx-auto px-4 md:px-8 2xl:px-10 py-6 md:py-8 space-y-6 pb-28 lg:pb-12">
+          {PAGE_HEADINGS[activeTab] && (
+            <div>
+              <div className="eyebrow">{PAGE_HEADINGS[activeTab].eyebrow}</div>
+              <h2 className="large-title mt-1 text-ink">{PAGE_HEADINGS[activeTab].title}</h2>
+            </div>
+          )}
         {/* Tab Content & Side-by-Side PDF Split View (Punto 11) */}
         <div className={isPdfSplitOpen ? "grid grid-cols-1 xl:grid-cols-12 gap-6 items-start" : ""}>
           <div className={isPdfSplitOpen ? "xl:col-span-7 space-y-6" : ""}>
@@ -1123,6 +1157,8 @@ export function App() {
                 onToggleSpacedReview={handleToggleSpacedReview}
                 mathBugs={mathBugs}
                 onOpenBugTracker={() => setIsBugTrackerOpen(true)}
+                currentWeekPlan={rebalancedPlan.currentWeekPlan}
+                todayPlan={rebalancedPlan.calendarDays.find(d => d.isToday) || null}
               />
             )}
 
@@ -1193,78 +1229,32 @@ export function App() {
           </div>
 
           {isPdfSplitOpen && (
-            <div className="xl:col-span-5 sticky top-24">
+            <div className="xl:col-span-5 sticky top-[68px]">
               <PdfSplitView isOpen={isPdfSplitOpen} onClose={() => setIsPdfSplitOpen(false)} />
             </div>
           )}
         </div>
-      </main>
-
-      {/* Mobile Bottom Navigation Bar */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#070b14]/95 backdrop-blur-xl border-t border-slate-800 px-3 py-2 flex items-center justify-around shadow-2xl">
-        <button
-          onClick={() => setActiveTab("dashboard")}
-          className={`flex flex-col items-center py-1 px-2 rounded-xl transition ${
-            activeTab === "dashboard" ? "text-cyan-400 font-bold" : "text-slate-500"
-          }`}
-        >
-          <IconBarChart className="w-5 h-5" />
-          <span className="text-[10px] mt-1">Dashboard</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab("weekly")}
-          className={`flex flex-col items-center py-1 px-2 rounded-xl transition ${
-            activeTab === "weekly" ? "text-emerald-400 font-bold" : "text-slate-500"
-          }`}
-        >
-          <IconCalendar className="w-5 h-5" />
-          <span className="text-[10px] mt-1">Settimanale</span>
-        </button>
-
-        {/* Center Mobile Quick Log Button (+) */}
-        <button
-          type="button"
-          onClick={() => handleOpenLogModal({ date: settings.currentSimulatedDate })}
-          className="flex flex-col items-center py-0.5 px-2 rounded-xl transition text-emerald-400 -mt-3"
-          title="Registra Sessione di Studio (+)"
-        >
-          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/30 border-2 border-[#070b14] active:scale-95 transition">
-            <span className="text-xl font-black leading-none">+</span>
-          </div>
-          <span className="text-[10px] mt-0.5 font-bold">Studio</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab("history")}
-          className={`flex flex-col items-center py-1 px-2 rounded-xl transition ${
-            activeTab === "history" ? "text-amber-400 font-bold" : "text-slate-500"
-          }`}
-        >
-          <IconHistory className="w-5 h-5" />
-          <span className="text-[10px] mt-1">Storico</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab("topics")}
-          className={`flex flex-col items-center py-1 px-2 rounded-xl transition ${
-            activeTab === "topics" ? "text-indigo-400 font-bold" : "text-slate-500"
-          }`}
-        >
-          <IconLayers className="w-5 h-5" />
-          <span className="text-[10px] mt-1">Argomenti</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab("import")}
-          className={`flex flex-col items-center py-1 px-2 rounded-xl transition ${
-            activeTab === "import" ? "text-purple-400 font-bold" : "text-slate-500"
-          }`}
-        >
-          <IconUpload className="w-5 h-5" />
-          <span className="text-[10px] mt-1">File</span>
-        </button>
+        </main>
       </div>
+
+      {/* Tab bar iOS (mobile e tablet) */}
+      <nav aria-label="Sezioni" className="lg:hidden fixed bottom-0 inset-x-0 z-40 vibrancy border-t border-black/10 pb-safe">
+        <div className="grid grid-cols-6 items-end px-1 pt-1.5">
+          {NAV_ITEMS.slice(0, 2).map(item => renderTabBarItem(item))}
+          <button
+            type="button"
+            onClick={() => handleOpenLogModal({ date: settings.currentSimulatedDate })}
+            className="flex flex-col items-center gap-0.5 text-accent"
+            title="Registra Sessione di Studio (+)"
+          >
+            <span className="w-11 h-11 -mt-4 rounded-full bg-accent text-paper flex items-center justify-center shadow-float active:scale-95 transition">
+              <IconPlus className="w-5 h-5" />
+            </span>
+            <span className="text-[10px] font-medium">Studio</span>
+          </button>
+          {NAV_ITEMS.slice(2).map(item => renderTabBarItem(item))}
+        </div>
+      </nav>
 
       {/* Settings Modal */}
       <SettingsModal

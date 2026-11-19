@@ -115,23 +115,23 @@ function TopicDetailModalContent({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/80 backdrop-blur-md overflow-y-auto">
-      <div className={`bg-[#0b101d] border rounded-3xl w-full max-w-3xl 2xl:max-w-4xl shadow-2xl overflow-hidden my-auto flex flex-col max-h-[92vh] ${
-        isAnalisi ? "border-emerald-500/30" : "border-indigo-500/30"
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/25 backdrop-blur-sm overflow-y-auto">
+      <div className={`bg-slate-900 border rounded-3xl w-full max-w-3xl 2xl:max-w-4xl shadow-2xl overflow-hidden my-auto flex flex-col max-h-[92vh] ${
+        isAnalisi ? "border-indigo-500/30" : "border-teal-500/30"
       }`}>
         {/* Header */}
         <div className={`p-5 sm:p-6 border-b flex flex-col gap-3 relative overflow-hidden bg-gradient-to-r ${
           isAnalisi
-            ? "from-slate-900/95 via-emerald-950/30 to-slate-950/90 border-emerald-500/20"
-            : "from-slate-900/95 via-indigo-950/30 to-slate-950/90 border-indigo-500/20"
+            ? "from-slate-900/95 via-indigo-950/30 to-slate-950/90 border-indigo-500/20"
+            : "from-slate-900/95 via-teal-950/30 to-slate-950/90 border-teal-500/20"
         }`}>
           <div className="flex items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
               {/* Subject Badge */}
               <span className={`text-[11px] font-bold px-2.5 py-1 rounded-xl uppercase tracking-wider ${
                 isAnalisi
-                  ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                  : "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                  ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                  : "bg-teal-500/20 text-teal-300 border border-teal-500/30"
               }`}>
                 {topic.materia}
               </span>
@@ -269,7 +269,7 @@ function TopicDetailModalContent({
             onClick={() => setActiveTab("overview")}
             className={`pb-2.5 px-3 font-bold border-b-2 transition flex items-center gap-1.5 ${
               activeTab === "overview"
-                ? isAnalisi ? "border-emerald-400 text-emerald-300" : "border-indigo-400 text-indigo-300"
+                ? isAnalisi ? "border-indigo-400 text-indigo-300" : "border-teal-400 text-teal-300"
                 : "border-transparent text-slate-400 hover:text-slate-200"
             }`}
           >
@@ -282,7 +282,7 @@ function TopicDetailModalContent({
             onClick={() => setActiveTab("theorems")}
             className={`pb-2.5 px-3 font-bold border-b-2 transition flex items-center gap-1.5 ${
               activeTab === "theorems"
-                ? isAnalisi ? "border-emerald-400 text-emerald-300" : "border-indigo-400 text-indigo-300"
+                ? isAnalisi ? "border-indigo-400 text-indigo-300" : "border-teal-400 text-teal-300"
                 : "border-transparent text-slate-400 hover:text-slate-200"
             }`}
           >
@@ -295,7 +295,7 @@ function TopicDetailModalContent({
             onClick={() => setActiveTab("sessions")}
             className={`pb-2.5 px-3 font-bold border-b-2 transition flex items-center gap-1.5 ${
               activeTab === "sessions"
-                ? isAnalisi ? "border-emerald-400 text-emerald-300" : "border-indigo-400 text-indigo-300"
+                ? isAnalisi ? "border-indigo-400 text-indigo-300" : "border-teal-400 text-teal-300"
                 : "border-transparent text-slate-400 hover:text-slate-200"
             }`}
           >
@@ -311,7 +311,7 @@ function TopicDetailModalContent({
             onClick={() => setActiveTab("notes")}
             className={`pb-2.5 px-3 font-bold border-b-2 transition flex items-center gap-1.5 ${
               activeTab === "notes"
-                ? isAnalisi ? "border-emerald-400 text-emerald-300" : "border-indigo-400 text-indigo-300"
+                ? isAnalisi ? "border-indigo-400 text-indigo-300" : "border-teal-400 text-teal-300"
                 : "border-transparent text-slate-400 hover:text-slate-200"
             }`}
           >
@@ -390,7 +390,7 @@ function TopicDetailModalContent({
                   )}
                 </div>
 
-                <div className="p-3 bg-black/40 border border-slate-800 rounded-xl space-y-2 text-slate-300">
+                <div className="p-3 bg-slate-850 border border-slate-800 rounded-xl space-y-2 text-slate-300">
                   <p className="leading-relaxed">
                     {topic.note ? (
                       <>

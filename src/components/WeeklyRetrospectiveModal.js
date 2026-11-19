@@ -64,8 +64,8 @@ function WeeklyRetrospectiveModalContent({
   const diag = getDiagnostics();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md overflow-y-auto">
-      <div className="bg-[#0b101e] border border-cyan-500/30 rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden my-auto flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/25 backdrop-blur-sm overflow-y-auto">
+      <div className="bg-slate-900 border border-cyan-500/30 rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden my-auto flex flex-col">
         {/* Header */}
         <div className="p-5 sm:p-6 border-b border-slate-800 bg-gradient-to-r from-slate-900 via-slate-900 to-indigo-950/60 flex items-center justify-between">
           <div className="flex items-center space-x-3">

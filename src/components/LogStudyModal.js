@@ -251,8 +251,8 @@ function LogStudyModalContent({
   const residuoPost = Math.max(0, Number((oreStimate - oreTotaliPost).toFixed(2)));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-md overflow-y-auto">
-      <div className="bg-[#0b101d] border border-slate-800 rounded-3xl w-full max-w-2xl 2xl:max-w-3xl shadow-2xl overflow-hidden my-auto flex flex-col max-h-[94vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/25 backdrop-blur-sm overflow-y-auto">
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-2xl 2xl:max-w-3xl shadow-2xl overflow-hidden my-auto flex flex-col max-h-[94vh]">
         {/* Modal Header */}
         <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-800/80 bg-gradient-to-r from-slate-900/95 via-slate-900/70 to-slate-950/90">
           <div className="flex items-center space-x-3">
@@ -356,8 +356,8 @@ function LogStudyModalContent({
                         <div className="flex items-start space-x-3">
                           <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold font-mono ${
                             isAnalisi
-                              ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                              : "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                              ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                              : "bg-teal-500/20 text-teal-300 border border-teal-500/30"
                           }`}>
                             {sess.topicId}
                           </span>
@@ -480,7 +480,7 @@ function LogStudyModalContent({
                         type="button"
                         onClick={() => handleFilterSubject("analisi")}
                         className={`px-2.5 py-1 rounded-lg transition font-medium ${
-                          selectedSubject === "analisi" ? "bg-emerald-600/30 text-emerald-300 font-bold shadow" : "text-slate-400 hover:text-slate-200"
+                          selectedSubject === "analisi" ? "bg-indigo-600/30 text-indigo-300 font-bold shadow" : "text-slate-400 hover:text-slate-200"
                         }`}
                       >
                         Analisi 1 (32)
@@ -489,7 +489,7 @@ function LogStudyModalContent({
                         type="button"
                         onClick={() => handleFilterSubject("geometria")}
                         className={`px-2.5 py-1 rounded-lg transition font-medium ${
-                          selectedSubject === "geometria" ? "bg-indigo-600/30 text-indigo-300 font-bold shadow" : "text-slate-400 hover:text-slate-200"
+                          selectedSubject === "geometria" ? "bg-teal-600/30 text-teal-300 font-bold shadow" : "text-slate-400 hover:text-slate-200"
                         }`}
                       >
                         Geometria (31)
@@ -539,15 +539,15 @@ function LogStudyModalContent({
                 {currentTopic && (
                   <div className={`p-3.5 rounded-2xl border transition-all ${
                     isCurrentAnalisi
-                      ? "bg-emerald-950/20 border-emerald-500/40 shadow-sm shadow-emerald-950/20"
-                      : "bg-indigo-950/20 border-indigo-500/40 shadow-sm shadow-indigo-950/20"
+                      ? "bg-indigo-950/20 border-indigo-500/40 shadow-sm shadow-indigo-950/20"
+                      : "bg-teal-950/20 border-teal-500/40 shadow-sm shadow-teal-950/20"
                   }`}>
                     <div className="flex items-center justify-between gap-2 mb-1">
                       <div className="flex items-center space-x-2">
                         <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
                           isCurrentAnalisi
-                            ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                            : "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                            ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                            : "bg-teal-500/20 text-teal-300 border border-teal-500/30"
                         }`}>
                           {currentTopic.materia}
                         </span>
@@ -621,8 +621,8 @@ function LogStudyModalContent({
                             className={`p-2.5 rounded-xl border text-xs cursor-pointer transition-all flex items-center justify-between gap-2.5 ${
                               isSelected
                                 ? isAnalisi
-                                  ? "bg-emerald-950/40 border-emerald-500/80 shadow-sm shadow-emerald-500/20"
-                                  : "bg-indigo-950/40 border-indigo-500/80 shadow-sm shadow-indigo-500/20"
+                                  ? "bg-indigo-950/40 border-indigo-500/80 shadow-sm shadow-indigo-500/20"
+                                  : "bg-teal-950/40 border-teal-500/80 shadow-sm shadow-teal-500/20"
                                 : "bg-slate-900/60 hover:bg-slate-850 border-slate-800/70 hover:border-slate-700"
                             }`}
                           >
@@ -631,16 +631,16 @@ function LogStudyModalContent({
                               <div className={`w-4 h-4 rounded-full border flex items-center justify-center flex-shrink-0 transition ${
                                 isSelected
                                   ? isAnalisi
-                                    ? "border-emerald-400 bg-emerald-500 text-white"
-                                    : "border-indigo-400 bg-indigo-500 text-white"
+                                    ? "border-indigo-400 bg-indigo-500 text-white"
+                                    : "border-teal-400 bg-teal-500 text-white"
                                   : "border-slate-600 bg-slate-950"
                               }`}>
-                                {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                                {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-paper" />}
                               </div>
 
                               {/* Topic ID */}
                               <span className={`font-mono font-bold px-1.5 py-0.5 rounded text-[11px] ${
-                                isAnalisi ? "bg-emerald-500/10 text-emerald-300" : "bg-indigo-500/10 text-indigo-300"
+                                isAnalisi ? "bg-indigo-500/10 text-indigo-300" : "bg-teal-500/10 text-teal-300"
                               }`}>
                                 {t.id}
                               </span>
@@ -810,7 +810,7 @@ function LogStudyModalContent({
                 </div>
                 <div className="text-slate-300 text-[11px] leading-relaxed">
                   Verranno registrate <strong>+{hours}h</strong> in data <strong>{formatDateDisplay(selectedDate)}</strong> sull'argomento:
-                  <div className="mt-1 p-2 bg-black/40 rounded-xl border border-slate-800 font-mono text-cyan-300 font-bold flex items-center gap-2">
+                  <div className="mt-1 p-2 bg-slate-850 rounded-xl border border-slate-800 font-mono text-cyan-300 font-bold flex items-center gap-2">
                     <span className="px-1.5 py-0.2 rounded bg-cyan-500/10 border border-cyan-500/30 text-white">
                       {currentTopic?.id}
                     </span>
