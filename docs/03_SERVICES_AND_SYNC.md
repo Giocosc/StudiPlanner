@@ -124,8 +124,10 @@ sequenceDiagram
   "settings": { "targetExamDate": "2027-01-10", "weekendStudyHours": 4.5, "...": "..." },
   "topics": [ { "id": "A-01", "oreEffettive": 2.5, "completato": true, "updatedAt": 1763540100000, "...": "..." } ],
   "customDayCapacities": { "2026-11-20": 3.5 },
-  "studySessions": [ { "id": "sess_…", "topicId": "A-01", "date": "2026-11-18", "hours": 2.5 } ],
+  "studySessions": [ { "id": "sess_…", "topicId": "A-01", "date": "2026-11-18", "hours": 2.5, "exercises": { "correct": 4, "partial": 1, "wrong": 0 }, "confidence": 3 } ],
   "deletedSessionIds": [ "sess_…" ],
+  "mockExams": [ { "id": "mock_…", "subject": "analisi", "date": "2026-12-13", "score": 21, "maxScore": 30, "updatedAt": 1765650000000 } ],
+  "deletedMockExamIds": [ "mock_…" ],
   "syncMeta": { "settingsUpdatedAt": 1763469000000, "capacitiesUpdatedAt": 1763470100000 },
   "mathBugs": [ "..." ]
 }
@@ -139,7 +141,9 @@ sequenceDiagram
 | :--- | :--- |
 | **Sessioni** | Unione per `id`, meno quelle presenti in `deletedSessionIds` su **uno qualsiasi** dei due lati (tombstone). Una sessione cancellata non ricompare. |
 | **Tombstone** | Unione dei due elenchi. |
-| **Stato dell'argomento** (completamento e data, checklist di Feynman, ripassi, appunti, ore presunte) | Vince il lato con `updatedAt` più recente. Così si propagano anche le azioni che "tolgono": togliere una spunta, svuotare un appunto. |
+| **Temi d'esame** | Unione per `id`, meno quelli in `deletedMockExamIds` su uno qualsiasi dei due lati. Se lo stesso tema esiste su entrambi, vince l'`updatedAt` più recente (es. un voto corretto). |
+| **Esiti degli esercizi e fiducia** | Viaggiano dentro la sessione (`exercises`, `confidence`) e sopravvivono alla fusione insieme a lei. |
+| **Stato dell'argomento** (completamento e data, checklist di Feynman, ripassi con il loro esito, appunti, ore presunte) | Vince il lato con `updatedAt` più recente. Così si propagano anche le azioni che "tolgono": togliere una spunta, svuotare un appunto. |
 | **Ore effettive** | Ricalcolate: ore delle sessioni fuse **+** correzioni manuali (`oreEffettive − ore delle sessioni`) del lato più recente. Le ore registrate offline su due dispositivi si sommano. |
 | **`note`** (focus ufficiale) | Separato da `scratchpadNotes`: gli appunti non lo sovrascrivono mai. |
 | **Argomenti presenti solo sul remoto** | Aggiunti in coda (es. import fatto su un altro dispositivo). |
@@ -155,6 +159,7 @@ La fusione è **idempotente**: fondere di nuovo il risultato con lo stesso remot
 | :--- | :--- |
 | `setTopics` | Marca `updatedAt` sugli argomenti modificati dall'utente. Lo stato in arrivo dal sync usa `setTopicsRaw` e non viene rimarcato. |
 | `deletedSessionIds` | Alimentato da `handleDeleteStudySession`. |
+| `mockExams`, `deletedMockExamIds` | Gestiti da `handleSaveMockExam` / `handleDeleteMockExam`; fanno parte dello stato sincronizzato, del debounce e dei backup su file. |
 | `syncMeta` | Aggiornato da un effetto quando cambiano impostazioni (esclusa la data simulata), Time Shifter o bug tracker per mano dell'utente. |
 | `runGitLabSync()` | Esegue un sync alla volta; una richiesta arrivata durante un sync in corso viene rimandata alla fine. Al termine rifonde il risultato con lo stato più recente, così le modifiche fatte durante la richiesta di rete non vanno perse. |
 | `applyMergedState()` | Applica solo le parti che sono cambiate davvero. |

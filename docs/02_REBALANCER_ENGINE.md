@@ -135,15 +135,22 @@ La dashboard usa questi valori per segnalare che il piano richiede più ore di q
 
 ## 5. Ripetizione spaziata
 
-Per ogni argomento completato con `completedDate` vengono generati tre ripassi:
+`buildSpacedReviewSchedule(topic, currentDate)` genera i ripassi di ogni argomento completato con `completedDate`. Gli intervalli si adattano all'esito che lo studente dichiara a fine ripasso (`REVIEW_OUTCOMES`):
 
-| Livello | Chiave | Data |
+| Esito | Etichetta | Effetto sul ripasso successivo |
 | :--- | :--- | :--- |
-| R1 | `r1` | `completedDate + 3` |
-| R2 | `r2` | `completedDate + 7` |
-| R3 | `r3` | `completedDate + 21` |
+| `good` | Ricordavo bene | intervallo lungo: R2 a +7, R3 a +21 giorni dal ripasso precedente |
+| `partial` | Incerto | intervallo corto: R2 a +4, R3 a +10 |
+| `failed` | Non ricordavo | si riparte a +3 giorni |
 
-Un ripasso non svolto con data passata è *in ritardo* e compare nel giorno attivo; uno con data odierna è *in scadenza*. I ripassi non consumano budget: sono un promemoria separato (`day.spacedReviews`).
+Regole:
+
+- **R1** cade sempre a `completedDate + 3`.
+- Ogni livello successivo parte dalla **data del ripasso precedente**, se questo ha un esito. Altrimenti (ripasso non ancora fatto, oppure dato storico `true` senza esito) vale il calendario fisso +3 / +7 / +21 dal completamento.
+- Un R3 o successivo `partial` o `failed` aggiunge **ripassi di recupero** R4…R6 (`MAX_REVIEW_LEVELS = 6`): +14 giorni dopo un esito buono, +7 dopo uno incerto, +3 dopo uno fallito. Ci si ferma al primo recupero andato bene.
+- Lo stato si salva in `topic.spacedReviews.rN` come `{ done, outcome, date }`; `getReviewRecord` normalizza anche il vecchio valore `true`.
+
+Un ripasso non svolto con data passata è *in ritardo* e compare nel giorno attivo; uno con data odierna è *in scadenza*. I ripassi non consumano budget: sono un promemoria separato (`day.spacedReviews`). `metrics.spacedRepetition` riporta `activeReviews`, `dueToday`, `overdue` e `failed`.
 
 ---
 
@@ -171,7 +178,12 @@ Il ritmo richiesto usa i giorni residui esatti: con meno di una settimana all'es
 
 ### 6.3 Streak (`calculateStudyStreak`)
 
-Un giorno conta per la serie se ha almeno **0,8 h** di studio reale (sessioni registrate o ore di argomenti completati in quel giorno). La serie si calcola all'indietro da oggi; oggi non interrompe la serie se non si è ancora studiato. Il risultato include serie corrente, record e badge di resilienza.
+`calculateStudyStreak(historyDays, date, sessions, { studyDays, jokersPerMonth })`. Un giorno conta per la serie se ha almeno **0,8 h** di studio reale (sessioni registrate o ore di argomenti completati in quel giorno). La serie si calcola all'indietro da oggi; oggi non interrompe la serie se non si è ancora studiato.
+
+- **Giorno di riposo**: un giorno con `studyDays[x].enabled === false` è neutro. Non allunga e non interrompe la serie (`isRestDayToday`).
+- **Jolly**: ogni mese fino a `streakJokersPerMonth` sere saltate non spezzano la serie. Un jolly si consuma solo se la serie continua davvero oltre la sera saltata; un buco all'inizio della serie non spreca jolly.
+
+Il risultato include serie corrente, record, badge di resilienza e `jokersPerMonth`, `jokersUsedThisMonth`, `jokersLeftThisMonth`, `jokerDates`.
 
 ### 6.4 Previsione d'esame (`calculateExamReadinessAndGrade`)
 
@@ -182,8 +194,23 @@ Punteggio euristico di preparazione (10–98) a partire da 55:
 | Ritmo richiesto | da +25 (≤ 18 h/sett.) a −35 (> 32 h/sett.) |
 | Costanza (giorni studiati / giorni trascorsi) | da +20 (≥ 85%) a −20 (< 50%) |
 | Completamento | fino a +25, proporzionale |
+| Padronanza (esercizi senza appunti) | `(accuratezza − 0,6) × 40 × peso`, solo con almeno `MASTERY_MIN_ATTEMPTS = 5` esercizi. Il peso è la copertura degli argomenti completati, limitata a 0,5–1. |
+| Temi d'esame | `(media recente − 0,6) × 40`, dove la media recente è quella degli ultimi due temi per materia |
 
-Il punteggio è mappato su fasce di voto (`28 - 30 e Lode`, `24 - 27`, `18 - 23`, `< 18`) e su una probabilità di superamento. Un ritmo richiesto di 0 (tutto completato) è un valore valido.
+Il punteggio è mappato su fasce di voto (`28 - 30 e Lode`, `24 - 27`, `18 - 23`, `sotto il 18, per ora`) e su una probabilità di superamento. Un ritmo richiesto di 0 (tutto completato) è un valore valido. Il risultato indica da dove arriva la stima (`masteryBased`, `masteryAccuracy`, `masteryAttempts`, `masteryCorrect`, `mockBased`, `mockRecentPct`), così la dashboard può dire se si basa su prove reali o solo sulle ore.
+
+### 6.4-bis Padronanza (`calculateMasteryStats`)
+
+Per ogni argomento si sommano gli esiti `exercises` delle sessioni (`normalizeExercises`):
+
+- accuratezza = `(giusti + 0,5 × parziali) / tentativi`;
+- padronanza = `0,8 × accuratezza + 0,2 × (fiducia − 1) / 4`, oppure la sola accuratezza se manca la fiducia.
+
+`getMasteryLevel` la classifica: **Solida** ≥ 0,8, **Buona** ≥ 0,6, **Fragile** ≥ 0,4, **Da rifare** sotto, **Non verificato** senza esercizi. `weakTopics` elenca gli argomenti sotto 0,6 in ordine di padronanza crescente, a parità nell'ordine del syllabus. Il risultato è esposto in `metrics.mastery`.
+
+### 6.4-ter Temi d'esame (`calculateMockExamStats`)
+
+`MOCK_EXAM_SUBJECTS` fissa le durate: Analisi 120 minuti, Geometria 90. I temi settimanali partono `MOCK_EXAM_WEEKS_BEFORE_EXAM = 4` settimane prima dell'esame (`getMockExamStartDate`: 2026-12-13 per un esame il 2027-01-10). Per ogni materia la funzione restituisce punti del grafico, ultimo e migliore tema, delta rispetto al precedente, media recente, `doneThisWeek` e `isDueThisWeek`. Il risultato è esposto in `metrics.mockExams` (`rebalanceStudyPlan(..., mockExams)`).
 
 ### 6.5 Avanzamento per materia (`calculateSubjectProgress`)
 
@@ -206,6 +233,9 @@ Ore totali, ore completate, conteggi e percentuali per Analisi, Geometria e tota
 | `getPreExamWindowStart(exam)`, `getHolidayBootcampDates(exam)` | Finestra di ripasso express; date 24/12 – 6/1 relative all'anno d'esame. |
 | `clampDayCapacity(h)`, `MAX_DAY_CAPACITY_HOURS` | Normalizza un budget giornaliero in 0–12 h. |
 | `computeResidualHours`, `MIN_OPEN_RESIDUE_HOURS` | Regola delle ore residue (§2.1). |
+| `getTonightFocus(todayPlan, targetExamDate)` | Una sola azione per stasera: `study` (primo blocco in ordine propedeutico), `exam`, `rest`, `done` o `none`. |
+| `msUntilNextTime(nowMs, "HH:MM")`, `buildEveningReminder(focus)` | Pianificazione e testo del promemoria serale. |
+| `calculateWeeklyDigest(week, sessions, topics, mockExams)` | Righe del "punto della domenica": ore, argomenti chiusi, esercizi senza appunti, ripassi, temi. |
 | `DEFAULT_SETTINGS`, `DEFAULT_ROADMAP_START_DATE`, `DEFAULT_TARGET_EXAM_DATE` | Default del modello. Le date non vanno cablate altrove nel codice. |
 
 ---
@@ -220,6 +250,7 @@ Ore totali, ore completate, conteggi e percentuali per Analisi, Geometria e tota
 - sequenza preservata anche con calendario saturo;
 - nessun doppio conteggio delle ore tra sessioni e completamenti;
 - weekend a 0 h rispettato;
-- streak, previsione voto, burndown, retrospettiva e limite di 12 h del Time Shifter.
+- streak (giorno di riposo e jolly), previsione voto, burndown, retrospettiva e limite di 12 h del Time Shifter;
+- padronanza dagli esercizi, intervalli adattivi dei ripassi, modalità Stasera, temi d'esame, promemoria e riepilogo domenicale.
 
 Prima di modificare l'allocazione, eseguire `npm test` e controllare la vista settimanale con `python scripts\test_rolling_rebalance.py`.

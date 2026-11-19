@@ -105,13 +105,15 @@ Nessun giorno riceve più ore del suo budget. Se un argomento non entra in una s
 
 ### 4.2 Dashboard
 
-- **Indicatori principali**: giorni e settimane all'esame, ritmo richiesto rispetto alla soglia, ore residue con la quota di buffer, completamento complessivo.
-- **Avanzamento per materia** con indicatore di passo rispetto alla traiettoria ideale: *In vantaggio*, *Al passo* o *In ritardo* (con le ore di scarto) e una tacca sulla barra che mostra dove dovresti essere oggi.
-- **Ripassi in scadenza** (ripetizione spaziata).
-- **Costanza**: serie di giorni consecutivi di studio (conta un giorno con almeno 0,8 h reali), record, badge e traguardi.
-- **Previsione d'esame**: punteggio di preparazione, fascia di voto e probabilità stimata, calcolati da ritmo, costanza e completamento. È un'euristica motivazionale, non una previsione accurata.
-- **Burndown**: ore stimate residue contro la linea ideale dall'inizio della roadmap all'esame.
-- **Strumenti AI**: generatore di flashcard, simulatore d'esame, registro errori.
+La dashboard mostra per prime le cose che servono stasera; il resto è in **Dettagli e strumenti**.
+
+- **Il punto della domenica** (solo la domenica): ore fatte, argomenti chiusi, esercizi senza appunti, ripassi e temi della settimana, con il pulsante "Prepara la prossima settimana".
+- **Stasera**: un solo argomento, il primo in ordine propedeutico, con le ore previste e il pulsante **Inizia**. Il timer resta attivo anche se chiudi la pagina e ogni 25 minuti ti suggerisce una pausa. Quando hai finito confermi le ore, dici se l'argomento è chiuso e, se vuoi, quanti esercizi senza appunti ti sono venuti giusti, parziali o sbagliati. La sessione viene registrata da sola. Se hai ripassi da fare compare il link "N ripassi da fare →".
+- **Indicatori principali**: anelli della settimana, della costanza e del programma, giorni all'esame e ritmo richiesto. Oltre la soglia la card del ritmo diventa ambra ("Ritmo alto"): è un avviso, non un allarme.
+- **Costanza**: serie di giorni consecutivi di studio (conta un giorno con almeno 0,8 h reali), record, badge e traguardi. Il giorno di riposo scelto nelle impostazioni non interrompe la serie, e ogni mese hai un **jolly** (configurabile) per una sera saltata.
+- **Previsione d'esame**: punteggio di preparazione, fascia di voto e probabilità stimata, calcolati da ritmo, costanza e completamento e, appena ci sono dati, dagli **esercizi svolti senza appunti** e dai **temi d'esame**. I chip "Da consolidare" mostrano gli argomenti dove sbagli di più. È un'euristica motivazionale, non una previsione accurata.
+- **Temi d'esame a tempo**: nelle ultime 4 settimane un tema a settimana per materia (Analisi 120 minuti, Geometria 90) con conto alla rovescia. Inserisci il voto e la curva mostra l'andamento rispetto al 18.
+- **Dettagli e strumenti** (chiusi di default, l'app ricorda la scelta): avanzamento per materia con indicatore di passo (*In vantaggio*, *Al passo*, *In ritardo*), burndown, generatore di flashcard, simulatore d'esame e registro errori.
 
 ### 4.3 To-Do settimanale
 
@@ -138,7 +140,7 @@ La vista operativa: cosa studiare ogni giorno della settimana selezionata.
 - `+ Log`: registra una sessione su quell'argomento.
 - **Segna come completato** / riapri.
 - **Pomodoro 50/10**: a fine ciclo di focus il tempo diventa una sessione nel diario; quando il focus accumulato raggiunge l'obiettivo del timer, l'argomento viene completato e il timer si ferma. Il tempo è misurato sull'orologio, quindi resta corretto anche se la scheda resta in background. Il Pomodoro non toglie mai un completamento.
-- **Ripassi** del giorno (R1/R2/R3) da spuntare.
+- **Ripassi** del giorno. Prima vedi gli errori che avevi segnato su quell'argomento, poi chiudi il ripasso con **Ricordavo bene**, **Incerto** o **Non ricordavo**: la data del ripasso successivo si adatta (più lontana se ricordavi bene, più vicina se no). Un argomento che continua a sfuggire riceve fino a tre ripassi di recupero.
 
 ### 4.4 Storico e diario
 
@@ -215,6 +217,9 @@ Dall'ingranaggio nell'header:
 | Ore weekend | 4,5 h | `0` è ammesso. |
 | Soglia critica settimanale | 25 h | Oltre questo ritmo scatta l'avviso di sovraccarico. |
 | Buffer | 20% | `0%` lo disattiva. |
+| Giorno di riposo | nessuno | Una sera libera a settimana: niente studio pianificato e la serie non si interrompe. |
+| Jolly al mese | 1 | Sere saltate al mese che non interrompono la serie (0–3). |
+| Promemoria serale | spento, 19:15 | Notifica con l'argomento di stasera, una volta al giorno. Serve il permesso alle notifiche del browser. |
 
 Il salvataggio applica solo i campi che hai modificato, quindi non annulla altre modifiche fatte nel frattempo (per esempio la data cambiata con le frecce). Il modale mostra anche quanti giorni hanno un override del Time Shifter e permette di azzerarli tutti.
 
@@ -224,7 +229,8 @@ Il salvataggio applica solo i campi che hai modificato, quindi non annulla altre
 
 | Strumento | Dove | Cosa fa |
 | :--- | :--- | :--- |
-| **Ripetizione spaziata** | Dashboard, To-Do | Ripassi a +3, +7, +21 giorni dal completamento; quelli arretrati compaiono nel giorno attivo. |
+| **Ripetizione spaziata** | Dashboard, To-Do | Primo ripasso a +3 giorni dal completamento; i successivi si allontanano o si avvicinano in base a quanto ricordavi. Quelli arretrati compaiono nel giorno attivo. |
+| **Temi d'esame a tempo** | Dashboard | Un tema a settimana per materia nelle ultime 4 settimane, con timer, voto e curva dei risultati. Si sincronizzano tra dispositivi. |
 | **Simulatore d'esame** | Dashboard | Prova cronometrata (Analisi 120 min / 6 esercizi, Geometria 90 min / 11 quesiti) con autovalutazione, oppure prompt per Claude/ChatGPT con argomenti estratti tra i completati a priorità ≥ 3, in ordine di ID. |
 | **Flashcard NeuraDeck / Anki** | Dashboard | Prompt per NotebookLM sugli argomenti completati di recente (output CSV `Fronte,Retro`) ed export TSV per Anki. |
 | **Registro errori ricorrenti** | Dashboard | Trabocchetti tipici precaricati e registrazione dei tuoi, con regola di correzione e stato "padroneggiato". |
@@ -232,7 +238,7 @@ Il salvataggio applica solo i campi che hai modificato, quindi non annulla altre
 | **PDF affiancato** | Header | Dispense ed eserciziari accanto al piano, anche da file locale. |
 | **Retrospettiva settimanale** | To-Do | Ore studiate rispetto al budget dei giorni trascorsi, efficienza, argomenti chiusi e rimasti; pulsante per aggiungere 30 minuti alle sere della settimana successiva. |
 | **Export calendario (.ics)** | To-Do | Un evento per ogni giorno da oggi in poi con studio pianificato, all'ora della fascia del giorno e con durata pari alle ore pianificate, promemoria 15 minuti prima. Reimportando il file gli eventi vengono aggiornati, non duplicati. |
-| **CLARKE-9000** | In basso a destra | Companion con telemetria e citazioni; si può ridurre a icona e silenziare. |
+| **CLARKE-9000** | In basso a destra | Companion con telemetria e citazioni; parte chiuso e silenzioso, si apre toccandolo. |
 
 ---
 

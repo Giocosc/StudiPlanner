@@ -38,7 +38,9 @@ flowchart TD
     MainContainer --> SplitPdf["PdfSplitView (isPdfSplitOpen)"]
     
     %% Dashboard Subcomponents
-    TabDash --> DashBurn["BurndownChart"]
+    TabDash --> DashTonight["TonightFocus (Stasera)"]
+    TabDash --> DashMock["MockExamPanel (temi d'esame)"]
+    TabDash --> DashBurn["BurndownChart (in Dettagli)"]
     TabDash --> DashSim["ExamSimulator (Modal)"]
     TabDash --> DashNeura["NeuraDeckPromptGenerator (Modal)"]
     
@@ -165,7 +167,12 @@ stateDiagram-v2
 | `settings` | `Object` | Parametri attuali di studio (`currentSimulatedDate`, `targetExamDate`, ecc.) |
 | `onOpenLogModal` | `Function` | Callback `(initialData) => void` per aprire il modal di registrazione studio |
 | `onOpenTopicDetail` | `Function` | Callback `(topicOrId) => void` per aprire la scheda dettagliata dell'argomento |
-| `onToggleSpacedReview` | `Function` | Callback `(topicId, levelKey, isDone) => void` per marcare un ripasso ciclico |
+| `onToggleSpacedReview` | `Function` | Callback `(topicId, levelKey, isDone, outcome) => void` per marcare un ripasso con il suo esito |
+| `onLogStudySession` | `Function` | Callback `(session) => void` usata dalla card Stasera per registrare la serata a fine timer |
+| `studySessions` | `Array<StudySession>` | Sessioni registrate, per il punto della domenica |
+| `onOpenRetrospective` | `Function` | Apre la retrospettiva settimanale dalla card della domenica |
+| `mockExams` | `Array<MockExam>` | Temi d'esame svolti |
+| `onSaveMockExam`, `onDeleteMockExam` | `Function` | Salvano o cancellano un tema (`(exam) => void`, `(id) => void`) |
 | `mathBugs` | `Array<Object>` | Lista dei trabocchetti matematici registrati nel Bug Tracker |
 | `onOpenBugTracker` | `Function` | Callback per aprire il modal del Math Bug Tracker |
 | `currentWeekPlan` | `Object \| null` | Settimana che contiene la data attiva (`rebalancedPlan.currentWeekPlan`), per l'anello "Settimana" |
@@ -174,6 +181,18 @@ stateDiagram-v2
 #### Stato Interno
 - `isFlashcardsOpen` (`boolean`): Controlla l'apertura del generatore flashcard NeuraDeck.
 - `isExamSimulatorOpen` (`boolean`): Controlla l'apertura del simulatore d'esame scritto cronometrato.
+- `isDetailsOpen` (`boolean`): Sezione "Dettagli e strumenti" aperta o chiusa; chiusa di default, ricordata in `studiplanner_dashboard_details_open_v1`.
+
+#### Ordine delle sezioni
+La dashboard mostra per prime solo le cose che servono stasera. Il resto è a un clic:
+
+1. Intestazione ("Oggi, N ore di studio").
+2. **Il punto della domenica** (solo la domenica).
+3. **Stasera** (`TonightFocus`), con il link compatto "N ripassi da fare →" verso la vista settimanale.
+4. Anelli, conto alla rovescia e ritmo richiesto.
+5. Costanza e previsione d'esame.
+6. Temi d'esame a tempo (`MockExamPanel`).
+7. **Dettagli e strumenti** (a scomparsa): avanzamento per materia, burndown, flashcard NeuraDeck, simulatore, bug tracker e barra di avanzamento globale.
 
 #### Sezioni Interne & Logica di Calcolo
 1. **Algoritmo di Pacing Didattico (`getSubjectPacing`):**
@@ -184,18 +203,48 @@ stateDiagram-v2
    - $-1.5\text{h} \le \Delta_{\text{ore}} < +0.8\text{h}$: Badge `🎯 Al Passo (Allineato)` (Cyan).
    - $\Delta_{\text{ore}} < -1.5\text{h}$: Badge `⚠️ In Ritardo` (Amber).
 2. **Intestazione:** data attiva in maiuscoletto e titolo grande con le ore pianificate per oggi (oppure giorno di riposo, giorno d'esame o periodo concluso), più il pulsante `Registra ore di studio`.
-3. **Anelli, conto alla rovescia e ritmo:**
+3. **Il punto della domenica:** card con le righe di `calculateWeeklyDigest` (ore fatte su previste, argomenti chiusi, esercizi senza appunti giusti, ripassi fatti e da rifare, ultimi temi) e il pulsante "Prepara la prossima settimana", che apre la retrospettiva.
+4. **Stasera:** vedi §4.1-bis.
+5. **Anelli, conto alla rovescia e ritmo:**
    - *Anelli di attività:* **Settimana** (ore svolte sul budget della settimana, da `calculateWeeklyRetrospective`), **Costanza** (sere di fila verso il prossimo traguardo), **Programma** (percentuale di argomenti chiusi).
    - *All'esame:* giorni rimanenti, barra del tempo trascorso dall'inizio della roadmap e data dell'esame.
-   - *Ritmo richiesto:* ore a settimana necessarie e ore residue con margine (+20%); la card diventa rossa se si supera la soglia (25 h di default).
-4. **Spaced Repetition Alert Banner:** compare se ci sono ripassi in scadenza oggi o arretrati (Curva di Ebbinghaus $R_1, R_2, R_3$).
-5. **Costanza e Previsione d'esame (due card affiancate):**
-   - *Costanza:* sere consecutive, record, titolo attuale (es. *Innesco Serale*, *Fiamma di Costanza*, *Leggenda Vivente UNIMORE*), avanzamento verso il prossimo titolo, citazione del giorno e traguardi sbloccati.
-   - *Previsione d'esame:* voto stimato, livello di rischio, probabilità di superamento, ritmo richiesto, percentuale di sere attive e di argomenti chiusi.
-6. **Card di Avanzamento Materie (Doppio Motore Analisi / Geometria):**
-   Barre graduate di progresso con marcatore dorato del target teorico odierno (`pacing.expectedPercent`), statistiche di dettaglio (argomenti, ore residue, struttura prova scritta).
-7. **Scrum / Agile Burndown Chart Integrato:** Embedding diretto del componente `BurndownChart.js`.
-8. **Hub Strumenti Didattici AI:** Card per Flashcard NeuraDeck, Simulatore d'Esame e Bug Tracker Matematico.
+   - *Ritmo richiesto:* ore a settimana necessarie e ore residue con margine (+20%). Se si supera la soglia (25 h di default) la card diventa ambra con la dicitura "Ritmo alto": un avviso, non un allarme.
+6. **Costanza e Previsione d'esame (due card affiancate):**
+   - *Costanza:* sere consecutive, record, titolo attuale, avanzamento verso il prossimo titolo, jolly rimasti nel mese e giorno di riposo, citazione del giorno e traguardi sbloccati.
+   - *Previsione d'esame:* voto stimato, probabilità di superamento, ritmo richiesto, sere attive e argomenti chiusi. Il riquadro "Esercizi giusti" mostra l'accuratezza senza appunti; i chip "Da consolidare" elencano gli argomenti con padronanza sotto 0,6 e aprono la loro scheda. Sotto il 18 il testo dice "sotto il 18, per ora".
+7. **Temi d'esame:** vedi §4.1-ter.
+8. **Dettagli e strumenti** (chiusi di default): card di avanzamento per materia con marcatore del target teorico (`pacing.expectedPercent`), `BurndownChart.js`, hub degli strumenti (NeuraDeck, Simulatore, Bug Tracker) e barra di avanzamento globale.
+
+---
+
+### 4.1-bis `TonightFocus.js` — Modalità Stasera
+
+Una sola azione chiara per la serata, ricavata da `getTonightFocus(todayPlan, targetExamDate)`:
+
+| `focus.kind` | Cosa mostra |
+| :--- | :--- |
+| `study` | Primo blocco del giorno in ordine propedeutico, ore previste e pulsante **Inizia** |
+| `exam` | Giorno d'esame: nessuno studio |
+| `rest` | Giorno di riposo |
+| `done` | Studio di oggi già registrato |
+| `none` | Nessun piano per oggi; pulsante "Registra studio" |
+
+- **Timer:** basato sui timestamp e salvato in `studiplanner_tonight_timer_v1`, quindi sopravvive a ricariche e chiusure. Ogni 25 minuti suggerisce una pausa.
+- **Chiusura della serata:** a fine timer chiede le ore (precompilate dal tempo trascorso, regolabili di ±0,25 h), se l'argomento è finito e gli esiti degli esercizi svolti senza appunti (`ExerciseOutcomeInput`: giusti, parziali, sbagliati e fiducia 1–5). Poi registra la sessione con `onLogStudySession`.
+- **Ripassi:** se ci sono ripassi in scadenza o arretrati compare il link "N ripassi da fare →" (pallino ambra se ci sono arretrati), che porta alla vista settimanale.
+- Esporta anche `ExerciseOutcomeInput`, riusato da `LogStudyModal`.
+
+Props: `focus`, `settings`, `onLogStudySession`, `onOpenTopicDetail`, `onOpenLogModal`, `reviewsDue`, `reviewsOverdue`, `onOpenReviews`.
+
+### 4.1-ter `MockExamPanel.js` — Temi d'esame a tempo
+
+Un tema per materia a settimana nelle ultime 4 settimane (Analisi 120 minuti, Geometria 90), con i dati di `metrics.mockExams`:
+
+- **Avvio:** pulsante per materia con conto alla rovescia; a tempo scaduto (o prima) si inserisce il voto su un massimo (30 di default) e una nota.
+- **Grafico:** curva dei voti per materia in percentuale con la linea della sufficienza (18/30), legenda, etichette dirette sull'ultimo punto e tooltip al passaggio del mouse. Colori validati per daltonismo: Analisi `#5E5CE6`, Geometria `#0A9396`.
+- **Riepilogo:** ultimo tema per materia con differenza rispetto al precedente, ed elenco dei temi svolti con la possibilità di cancellarne uno (tombstone sincronizzato).
+
+Props: `stats`, `settings`, `mockExams`, `onSaveMockExam`, `onDeleteMockExam`. I nomi di primo livello del file hanno il prefisso `mock`/`MOCK_` per non collidere nello scope condiviso del bundle.
 
 ---
 
@@ -219,7 +268,8 @@ Costituisce il cuore dell'operatività quotidiana dello studente lavoratore. Vis
 | `onBatchUpdateDayCapacities` | `Function` | Callback `(updatesMap) => void` per aggiornamenti massivi (es. modalità straordinari) |
 | `onOpenLogModal` | `Function` | Callback per aprire il modal di registrazione sessione con data preimpostata |
 | `onOpenTopicDetail` | `Function` | Callback per aprire la scheda immersiva dell'argomento |
-| `onToggleSpacedReview` | `Function` | Callback per spuntare i ripassi ciclici di teoria |
+| `onToggleSpacedReview` | `Function` | Callback `(topicId, levelKey, isDone, outcome)` per chiudere un ripasso con il suo esito |
+| `mathBugs` | `Array<MathBug>` | Errori ricorrenti, mostrati prima del ripasso dell'argomento a cui si riferiscono |
 | `onOpenRetrospective` | `Function` | Callback per aprire la review settimanale della domenica sera |
 
 #### Stato Interno
@@ -251,7 +301,8 @@ Costituisce il cuore dell'operatività quotidiana dello studente lavoratore. Vis
    - Stepper rapido ore parziali: `[- 30m]`, `[+ 30m]`, `[+ 1h]`, `[+ Log]`.
    - Micro-barra di avanzamento percentuale basata sul rapporto tra ore effettive e stimate.
    - Pulsante dedicato di spunta completamento (`Completato ✓`).
-4. **Striscia Pomodoro 50/10 Interattiva:**
+4. **Ripassi attivi:** ogni ripasso si chiude con uno di tre esiti, "Ricordavo bene", "Incerto" o "Non ricordavo", che decidono la data del ripasso successivo ([02 §5](02_REBALANCER_ENGINE.md#5-ripetizione-spaziata)). Prima dei pulsanti compaiono gli errori aperti del Bug Tracker per quell'argomento. I ripassi in ritardo sono ambra, senza animazioni; anche il filtro "Ripasso express" è ambra.
+5. **Striscia Pomodoro 50/10 Interattiva:**
    Ogni card argomento include un timer Pomodoro (50 minuti di focus alternati a 10 di pausa). Il tempo è calcolato dai timestamp, quindi resta corretto anche se la scheda va in background. A fine ciclo di focus il tempo non ancora registrato diventa **una sessione** nel diario (tramite `onLogStudySession`, che aggiorna anche le ore dell'argomento) e compare un avviso. Quando il focus accumulato raggiunge l'obiettivo del timer, l'ultima quota viene registrata, il timer si ferma e l'argomento viene completato con `onMarkTopicCompleted`. Il timer non inverte mai lo stato di completamento e non registra due volte lo stesso tempo. Lo stato è salvato in `unimore_rebalancer_pomodoro_v2`.
 
 ---
@@ -382,6 +433,7 @@ Aperto dal pulsante globale `+` o dai tasti `Registra Studio` posizionati sui gi
 - **Calcolo Dinamico delle Ore Residue:** Quando si seleziona un argomento, il campo ore viene precompilato con il residuo mancante ($T_{\text{stimato}} - T_{\text{effettivo}}$).
 - **Preset Rapidi:** Pulsanti a selezione istantanea `+30m`, `+1h`, `+2h`, `🍅 Pomodoro (50m / 0.8h)`.
 - **Completamento Automatico Intelligente:** Se le ore inserite portano il monte ore effettivo a pareggiare o superare la stima didattica, la casella "Segna come completato" si attiva automaticamente (lasciando comunque la possibilità di override manuale). Lasciare la casella vuota su un argomento già completato **non** lo riapre: una sessione può aggiungere ore o completare, mai togliere un completamento.
+- **Esercizi senza appunti:** `ExerciseOutcomeInput` (condiviso con la card Stasera) registra giusti, parziali e sbagliati più la fiducia 1–5. Sono facoltativi e alimentano la padronanza.
 - **Tab Sessioni Recenti:** Permette di ispezionare le ultime sessioni registrate ed eliminare eventuali inserimenti errati.
 
 ---
@@ -395,6 +447,9 @@ Permette di personalizzare i vincoli orari del modello lavoratore:
   - *Feriale Serale (Lun-Ven):* Default `2.5h/sera` (fascia 19:30 - 22:00).
   - *Weekend (Sab-Dom):* Default `4.5h/giorno` (sessioni intensive diurne).
 - **Soglia Critica Settimanale:** Default `25.0h/settimana`. Se il fabbisogno calcolato dal rebalancer supera questa soglia, la UI attiva gli indicatori di allerta sovraccarico.
+- **Giorno di riposo:** una sera della settimana senza studio, impostata disabilitando quel giorno (`studyDays[x].enabled = false`). Non rompe lo streak.
+- **Jolly al mese:** 0–3 sere saltate al mese che non interrompono lo streak (default 1).
+- **Promemoria serale:** casella e orario (default 19:15). Una notifica del browser ricorda l'argomento di stasera; parte una volta al giorno e solo se il permesso è concesso. Toccarla apre l'app.
 - **Riepilogo Override Time Shifter:** Mostra il conteggio dei giorni che hanno un override orario personalizzato con pulsante di ripristino globale.
 - **Salvataggio:** vengono applicati solo i campi modificati nel modale, sopra le impostazioni correnti, così non si ripristinano valori vecchi (es. la data simulata cambiata con le frecce mentre il modale era aperto). `0` ore e buffer `0%` sono valori accettati.
 
@@ -510,6 +565,7 @@ Widget flottante posizionato nell'angolo inferiore destro, ispirato a HAL 9000 e
 - **Sintetizzatore Sonoro Web Audio API:** Genera bip sintetici discreti alla ricezione di notifiche o interazioni, silenziabile con un click.
 - **Dizionario Esteso di Oltre 100 Citazioni:** Raccoglie aforismi categorizzati (Filosofia classica e stoicismo con Marco Aurelio e Seneca, Letteratura universale con Dante e Goethe, Esistenzialismo con Nietzsche e Camus, Disciplina del lavoratore, Scienza con Feynman e Turing, battute canoniche di HAL 9000).
 - **Stato Collassabile:** Può essere ridotto ad una singola icona circolare o espanso per leggere i messaggi motivazionali e la telemetria di progresso verso il 10 Gennaio 2027.
+- **Discreto di default:** parte chiuso e muto (chiavi `unimore_clarke9000_collapsed_v2` e `unimore_clarke9000_muted_v2`); si apre solo se lo si tocca.
 
 ---
 

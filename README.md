@@ -36,9 +36,12 @@ Funziona interamente nel browser, senza backend: i dati restano in `localStorage
 ### Tracciamento
 - Registrazione delle sessioni di studio (data, argomento, ore, completamento, note), con avanzamento parziale: un argomento resta nel piano con le sole ore residue.
 - Timer Pomodoro 50/10 per argomento: il tempo di focus viene registrato come sessione a fine ciclo o al raggiungimento dell'obiettivo.
-- Storico giorno per giorno, heatmap delle attività, streak di studio, grafico burndown, retrospettiva settimanale con efficienza calcolata sulle ore reali.
-- Ripetizione spaziata (ripassi a +3, +7, +21 giorni dal completamento), checklist di Feynman, registro degli errori ricorrenti, formulario (F2), PDF affiancati.
-- Stima euristica di preparazione e voto atteso.
+- Modalità **Stasera**: un solo argomento, timer persistente e registrazione automatica della sessione con gli esiti degli esercizi svolti senza appunti.
+- Storico giorno per giorno, heatmap delle attività, streak di studio con giorno di riposo e jolly mensile, grafico burndown, retrospettiva settimanale e "punto della domenica".
+- Ripassi attivi con intervalli adattivi all'esito (+3 giorni il primo, poi più lunghi o più corti), checklist di Feynman, registro degli errori ricorrenti, formulario (F2), PDF affiancati.
+- Temi d'esame settimanali a tempo nelle ultime 4 settimane, con voto e curva dei risultati.
+- Stima euristica di preparazione e voto atteso, che tiene conto degli esercizi senza appunti e dei temi svolti.
+- Promemoria serale facoltativo tramite notifica.
 
 ### Dati e integrazioni
 - Import di CSV/TXT, Excel/ODS e backup JSON. Reimportare un dataset aggiorna i metadati **senza cancellare il progresso**.

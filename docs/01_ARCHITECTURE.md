@@ -121,15 +121,22 @@ Le regole sulle transizioni di stato degli argomenti (registrare, cancellare, sp
 | `unimore_rebalancer_deleted_sessions_v1` | `string[]` | Tombstone delle sessioni cancellate |
 | `unimore_rebalancer_sync_meta_v1` | `SyncMeta` | Timestamp di modifica per sezione |
 | `unimore_rebalancer_math_bugs_v1` | `MathBug[]` | Registro degli errori ricorrenti |
+| `unimore_rebalancer_mock_exams_v1` | `MockExam[]` | Temi d'esame svolti |
+| `unimore_rebalancer_deleted_mock_exams_v1` | `string[]` | Tombstone dei temi cancellati |
 | `unimore_rebalancer_gitlab_config_v1` | `GitLabConfig` | Configurazione sync (token incluso) |
 | `unimore_rebalancer_pomodoro_v2` | `{ [topicId]: PomodoroState }` | Stato dei timer Pomodoro |
-| `unimore_clarke9000_collapsed`, `unimore_clarke9000_muted` | `boolean` | Preferenze del companion CLARKE-9000 |
+| `unimore_clarke9000_collapsed_v2`, `unimore_clarke9000_muted_v2` | `boolean` | Preferenze del companion CLARKE-9000 (chiuso e muto di default) |
+| `studiplanner_tonight_timer_v1` | `{ topicId, startedAt, pausedMs, … }` | Timer della card Stasera: sopravvive a ricariche e chiusure |
+| `studiplanner_evening_reminder_sent_v1` | `string` (data) | Ultimo giorno in cui è partito il promemoria serale |
+| `studiplanner_dashboard_details_open_v1` | `"1" \| "0"` | Sezione "Dettagli e strumenti" della dashboard aperta o chiusa |
+
+Le ultime quattro chiavi sono preferenze del singolo dispositivo: non entrano nel sync né nei backup.
 
 All'avvio gli argomenti salvati passano da `restoreOfficialNotes()`, che ripara i dati delle versioni precedenti in cui gli appunti personali avevano sovrascritto il campo `note` ufficiale.
 
 ### 5.2 Altri canali
 
-- **Backup JSON** (Import / Sync): download e ripristino manuale di argomenti, impostazioni, Time Shifter e sessioni.
+- **Backup JSON** (Import / Sync): download e ripristino manuale di argomenti, impostazioni, Time Shifter, sessioni e temi d'esame.
 - **File locale collegato**: stesso formato del backup, riscritto automaticamente.
 - **GitLab**: file JSON nel repository configurato (formato in [03 §4.2](03_SERVICES_AND_SYNC.md#42-formato-del-file-remoto)).
 
@@ -154,7 +161,7 @@ All'avvio gli argomenti salvati passano da `restoreOfficialNotes()`, che ripara 
 | `scratchpadNotes` | `string` | Appunti personali. |
 | `fonti` | `string` | Riferimenti a libri e dispense. |
 | `feynmanChecklist` | `{ intuitive, formal, proof }` | Checklist a tre livelli. |
-| `spacedReviews` | `{ r1, r2, r3 }` | Ripassi a +3, +7, +21 giorni svolti. |
+| `spacedReviews` | `{ r1…r6 }` | Esito dei ripassi: ogni livello è `{ done, outcome, date }` con `outcome` in `good`/`partial`/`failed`. Il vecchio valore `true` vale come `good`. Intervalli in [02 §5](02_REBALANCER_ENGINE.md#5-ripetizione-spaziata). |
 | `updatedAt` | `number` (ms) | Ultima modifica dell'utente. Usato dal merge GitLab; assente nei dati più vecchi. |
 
 ### 6.2 `StudySession`
@@ -167,9 +174,30 @@ All'avvio gli argomenti salvati passano da `restoreOfficialNotes()`, che ripara 
   "hours": 1.5,
   "completed": false,
   "note": "Esercizi su limiti notevoli",
+  "exercises": { "correct": 4, "partial": 1, "wrong": 0 },
+  "confidence": 3,
   "timestamp": "2026-11-18T21:40:12.000Z"
 }
 ```
+
+`exercises` (esercizi svolti **senza appunti**) e `confidence` (1–5) sono facoltativi. Gli esiti alimentano la padronanza per argomento e la previsione d'esame.
+
+### 6.2-bis `MockExam`
+
+```json
+{
+  "id": "mock_1765650000000_a1b2c3",
+  "subject": "analisi",
+  "date": "2026-12-13",
+  "score": 21,
+  "maxScore": 30,
+  "durationMinutes": 120,
+  "note": "Serie numeriche da rivedere",
+  "updatedAt": 1765650000000
+}
+```
+
+`subject` è `analisi` (120 minuti) o `geometria` (90 minuti). I temi si sincronizzano come le sessioni: unione per `id` meno i tombstone, vince l'`updatedAt` più recente.
 
 ### 6.3 `Settings`
 
@@ -183,7 +211,10 @@ All'avvio gli argomenti salvati passano da `restoreOfficialNotes()`, che ripara 
 | `criticalWeeklyHoursThreshold` | `25` | Soglia del ritmo settimanale oltre cui scatta l'allerta. |
 | `highPriorityThreshold` | `4` | Soglia di priorità/difficoltà per il buffer. |
 | `bufferMultiplier` | `1.2` | Moltiplicatore del buffer (`1.0` lo disattiva). |
-| `studyDays` | vedi codice | Per ogni giorno della settimana: abilitato, weekend sì/no, materia preferita, fascia oraria. |
+| `studyDays` | vedi codice | Per ogni giorno della settimana: abilitato, weekend sì/no, materia preferita, fascia oraria. Un giorno disabilitato è il **giorno di riposo** e non rompe lo streak. |
+| `streakJokersPerMonth` | `1` | Sere saltate al mese che non interrompono lo streak (0–3). |
+| `eveningReminderEnabled` | `false` | Notifica serale con l'argomento di stasera (richiede il permesso del browser). |
+| `eveningReminderTime` | `19:15` | Ora del promemoria serale. |
 
 ### 6.4 `SyncMeta`
 
@@ -204,7 +235,9 @@ All'avvio gli argomenti salvati passano da `restoreOfficialNotes()`, che ripara 
 | Stessa origine (app, bundle, vendor) | Network-first con ripiego sulla cache; per una navigazione offline restituisce `index.html`. |
 | Altre origini (CDN di fallback) | Cache-first. |
 
-La regola sulle API è essenziale: servire dalla cache le letture GitLab restituirebbe per sempre il primo stato scaricato. Quando si cambiano le regole di caching va incrementato `CACHE_NAME` (attualmente `studiplanner-v4`), così l'evento `activate` elimina le cache precedenti.
+Il service worker gestisce anche `notificationclick`: toccare il promemoria serale porta in primo piano la finestra dell'app (o la apre).
+
+La regola sulle API è essenziale: servire dalla cache le letture GitLab restituirebbe per sempre il primo stato scaricato. Quando si cambiano le regole di caching va incrementato `CACHE_NAME` (attualmente `studiplanner-v5`), così l'evento `activate` elimina le cache precedenti.
 
 ---
 
@@ -216,7 +249,7 @@ App
 ├── Barra strumenti: giorni all'esame, data attiva (‹ Oggi: gg/mm ›, Oggi Reale), Registra studio
 ├── Tab bar iOS (mobile): Oggi, Settimana, + Studio, Storico, Catalogo, Sync
 ├── Tab
-│   ├── Dashboard ── BurndownChart, NeuraDeckPromptGenerator, ExamSimulator
+│   ├── Dashboard ── TonightFocus, MockExamPanel, [Dettagli: BurndownChart, NeuraDeckPromptGenerator, ExamSimulator]
 │   ├── WeeklyTodo ── Pomodoro, Time Shifter, Emergenza lavoro, Bootcamp, Ripasso express
 │   ├── HistoryLog ── ActivityHeatmap
 │   ├── TopicsTable
