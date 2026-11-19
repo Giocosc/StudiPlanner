@@ -730,6 +730,15 @@ export function App() {
     );
   };
 
+  // Completa un argomento senza invertire lo stato (idempotente): usato dal Pomodoro
+  const handleMarkTopicCompleted = (topicId) => {
+    setTopics(prev => prev.map(t => {
+      if (t.id !== topicId) return t;
+      if (Boolean(t.completato !== undefined ? t.completato : t.isCompleted)) return t;
+      return { ...t, completato: true, isCompleted: true, completedDate: t.completedDate || settings.currentSimulatedDate };
+    }));
+  };
+
   // Granular Partial Progress: Add or set hours spent on a topic without completing it
   const handleUpdateTopicHours = (topicId, deltaOrNewHours, isDelta = true) => {
     setTopics(prev =>
@@ -1059,6 +1068,7 @@ export function App() {
                 onToggleComplete={handleToggleComplete}
                 onUpdateTopicHours={handleUpdateTopicHours}
                 onLogStudySession={handleLogStudySession}
+                onMarkTopicCompleted={handleMarkTopicCompleted}
                 settings={settings}
                 customDayCapacities={customDayCapacities}
                 onUpdateDayCapacity={handleUpdateDayCapacity}

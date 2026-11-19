@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   IconChevronLeft,
   IconChevronRight,
@@ -24,6 +24,7 @@ export function WeeklyTodo({
   onToggleComplete,
   onUpdateTopicHours,
   onLogStudySession,
+  onMarkTopicCompleted,
   settings,
   customDayCapacities = {},
   onUpdateDayCapacity,
@@ -75,73 +76,121 @@ export function WeeklyTodo({
     }
   }, [pomodoroMap]);
 
-  // Global Pomodoro ticker (1 second per tick)
+  // --- Pomodoro 50/10 ---------------------------------------------------------
+  // Il tempo è misurato con timestamp reali (Date.now), non contando i tick: i browser
+  // rallentano setInterval nelle schede in background e il timer resterebbe indietro.
+  // Le ore di focus vengono registrate SOLO tramite onLogStudySession (una sessione nel
+  // diario), mai anche con onUpdateTopicHours, per non contarle due volte.
+  const FOCUS_SECONDS = 50 * 60;
+  const BREAK_SECONDS = 10 * 60;
+
+  const pomodoroRef = useRef(pomodoroMap);
   useEffect(() => {
-    const hasRunning = Object.values(pomodoroMap).some(p => p.isRunning);
-    if (!hasRunning) return;
+    pomodoroRef.current = pomodoroMap;
+  }, [pomodoroMap]);
+
+  // Callback sempre aggiornate per l'intervallo (evita closure obsolete)
+  const pomodoroCallbacksRef = useRef({});
+  pomodoroCallbacksRef.current = {
+    onLogStudySession,
+    onMarkTopicCompleted,
+    date: settings.currentSimulatedDate
+  };
+
+  const logFocusSeconds = (topicId, seconds, completeTopic, note) => {
+    const { onLogStudySession: logFn, onMarkTopicCompleted: markFn, date } = pomodoroCallbacksRef.current;
+    const hours = Number((seconds / 3600).toFixed(2));
+    if (hours > 0 && logFn) {
+      logFn({ topicId, date, hours, completed: completeTopic ? true : undefined, note });
+    } else if (completeTopic && markFn) {
+      markFn(topicId);
+    }
+  };
+
+  const hasRunningPomodoro = Object.values(pomodoroMap).some(p => p.isRunning);
+
+  useEffect(() => {
+    if (!hasRunningPomodoro) return;
 
     const interval = setInterval(() => {
-      setPomodoroMap(prev => {
-        let changed = false;
-        const nextMap = { ...prev };
+      const now = Date.now();
+      const prev = pomodoroRef.current;
+      const next = { ...prev };
+      const events = [];
+      let changed = false;
 
-        Object.entries(prev).forEach(([topicId, pState]) => {
-          if (!pState.isRunning) return;
-          changed = true;
+      Object.entries(prev).forEach(([topicId, pState]) => {
+        if (!pState.isRunning) return;
+        changed = true;
 
-          const isBreak = pState.isBreak || false;
-          let cycleRemaining = (pState.cycleRemaining !== undefined ? pState.cycleRemaining : 50 * 60) - 1;
-          let newIsBreak = isBreak;
+        const startTick = pState.lastTickAt || now;
+        const totalElapsed = Math.max(0, Math.floor((now - startTick) / 1000));
+        let elapsed = totalElapsed;
+        let cycleRemaining = pState.cycleRemaining !== undefined ? pState.cycleRemaining : FOCUS_SECONDS;
+        let isBreak = Boolean(pState.isBreak);
+        let accumulated = pState.accumulatedSeconds || 0;
+        let logged = pState.loggedSeconds || 0;
+        let isRunning = true;
+        let completedByTimer = Boolean(pState.completedByTimer);
+        const targetSeconds = Math.round((Number(pState.targetHours) || 2.0) * 3600);
+
+        while (elapsed > 0 && isRunning) {
+          let step = Math.min(elapsed, cycleRemaining);
+          if (!isBreak && !completedByTimer && targetSeconds > accumulated) {
+            step = Math.min(step, targetSeconds - accumulated);
+          }
+          if (!isBreak) accumulated += step;
+          cycleRemaining -= step;
+          elapsed -= step;
+
+          if (!isBreak && !completedByTimer && accumulated >= targetSeconds) {
+            // Obiettivo raggiunto: registra il focus non ancora salvato e completa l'argomento
+            events.push({ topicId, seconds: accumulated - logged, complete: true, note: "Obiettivo Pomodoro raggiunto" });
+            logged = accumulated;
+            completedByTimer = true;
+            isRunning = false;
+            break;
+          }
 
           if (cycleRemaining <= 0) {
-            // Switch between 50 min study and 10 min break
-            newIsBreak = !isBreak;
-            cycleRemaining = newIsBreak ? 10 * 60 : 50 * 60;
-            // When completing a 50m focus phase, add focus hours to topic oreEffettive and auto-log session
-            if (newIsBreak) {
-              if (onUpdateTopicHours) {
-                onUpdateTopicHours(topicId, 50 / 60, true);
-              }
-              if (onLogStudySession) {
-                onLogStudySession({
-                  topicId,
-                  date: settings.currentSimulatedDate,
-                  hours: Number((50 / 60).toFixed(2)),
-                  completed: false,
-                  note: "Ciclo Pomodoro 50m completato automaticamente"
-                });
-                setPomodoroAlert(`🍅 Ottimo lavoro! 50m di focus completati e registrati nel diario per ${topicId}!`);
-                setTimeout(() => setPomodoroAlert(null), 4000);
-              }
+            if (!isBreak) {
+              events.push({ topicId, seconds: accumulated - logged, complete: false, note: "Ciclo Pomodoro 50m completato automaticamente" });
+              logged = accumulated;
             }
+            isBreak = !isBreak;
+            cycleRemaining = isBreak ? BREAK_SECONDS : FOCUS_SECONDS;
           }
+        }
 
-          // Accumulate focus time only during focus study phase
-          const accumulated = isBreak ? (pState.accumulatedSeconds || 0) : (pState.accumulatedSeconds || 0) + 1;
-          const targetSeconds = Math.round((Number(pState.targetHours) || 2.0) * 3600);
-          const reachedTarget = accumulated >= targetSeconds;
+        next[topicId] = {
+          ...pState,
+          accumulatedSeconds: accumulated,
+          loggedSeconds: logged,
+          cycleRemaining,
+          isBreak,
+          isRunning,
+          completedByTimer,
+          // Avanza solo dei secondi interi consumati: le frazioni restano per il tick successivo
+          lastTickAt: isRunning ? startTick + (totalElapsed - elapsed) * 1000 : null
+        };
+      });
 
-          nextMap[topicId] = {
-            ...pState,
-            accumulatedSeconds: accumulated,
-            cycleRemaining,
-            isBreak: newIsBreak,
-            isRunning: reachedTarget ? false : pState.isRunning,
-            completedByTimer: reachedTarget ? true : pState.completedByTimer
-          };
+      if (!changed) return;
+      pomodoroRef.current = next;
+      setPomodoroMap(next);
 
-          // Auto-check topic when accumulated timer reaches estimated hours!
-          if (reachedTarget && !pState.completedByTimer) {
-            onToggleComplete(topicId);
-          }
-        });
-
-        return changed ? nextMap : prev;
+      // Effetti collaterali FUORI dall'aggiornamento di stato
+      events.forEach(ev => {
+        logFocusSeconds(ev.topicId, ev.seconds, ev.complete, ev.note);
+        setPomodoroAlert(ev.complete
+          ? `🍅 Obiettivo raggiunto: ${ev.topicId} completato e focus registrato nel diario!`
+          : `🍅 Ottimo lavoro! 50m di focus completati e registrati nel diario per ${ev.topicId}!`);
+        setTimeout(() => setPomodoroAlert(null), 4000);
       });
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [pomodoroMap, onToggleComplete]);
+  }, [hasRunningPomodoro]);
 
   // Pomodoro Actions
   const handleQuickLogPomodoro = (topicId) => {
@@ -149,30 +198,35 @@ export function WeeklyTodo({
       onLogStudySession({
         topicId,
         date: settings.currentSimulatedDate,
-        hours: 0.8,
-        completed: false,
+        hours: Number((50 / 60).toFixed(2)),
         note: "Sessione Pomodoro (50 minuti di focus intenso)"
       });
-      setPomodoroAlert(`🍅 Sessione Pomodoro da 50m (0.8h) registrata con successo nel diario per ${topicId}!`);
+      setPomodoroAlert(`🍅 Sessione Pomodoro da 50m (0.83h) registrata con successo nel diario per ${topicId}!`);
       setTimeout(() => setPomodoroAlert(null), 4000);
     }
   };
 
+  const emptyPomodoroState = () => ({
+    accumulatedSeconds: 0,
+    loggedSeconds: 0,
+    cycleRemaining: FOCUS_SECONDS,
+    isBreak: false,
+    isRunning: false,
+    completedByTimer: false,
+    lastTickAt: null
+  });
+
   const togglePomodoro = (topicId, targetHours) => {
     setPomodoroMap(prev => {
-      const current = prev[topicId] || {
-        accumulatedSeconds: 0,
-        cycleRemaining: 50 * 60,
-        isBreak: false,
-        isRunning: false,
-        completedByTimer: false
-      };
+      const current = prev[topicId] || emptyPomodoroState();
+      const willRun = !current.isRunning;
       return {
         ...prev,
         [topicId]: {
           ...current,
           targetHours: Number(targetHours) || 2.0,
-          isRunning: !current.isRunning
+          isRunning: willRun,
+          lastTickAt: willRun ? Date.now() : null
         }
       };
     });
@@ -181,48 +235,32 @@ export function WeeklyTodo({
   const resetPomodoro = (topicId, targetHours) => {
     setPomodoroMap(prev => ({
       ...prev,
-      [topicId]: {
-        accumulatedSeconds: 0,
-        cycleRemaining: 50 * 60,
-        isBreak: false,
-        isRunning: false,
-        targetHours: Number(targetHours) || 2.0,
-        completedByTimer: false
-      }
+      [topicId]: { ...emptyPomodoroState(), targetHours: Number(targetHours) || 2.0 }
     }));
   };
 
   const addPomodoroMinutes = (topicId, targetHours, minutes) => {
-    // Sync added pomodoro time directly with oreEffettive
-    if (onUpdateTopicHours) {
-      onUpdateTopicHours(topicId, minutes / 60, true);
-    }
+    const current = pomodoroRef.current[topicId] || emptyPomodoroState();
+    const added = minutes * 60;
+    const accumulated = (current.accumulatedSeconds || 0) + added;
+    const targetSeconds = Math.round((Number(targetHours) || 2.0) * 3600);
+    const reachedTarget = accumulated >= targetSeconds && !current.completedByTimer;
+
+    // Il tempo aggiunto a mano diventa una sessione nel diario (storico coerente)
+    logFocusSeconds(topicId, added, reachedTarget, `Pomodoro: +${minutes} minuti aggiunti manualmente`);
 
     setPomodoroMap(prev => {
-      const current = prev[topicId] || {
-        accumulatedSeconds: 0,
-        cycleRemaining: 50 * 60,
-        isBreak: false,
-        isRunning: false,
-        completedByTimer: false
-      };
-      const added = minutes * 60;
-      const accumulated = (current.accumulatedSeconds || 0) + added;
-      const targetSeconds = Math.round((Number(targetHours) || 2.0) * 3600);
-      const reachedTarget = accumulated >= targetSeconds;
-
-      if (reachedTarget && !current.completedByTimer) {
-        onToggleComplete(topicId);
-      }
-
+      const cur = prev[topicId] || emptyPomodoroState();
       return {
         ...prev,
         [topicId]: {
-          ...current,
+          ...cur,
           targetHours: Number(targetHours) || 2.0,
           accumulatedSeconds: accumulated,
-          isRunning: reachedTarget ? false : current.isRunning,
-          completedByTimer: reachedTarget ? true : current.completedByTimer
+          loggedSeconds: (cur.loggedSeconds || 0) + added,
+          isRunning: reachedTarget ? false : cur.isRunning,
+          lastTickAt: reachedTarget ? null : cur.lastTickAt,
+          completedByTimer: reachedTarget ? true : cur.completedByTimer
         }
       };
     });
@@ -230,26 +268,24 @@ export function WeeklyTodo({
 
   const completePomodoroTarget = (topicId, targetHours) => {
     const targetSec = Math.round((Number(targetHours) || 2.0) * 3600);
-    // Bring topic oreEffettive to targetHours
-    if (onUpdateTopicHours) {
-      onUpdateTopicHours(topicId, Number(targetHours) || 2.0, false);
-    }
-    setPomodoroMap(prev => {
-      const current = prev[topicId] || {};
-      return {
-        ...prev,
-        [topicId]: {
-          ...current,
-          targetHours: Number(targetHours) || 2.0,
-          accumulatedSeconds: targetSec,
-          isRunning: false,
-          cycleRemaining: 0,
-          completedByTimer: true
-        }
-      };
-    });
-    // Trigger auto-check of the topic
-    onToggleComplete(topicId);
+    const current = pomodoroRef.current[topicId] || emptyPomodoroState();
+    // Registra il focus non ancora salvato e completa l'argomento (senza "toggle":
+    // se era già completato resta completato)
+    const unlogged = Math.max(0, (current.accumulatedSeconds || 0) - (current.loggedSeconds || 0));
+    logFocusSeconds(topicId, unlogged, true, "Pomodoro: obiettivo segnato come raggiunto");
+    setPomodoroMap(prev => ({
+      ...prev,
+      [topicId]: {
+        ...(prev[topicId] || emptyPomodoroState()),
+        targetHours: Number(targetHours) || 2.0,
+        accumulatedSeconds: Math.max(targetSec, current.accumulatedSeconds || 0),
+        loggedSeconds: Math.max(targetSec, current.accumulatedSeconds || 0),
+        isRunning: false,
+        lastTickAt: null,
+        cycleRemaining: 0,
+        completedByTimer: true
+      }
+    }));
   };
 
   const formatMinutesSeconds = (totalSec) => {
