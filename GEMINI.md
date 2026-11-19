@@ -78,6 +78,7 @@ L'applicazione in esecuzione in `index.html` consuma `bundle.js`.
 > ```powershell
 > npm test
 > python scripts\test_rolling_rebalance.py
+> python scripts\test_tonight_and_mock_exams.py
 > ```
 > `npm test` (Node ≥ 16, nessuna dipendenza) esegue i test unitari in `tests/` e verifica che il bundle venga transpilato. Ogni bug corretto in un servizio va coperto da un test.
 

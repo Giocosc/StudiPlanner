@@ -89,8 +89,12 @@ npm test
 python scripts\test_rolling_rebalance.py
 ```
 
+```powershell
+python scripts\test_tonight_and_mock_exams.py
+```
+
 - `npm test` esegue con Node (≥ 16) i test unitari dei servizi puri (motore, parser, stato argomenti, export ICS, sync GitLab con un server finto) e verifica che `bundle.js` venga transpilato senza errori. Non richiede `npm install`: il progetto non ha dipendenze npm.
-- `test_rolling_rebalance.py` è il test end-to-end Playwright di riferimento (richiede `pip install playwright` e `playwright install chromium`). Altri test E2E per singole funzionalità sono in `scripts/test_*.py`.
+- `test_rolling_rebalance.py` e `test_tonight_and_mock_exams.py` sono i test end-to-end Playwright di riferimento (richiedono `pip install playwright` e `playwright install chromium`): il primo copre data, piano e storico, il secondo i flussi serali di Stasera e dei temi d'esame. Altri test E2E per singole funzionalità sono in `scripts/test_*.py`.
 
 `bundle.js` è versionato: va ricompilato e committato insieme ai sorgenti. I dettagli della pipeline e dei test sono in [docs/06_DEVOPS_AND_SCRIPTS.md](docs/06_DEVOPS_AND_SCRIPTS.md).
 

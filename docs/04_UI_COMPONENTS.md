@@ -672,6 +672,7 @@ flowchart TD
    python scripts\build_bundle.py
    npm test
    python scripts\test_rolling_rebalance.py
+   python scripts\test_tonight_and_mock_exams.py
    ```
 4. **Accessibilità e Responsive Design:** Verificare sempre che le card e i pulsanti siano fruibili sia su schermi desktop (1920px) sia su smartphone touch (360px - 414px) sfruttando le classi responsive di Tailwind (`hidden md:flex`, `grid-cols-1 md:grid-cols-2 xl:grid-cols-3`).
 5. **Regole degli hook nei modali:** un modale si compone di un guscio (`if (!props.isOpen) return null;`) e di un componente interno che contiene tutti gli hook. Mai chiamare hook dopo un `return` condizionale: React lancia un errore al primo cambio di stato aperto/chiuso.

@@ -40,7 +40,7 @@ Documenti nella radice del repository:
 1. **Ordine sequenziale.** `A-01 → A-32` e `G-01 → G-31`; priorità e difficoltà non riordinano mai la coda.
 2. **Buffer +20%** solo per priorità ≥ 4 o difficoltà ≥ 4, applicato alle ore residue.
 3. **Modello del lavoratore.** 2,5 h nelle sere feriali, 4,5 h nei giorni di weekend, Time Shifter 0–12 h per giorno, soglia di sovraccarico configurabile (default 25 h/settimana).
-4. **Build e test** dopo ogni modifica in `src/`: `python scripts\build_bundle.py`, `npm test`, `python scripts\test_rolling_rebalance.py`.
+4. **Build e test** dopo ogni modifica in `src/`: `python scripts\build_bundle.py`, `npm test`, `python scripts\test_rolling_rebalance.py`, `python scripts\test_tonight_and_mock_exams.py`.
 5. **Sync GitLab senza perdite.** Decodifica base64 UTF-8, debounce, fusione con tombstone e timestamp, scrittura con `last_commit_id`.
 
 ---

@@ -18,11 +18,16 @@ npm test
 python scripts\test_rolling_rebalance.py
 ```
 
+```powershell
+python scripts\test_tonight_and_mock_exams.py
+```
+
 | Passo | Cosa verifica | Requisiti |
 | :--- | :--- | :--- |
-| `build_bundle.py` | Rigenera `bundle.js` da `src/` | Python 3 |
+| `build_bundle.py` | Controlla i nomi di primo livello duplicati e rigenera `bundle.js` da `src/` | Python 3 |
 | `npm test` | Test unitari dei servizi + transpilazione del bundle | Node ≥ 16 (nessuna `npm install`) |
 | `test_rolling_rebalance.py` | E2E: data reale, simulazione giorni, To-Do, Storico, persistenza | `pip install playwright` + `playwright install chromium` |
+| `test_tonight_and_mock_exams.py` | E2E: timer e chiusura di Stasera, temi d'esame (voto, curva, cancellazione) | come sopra |
 
 Regole:
 
@@ -36,14 +41,17 @@ Regole:
 
 Il progetto non usa un bundler JavaScript. Lo script:
 
-1. concatena i file elencati in `files_order` (dati → icone → servizi → componenti → `app.js`);
-2. elimina le righe `import` e la parola chiave `export`;
-3. antepone `const { useState, useEffect, useMemo, useRef, useCallback } = React;` e un `ErrorBoundary` che mostra gli errori di rendering;
-4. accoda il montaggio su `#root`.
+1. controlla che nessun nome di primo livello sia dichiarato in due file (o due volte nello stesso file) e, se succede, si ferma indicando i file in conflitto;
+2. concatena i file elencati in `files_order` (dati → icone → servizi → componenti → `app.js`);
+3. elimina le righe `import` e la parola chiave `export`;
+4. antepone `const { useState, useEffect, useMemo, useRef, useCallback } = React;` e un `ErrorBoundary` che mostra gli errori di rendering;
+5. accoda il montaggio su `#root` e scrive `bundle.js` con fine riga LF.
 
 Il browser transpila il risultato con Babel standalone (`<script type="text/babel" src="bundle.js">`). Babel segnala che il file supera i 500 KB e "deottimizza lo styling": è un avviso innocuo.
 
-**Scope condiviso.** Tutti i file finiscono nello stesso scope: due dichiarazioni top-level con lo stesso nome in moduli diversi rompono l'app. Usare nomi specifici per gli helper privati e aggiungere ogni nuovo file a `files_order` dopo le sue dipendenze. `tests/bundle.test.mjs` intercetta entrambi i problemi.
+**Scope condiviso.** Tutti i file finiscono nello stesso scope: due dichiarazioni top-level con lo stesso nome in moduli diversi rompono l'app. Usare nomi specifici per gli helper privati e aggiungere ogni nuovo file a `files_order` dopo le sue dipendenze. Il controllo di `build_bundle.py` cerca le dichiarazioni che iniziano a colonna 0 (`function`, `class`, `const`/`let`/`var`, destrutturazioni): le dichiarazioni annidate sono indentate e non contano. `tests/bundle.test.mjs` fa da seconda rete, transpilando il bundle completo.
+
+**Fine riga.** `.gitattributes` impone LF per tutti i file di testo e CRLF solo per i batch di Windows (`.bat`, `.cmd`), che con LF possono leggere male etichette e commenti `::`. `.editorconfig` dà le stesse regole agli editor. Il bundle è scritto sempre in LF, quindi una build senza modifiche ai sorgenti non lascia file modificati.
 
 ---
 
@@ -89,6 +97,12 @@ Ogni script `scripts/test_*.py` avvia un server HTTP temporaneo su una porta ded
 - argomenti e impostazioni salvati in `localStorage`.
 
 Salva `screenshot_history_tab.png` (ignorato da git).
+
+`test_tonight_and_mock_exams.py` copre i due flussi serali. Fissa l'orologio del browser a lunedì 14/12/2026 alle 20:00 (`page.clock.set_fixed_time`, fuso Europe/Rome) e lo sposta in avanti per simulare il tempo passato, senza attese reali:
+
+- **Stasera:** avvio del timer, 50 minuti che sopravvivono a una ricarica, chiusura con esiti degli esercizi e fiducia, sessione salvata (0,75 h, data, argomento proposto), ore dell'argomento aggiornate e timer azzerato;
+- **Temi d'esame:** avvio del tema di Analisi, conto alla rovescia, consegna dopo 100 minuti, voto obbligatorio, salvataggio con `updatedAt`, curva e riepilogo, persistenza dopo una ricarica, cancellazione con tombstone in `unimore_rebalancer_deleted_mock_exams_v1`;
+- nessun errore JavaScript nella pagina.
 
 Altri script E2E coprono singole funzionalità: `test_time_shifter.py`, `test_partial_progress.py`, `test_log_study_session.py`, `test_topic_detail_modal.py`, `test_gitlab_sync_ui.py`, `test_point*_*.py` (una funzionalità ciascuno), `check_sequence.py` (ordine propedeutico nella vista settimanale). Alcuni di questi script stampano i risultati senza terminare con errore: leggere l'output.
 
@@ -207,7 +221,7 @@ powershell -ExecutionPolicy Bypass -File setup_windows_service.ps1 -Uninstall
 | Avviare l'app | `python server.py` oppure `start-app.bat` |
 | Rigenerare il bundle | `python scripts\build_bundle.py` (o `npm run build`) |
 | Test unitari | `npm test` |
-| Test E2E di riferimento | `python scripts\test_rolling_rebalance.py` |
+| Test E2E di riferimento | `python scripts\test_rolling_rebalance.py` e `python scripts\test_tonight_and_mock_exams.py` |
 | Collegamento desktop | `powershell -ExecutionPolicy Bypass -File create_taskbar_shortcut.ps1` |
 | Tray all'avvio | `powershell -ExecutionPolicy Bypass -File install_tray_startup.ps1` |
 | Servizio Windows | `powershell -ExecutionPolicy Bypass -File setup_windows_service.ps1 -UseLocalSystem -StartService` |

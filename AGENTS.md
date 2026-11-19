@@ -14,5 +14,6 @@ Il documento di riferimento completo, con vincoli didattici, architettura e sche
    python scripts\build_bundle.py
    npm test
    python scripts\test_rolling_rebalance.py
+   python scripts\test_tonight_and_mock_exams.py
    ```
 5. **Sync GitLab.** Preservare la decodifica base64 UTF-8, il debounce, la fusione senza perdite (tombstone, `updatedAt`, `syncMeta`) e la scrittura con `last_commit_id` in `gitlabSyncService.js`. Ogni modifica alla fusione va coperta in `tests/gitlabSync.test.mjs`.
