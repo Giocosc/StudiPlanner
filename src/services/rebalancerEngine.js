@@ -957,3 +957,49 @@ export function calculateBurndown({ totalHours, remainingHours, roadmapStartDate
     deltaHours: Math.abs(Number((remaining - idealRemainingToday).toFixed(1)))
   };
 }
+
+/**
+ * Statistiche della retrospettiva settimanale (Punto 19).
+ * - Ore target: budget dei giorni già trascorsi della settimana (oggi incluso).
+ * - Ore effettive: sessioni registrate + ore degli argomenti spuntati in quei giorni
+ *   (i blocchi pianificati per oggi non contano come studio svolto).
+ */
+export function calculateWeeklyRetrospective(week) {
+  if (!week || !Array.isArray(week.days)) {
+    return { targetHours: 0, actualHours: 0, completedTopics: [], remainingTopics: [], efficiency: 0, elapsedDays: 0 };
+  }
+  const elapsed = week.days.filter(d => (d.isPast || d.isToday) && d.enabled !== false);
+  const targetHours = Number(elapsed.reduce((acc, d) => acc + Number(d.maxHours || 0), 0).toFixed(1));
+  const isStudied = t => t.isSessionLog || t.partIndex === undefined;
+  const actualHours = Number(elapsed.reduce((acc, d) => acc + (d.topics || [])
+    .filter(isStudied)
+    .reduce((a, t) => a + Number(t.effectiveHours || 0), 0), 0).toFixed(1));
+
+  const completedTopics = [];
+  const remainingTopics = [];
+  week.days.forEach(day => (day.topics || []).forEach(t => {
+    const done = Boolean(t.completato !== undefined ? t.completato : t.isCompleted);
+    const list = done ? completedTopics : remainingTopics;
+    if (!completedTopics.some(x => x.id === t.id) && !remainingTopics.some(x => x.id === t.id)) list.push(t);
+  }));
+
+  const efficiency = targetHours > 0 ? Math.min(150, Math.round((actualHours / targetHours) * 100)) : 100;
+  return { targetHours, actualHours, completedTopics, remainingTopics, efficiency, elapsedDays: elapsed.length };
+}
+
+/**
+ * Aggiornamenti Time Shifter per "+30m serale la prossima settimana":
+ * solo i giorni feriali della settimana SUCCESSIVA a quella attiva.
+ */
+export function getNextWeekEveningBoost(weeklyPlans, activeWeek, extraHours = 0.5) {
+  if (!activeWeek) return {};
+  const nextWeek = (weeklyPlans || []).find(w => w.weekNumber === activeWeek.weekNumber + 1);
+  if (!nextWeek) return {};
+  const updates = {};
+  nextWeek.days.forEach(d => {
+    if (d.isWeekend || d.enabled === false) return;
+    const base = Math.max(Number(d.maxHours || 0), Number(d.standardHours || 0));
+    updates[d.date] = Number((base + extraHours).toFixed(1));
+  });
+  return updates;
+}

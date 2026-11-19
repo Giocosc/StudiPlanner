@@ -2112,6 +2112,52 @@ function calculateBurndown({ totalHours, remainingHours, roadmapStartDate, targe
   };
 }
 
+/**
+ * Statistiche della retrospettiva settimanale (Punto 19).
+ * - Ore target: budget dei giorni già trascorsi della settimana (oggi incluso).
+ * - Ore effettive: sessioni registrate + ore degli argomenti spuntati in quei giorni
+ *   (i blocchi pianificati per oggi non contano come studio svolto).
+ */
+function calculateWeeklyRetrospective(week) {
+  if (!week || !Array.isArray(week.days)) {
+    return { targetHours: 0, actualHours: 0, completedTopics: [], remainingTopics: [], efficiency: 0, elapsedDays: 0 };
+  }
+  const elapsed = week.days.filter(d => (d.isPast || d.isToday) && d.enabled !== false);
+  const targetHours = Number(elapsed.reduce((acc, d) => acc + Number(d.maxHours || 0), 0).toFixed(1));
+  const isStudied = t => t.isSessionLog || t.partIndex === undefined;
+  const actualHours = Number(elapsed.reduce((acc, d) => acc + (d.topics || [])
+    .filter(isStudied)
+    .reduce((a, t) => a + Number(t.effectiveHours || 0), 0), 0).toFixed(1));
+
+  const completedTopics = [];
+  const remainingTopics = [];
+  week.days.forEach(day => (day.topics || []).forEach(t => {
+    const done = Boolean(t.completato !== undefined ? t.completato : t.isCompleted);
+    const list = done ? completedTopics : remainingTopics;
+    if (!completedTopics.some(x => x.id === t.id) && !remainingTopics.some(x => x.id === t.id)) list.push(t);
+  }));
+
+  const efficiency = targetHours > 0 ? Math.min(150, Math.round((actualHours / targetHours) * 100)) : 100;
+  return { targetHours, actualHours, completedTopics, remainingTopics, efficiency, elapsedDays: elapsed.length };
+}
+
+/**
+ * Aggiornamenti Time Shifter per "+30m serale la prossima settimana":
+ * solo i giorni feriali della settimana SUCCESSIVA a quella attiva.
+ */
+function getNextWeekEveningBoost(weeklyPlans, activeWeek, extraHours = 0.5) {
+  if (!activeWeek) return {};
+  const nextWeek = (weeklyPlans || []).find(w => w.weekNumber === activeWeek.weekNumber + 1);
+  if (!nextWeek) return {};
+  const updates = {};
+  nextWeek.days.forEach(d => {
+    if (d.isWeekend || d.enabled === false) return;
+    const base = Math.max(Number(d.maxHours || 0), Number(d.standardHours || 0));
+    updates[d.date] = Number((base + extraHours).toFixed(1));
+  });
+  return updates;
+}
+
 
 // --- src/services/topicStateService.js ---
 /**
@@ -11251,6 +11297,7 @@ function PdfSplitView({ isOpen, onClose }) {
 
 
 
+
 // Wrapper: monta il contenuto solo quando il modale è aperto, così gli hook
 // del contenuto vengono sempre chiamati nello stesso ordine (Rules of Hooks).
 function WeeklyRetrospectiveModal(props) {
@@ -11274,52 +11321,17 @@ function WeeklyRetrospectiveModalContent({
   }, [weeklyPlans]);
 
   // Compute stats for this week
-  const weekStats = useMemo(() => {
-    if (!activeWeek || !activeWeek.days) {
-      return { targetHours: 0, actualHours: 0, completedTopics: [], remainingTopics: [], efficiency: 0 };
-    }
+  // Statistiche calcolate dai dati reali del motore (prima si leggeva day.studiedHours,
+  // campo inesistente: efficienza sempre 0%)
+  const weekStats = useMemo(() => calculateWeeklyRetrospective(activeWeek), [activeWeek]);
 
-    const targetHours = activeWeek.totalAllocatedHours || 0;
-    let actualHours = 0;
-    const completedTopics = [];
-    const remainingTopics = [];
+  // +30m alle serate feriali della settimana SUCCESSIVA (prima si modificava quella in corso)
+  const nextWeekBoost = useMemo(() => getNextWeekEveningBoost(weeklyPlans, activeWeek), [weeklyPlans, activeWeek]);
+  const hasNextWeek = Object.keys(nextWeekBoost).length > 0;
 
-    activeWeek.days.forEach(day => {
-      actualHours += Number(day.studiedHours || 0);
-      (day.scheduledTopics || day.topics || []).forEach(t => {
-        const isDone = Boolean(t.isCompleted || t.completato);
-        if (isDone) {
-          if (!completedTopics.some(x => x.id === t.id)) completedTopics.push(t);
-        } else {
-          if (!remainingTopics.some(x => x.id === t.id)) remainingTopics.push(t);
-        }
-      });
-    });
-
-    const efficiency = targetHours > 0 ? Math.min(150, Math.round((actualHours / targetHours) * 100)) : 100;
-
-    return {
-      targetHours,
-      actualHours: Number(actualHours.toFixed(1)),
-      completedTopics,
-      remainingTopics,
-      efficiency
-    };
-  }, [activeWeek]);
-
-  // Auto-apply +30m for the next work week (Monday to Friday)
   const handleBoostNextWeek = () => {
-    if (!onBatchUpdateDayCapacities || !activeWeek || !activeWeek.days) return;
-
-    // Find days of current/next week
-    const updates = {};
-    activeWeek.days.forEach(d => {
-      if (!d.isWeekend) {
-        updates[d.date] = 3.0; // Boost to 3h/evening (2.5h + 30m)
-      }
-    });
-
-    onBatchUpdateDayCapacities(updates);
+    if (!onBatchUpdateDayCapacities || !hasNextWeek) return;
+    onBatchUpdateDayCapacities(nextWeekBoost);
     onClose();
   };
 
@@ -11383,7 +11395,7 @@ function WeeklyRetrospectiveModalContent({
           {/* Key KPI Strip */}
           <div className="grid grid-cols-3 gap-3 text-center">
             <div className="p-3 bg-slate-900/80 border border-slate-800 rounded-2xl">
-              <span className="text-[10px] uppercase font-bold text-slate-400 block">Ore Target</span>
+              <span className="text-[10px] uppercase font-bold text-slate-400 block">Ore Target ({weekStats.elapsedDays} gg)</span>
               <strong className="text-lg font-black font-mono text-white mt-0.5 block">{weekStats.targetHours}h</strong>
             </div>
 
@@ -11439,7 +11451,7 @@ function WeeklyRetrospectiveModalContent({
                     <span className="text-slate-300">{t.argomento || t.titolo}</span>
                   </div>
                   <span className="text-[10px] font-mono text-slate-400 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded-full">
-                    Slittato in avanti
+                    Da completare
                   </span>
                 </div>
               ))}
@@ -11452,9 +11464,11 @@ function WeeklyRetrospectiveModalContent({
           <button
             type="button"
             onClick={handleBoostNextWeek}
-            className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-bold rounded-xl transition shadow-md"
+            disabled={!hasNextWeek}
+            className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-bold rounded-xl transition shadow-md disabled:opacity-40 disabled:cursor-not-allowed"
+            title={hasNextWeek ? "Aggiunge 30 minuti a ogni sera feriale della prossima settimana" : "Nessuna settimana successiva prima dell'esame"}
           >
-            ⚡ Applica +30m Serale Prossima Settimana (3h/sera)
+            ⚡ Applica +30m Serale Prossima Settimana
           </button>
 
           <button

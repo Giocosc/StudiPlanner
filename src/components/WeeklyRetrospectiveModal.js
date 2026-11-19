@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 import { IconCheckCircle, IconFlame, IconClock, IconCalendar, IconCheck, IconX } from "./Icons.js";
+import { calculateWeeklyRetrospective, getNextWeekEveningBoost } from "../services/rebalancerEngine.js";
 
 // Wrapper: monta il contenuto solo quando il modale è aperto, così gli hook
 // del contenuto vengono sempre chiamati nello stesso ordine (Rules of Hooks).
@@ -24,52 +25,17 @@ function WeeklyRetrospectiveModalContent({
   }, [weeklyPlans]);
 
   // Compute stats for this week
-  const weekStats = useMemo(() => {
-    if (!activeWeek || !activeWeek.days) {
-      return { targetHours: 0, actualHours: 0, completedTopics: [], remainingTopics: [], efficiency: 0 };
-    }
+  // Statistiche calcolate dai dati reali del motore (prima si leggeva day.studiedHours,
+  // campo inesistente: efficienza sempre 0%)
+  const weekStats = useMemo(() => calculateWeeklyRetrospective(activeWeek), [activeWeek]);
 
-    const targetHours = activeWeek.totalAllocatedHours || 0;
-    let actualHours = 0;
-    const completedTopics = [];
-    const remainingTopics = [];
+  // +30m alle serate feriali della settimana SUCCESSIVA (prima si modificava quella in corso)
+  const nextWeekBoost = useMemo(() => getNextWeekEveningBoost(weeklyPlans, activeWeek), [weeklyPlans, activeWeek]);
+  const hasNextWeek = Object.keys(nextWeekBoost).length > 0;
 
-    activeWeek.days.forEach(day => {
-      actualHours += Number(day.studiedHours || 0);
-      (day.scheduledTopics || day.topics || []).forEach(t => {
-        const isDone = Boolean(t.isCompleted || t.completato);
-        if (isDone) {
-          if (!completedTopics.some(x => x.id === t.id)) completedTopics.push(t);
-        } else {
-          if (!remainingTopics.some(x => x.id === t.id)) remainingTopics.push(t);
-        }
-      });
-    });
-
-    const efficiency = targetHours > 0 ? Math.min(150, Math.round((actualHours / targetHours) * 100)) : 100;
-
-    return {
-      targetHours,
-      actualHours: Number(actualHours.toFixed(1)),
-      completedTopics,
-      remainingTopics,
-      efficiency
-    };
-  }, [activeWeek]);
-
-  // Auto-apply +30m for the next work week (Monday to Friday)
   const handleBoostNextWeek = () => {
-    if (!onBatchUpdateDayCapacities || !activeWeek || !activeWeek.days) return;
-
-    // Find days of current/next week
-    const updates = {};
-    activeWeek.days.forEach(d => {
-      if (!d.isWeekend) {
-        updates[d.date] = 3.0; // Boost to 3h/evening (2.5h + 30m)
-      }
-    });
-
-    onBatchUpdateDayCapacities(updates);
+    if (!onBatchUpdateDayCapacities || !hasNextWeek) return;
+    onBatchUpdateDayCapacities(nextWeekBoost);
     onClose();
   };
 
@@ -133,7 +99,7 @@ function WeeklyRetrospectiveModalContent({
           {/* Key KPI Strip */}
           <div className="grid grid-cols-3 gap-3 text-center">
             <div className="p-3 bg-slate-900/80 border border-slate-800 rounded-2xl">
-              <span className="text-[10px] uppercase font-bold text-slate-400 block">Ore Target</span>
+              <span className="text-[10px] uppercase font-bold text-slate-400 block">Ore Target ({weekStats.elapsedDays} gg)</span>
               <strong className="text-lg font-black font-mono text-white mt-0.5 block">{weekStats.targetHours}h</strong>
             </div>
 
@@ -189,7 +155,7 @@ function WeeklyRetrospectiveModalContent({
                     <span className="text-slate-300">{t.argomento || t.titolo}</span>
                   </div>
                   <span className="text-[10px] font-mono text-slate-400 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded-full">
-                    Slittato in avanti
+                    Da completare
                   </span>
                 </div>
               ))}
@@ -202,9 +168,11 @@ function WeeklyRetrospectiveModalContent({
           <button
             type="button"
             onClick={handleBoostNextWeek}
-            className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-bold rounded-xl transition shadow-md"
+            disabled={!hasNextWeek}
+            className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-bold rounded-xl transition shadow-md disabled:opacity-40 disabled:cursor-not-allowed"
+            title={hasNextWeek ? "Aggiunge 30 minuti a ogni sera feriale della prossima settimana" : "Nessuna settimana successiva prima dell'esame"}
           >
-            ⚡ Applica +30m Serale Prossima Settimana (3h/sera)
+            ⚡ Applica +30m Serale Prossima Settimana
           </button>
 
           <button

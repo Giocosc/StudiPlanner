@@ -159,3 +159,21 @@ test("burndown: le ore residue del piano sono senza buffer come il totale", () =
   const plan = rebalanceStudyPlan(freshTopics(), { currentSimulatedDate: "2026-11-16" });
   assert.strictEqual(plan.progress.global.remainingHours, plan.progress.global.totalHours);
 });
+
+test("retrospettiva: ore effettive reali e boost sulla settimana successiva", async () => {
+  const { calculateWeeklyRetrospective, getNextWeekEveningBoost } = await import("../src/services/rebalancerEngine.js");
+  const sessions = [
+    { id: "s1", date: "2026-11-16", topicId: "A-01", hours: 2 },
+    { id: "s2", date: "2026-11-17", topicId: "G-01", hours: 1.5 }
+  ];
+  const plan = rebalanceStudyPlan(freshTopics(), { currentSimulatedDate: "2026-11-18" }, {}, sessions);
+  const week = plan.weeklyPlans.find(w => w.hasToday);
+  const stats = calculateWeeklyRetrospective(week);
+  assert.strictEqual(stats.elapsedDays, 3);
+  assert.strictEqual(stats.targetHours, 7.5);
+  assert.strictEqual(stats.actualHours, 3.5); // i blocchi pianificati di oggi non contano
+  assert.strictEqual(stats.efficiency, 47);
+  const boost = getNextWeekEveningBoost(plan.weeklyPlans, week);
+  assert.deepStrictEqual(Object.keys(boost), ["2026-11-23", "2026-11-24", "2026-11-25", "2026-11-26", "2026-11-27"]);
+  Object.values(boost).forEach(h => assert.strictEqual(h, 3));
+});
