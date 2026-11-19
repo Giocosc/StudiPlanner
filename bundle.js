@@ -2283,22 +2283,26 @@ function parseCSVString(csvContent, filename = "") {
       else prioritaEsame = parseInt(rawPriorita, 10) || 3;
     }
 
-    let isCompleted = false;
-    if (statoIdx !== -1 && row[statoIdx]) {
-      const st = row[statoIdx].toLowerCase().trim();
-      isCompleted = ["completato", "fatto", "done", "completata", "si", "yes", "1", "true", "superato"].includes(st);
-    }
-
-    parsedTopics.push({
+    const parsedTopic = {
       id,
       materia,
       capitolo,
       argomento,
       oreStimate,
       difficolta,
-      prioritaEsame,
-      isCompleted
-    });
+      prioritaEsame
+    };
+
+    // Lo stato viene riportato solo se il file ha davvero una colonna di stato:
+    // senza colonna non si deve sovrascrivere il progresso già salvato.
+    if (statoIdx !== -1) {
+      const st = String(row[statoIdx] || "").toLowerCase().trim();
+      const isCompleted = ["completato", "fatto", "done", "completata", "si", "yes", "1", "true", "superato"].includes(st);
+      parsedTopic.completato = isCompleted;
+      parsedTopic.isCompleted = isCompleted;
+    }
+
+    parsedTopics.push(parsedTopic);
   }
 
   return parsedTopics;
@@ -2456,6 +2460,38 @@ function mergeTopicsWithExcelData(topics, excelParsedData, completionDate = null
     matchedCount,
     totalTopics: merged.length
   };
+}
+
+/**
+ * Unisce le righe di un CSV al catalogo esistente.
+ * - Argomenti esistenti: si aggiornano metadati (titolo, ore stimate, priorità...)
+ *   ma si conservano ore effettive, sessioni, note e completamento. Il CSV può solo
+ *   aggiungere un completamento ("Completato"), mai cancellare il progresso.
+ * - Argomenti nuovi: vengono aggiunti con lo stato indicato dal file (completato
+ *   e isCompleted sempre allineati).
+ */
+function mergeTopicsWithCsvRows(existingTopics, parsedRows, completionDate = null) {
+  const existingMap = new Map(existingTopics.map(t => [String(t.id).toUpperCase(), t]));
+  let newCount = 0;
+  let updatedCount = 0;
+
+  parsedRows.forEach(row => {
+    const key = String(row.id).toUpperCase();
+    const { completato, isCompleted, ...fields } = row;
+    const markDone = Boolean(completato || isCompleted);
+    if (existingMap.has(key)) {
+      const current = existingMap.get(key);
+      let merged = { ...current, ...fields, id: current.id };
+      if (markDone && !isTopicDone(current)) merged = withCompletion(merged, true, completionDate);
+      existingMap.set(key, merged);
+      updatedCount++;
+    } else {
+      existingMap.set(key, withCompletion({ ...fields, oreEffettive: 0 }, markDone, markDone ? completionDate : null));
+      newCount++;
+    }
+  });
+
+  return { topics: Array.from(existingMap.values()), newCount, updatedCount };
 }
 
 
@@ -8565,23 +8601,12 @@ function FileImporter({
           throw new Error("Nessuna riga valida trovata nel file CSV/TXT.");
         }
 
-        // Merge with existing topics: if IDs already exist, update them; else append
-        const existingMap = new Map(topics.map(t => [t.id.toUpperCase(), t]));
-        let newCount = 0;
-        let updatedCount = 0;
-
-        parsed.forEach(p => {
-          const key = p.id.toUpperCase();
-          if (existingMap.has(key)) {
-            existingMap.set(key, { ...existingMap.get(key), ...p });
-            updatedCount++;
-          } else {
-            existingMap.set(key, p);
-            newCount++;
-          }
-        });
-
-        const mergedList = Array.from(existingMap.values());
+        // Merge with existing topics: metadati aggiornati, progresso conservato
+        const { topics: mergedList, newCount, updatedCount } = mergeTopicsWithCsvRows(
+          topics,
+          parsed,
+          settings && settings.currentSimulatedDate
+        );
         onTopicsUpdated(mergedList);
 
         setNotification({

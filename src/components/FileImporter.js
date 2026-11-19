@@ -12,7 +12,7 @@ import {
   IconCloud,
   IconExternalLink
 } from "./Icons.js";
-import { parseCSVString, parseExcelData, mergeTopicsWithExcelData } from "../services/parserService.js";
+import { parseCSVString, parseExcelData, mergeTopicsWithExcelData, mergeTopicsWithCsvRows } from "../services/parserService.js";
 import { INITIAL_TOPICS } from "../data/defaultData.js";
 import { testGitLabConnection } from "../services/gitlabSyncService.js";
 import { downloadIcsCalendar } from "../services/calendarExportService.js";
@@ -214,23 +214,12 @@ export function FileImporter({
           throw new Error("Nessuna riga valida trovata nel file CSV/TXT.");
         }
 
-        // Merge with existing topics: if IDs already exist, update them; else append
-        const existingMap = new Map(topics.map(t => [t.id.toUpperCase(), t]));
-        let newCount = 0;
-        let updatedCount = 0;
-
-        parsed.forEach(p => {
-          const key = p.id.toUpperCase();
-          if (existingMap.has(key)) {
-            existingMap.set(key, { ...existingMap.get(key), ...p });
-            updatedCount++;
-          } else {
-            existingMap.set(key, p);
-            newCount++;
-          }
-        });
-
-        const mergedList = Array.from(existingMap.values());
+        // Merge with existing topics: metadati aggiornati, progresso conservato
+        const { topics: mergedList, newCount, updatedCount } = mergeTopicsWithCsvRows(
+          topics,
+          parsed,
+          settings && settings.currentSimulatedDate
+        );
         onTopicsUpdated(mergedList);
 
         setNotification({
