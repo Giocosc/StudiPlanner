@@ -215,3 +215,36 @@ test("time shifter: il budget giornaliero è limitato a 12h", async () => {
   const plan = rebalanceStudyPlan(freshTopics(), { currentSimulatedDate: "2026-11-19" }, { "2026-11-20": 40 });
   assert.strictEqual(plan.calendarDays.find(d => d.date === "2026-11-20").maxHours, 12);
 });
+
+test("padronanza: gli esiti degli esercizi misurano la padronanza e spostano la previsione", async () => {
+  const { calculateMasteryStats, calculateExamReadinessAndGrade } = await import("../src/services/rebalancerEngine.js");
+  const topics = freshTopics().map(t => (t.id === "A-01" || t.id === "A-02")
+    ? { ...t, completato: true, isCompleted: true, completedDate: "2026-11-10" } : t);
+  const sessions = [
+    { id: "a", date: "2026-11-10", topicId: "A-01", hours: 2, exercises: { correct: 4, partial: 1, wrong: 0 }, confidence: 5 },
+    { id: "b", date: "2026-11-11", topicId: "A-02", hours: 2, exercises: { correct: 0, partial: 1, wrong: 3 }, confidence: 2 },
+    { id: "c", date: "2026-11-12", topicId: "A-03", hours: 2 }
+  ];
+  const m = calculateMasteryStats(topics, sessions);
+  assert.strictEqual(m.attempts, 9);
+  assert.strictEqual(m.correct, 4);
+  assert.strictEqual(m.byTopic["A-01"].level.key, "solid");
+  assert.strictEqual(m.byTopic["A-02"].level.key, "weak");
+  assert.deepStrictEqual(m.weakTopics.map(w => w.topicId), ["A-02"]);
+  assert.strictEqual(m.coverage, 1);
+  assert.ok(!m.byTopic["A-03"], "una sessione senza esiti non conta");
+
+  const base = { pastDaysStudied: 10, pastDaysSkipped: 0, requiredWeeklyHours: 20 };
+  const noMastery = calculateExamReadinessAndGrade(topics, base);
+  const good = calculateExamReadinessAndGrade(topics, { ...base, mastery: { attempts: 10, accuracy: 0.95, coverage: 1, correct: 9 } });
+  const bad = calculateExamReadinessAndGrade(topics, { ...base, mastery: { attempts: 10, accuracy: 0.2, coverage: 1, correct: 2 } });
+  const few = calculateExamReadinessAndGrade(topics, { ...base, mastery: { attempts: 2, accuracy: 0, coverage: 1, correct: 0 } });
+  assert.strictEqual(noMastery.masteryBased, false);
+  assert.ok(good.readinessScore > noMastery.readinessScore);
+  assert.ok(bad.readinessScore < noMastery.readinessScore);
+  assert.strictEqual(few.readinessScore, noMastery.readinessScore, "sotto la soglia minima gli esiti non pesano");
+
+  const plan = rebalanceStudyPlan(topics, { currentSimulatedDate: "2026-11-19" }, {}, sessions);
+  assert.strictEqual(plan.metrics.mastery.attempts, 9);
+  assert.strictEqual(plan.metrics.examPrediction.masteryBased, true);
+});

@@ -1221,6 +1221,94 @@ function addDaysToDateStr(dateStr, days) {
 }
 
 /**
+ * Padronanza misurata: esiti degli esercizi d'esame svolti senza appunti.
+ * Ogni sessione può portare `exercises: { correct, partial, wrong }` e `confidence` (1-5).
+ * Un esercizio parziale vale mezzo punto. La padronanza unisce precisione (80%) e
+ * fiducia dichiarata (20%).
+ */
+const MASTERY_MIN_ATTEMPTS = 5;
+
+function getMasteryLevel(mastery) {
+  if (mastery === null || mastery === undefined) return { key: "untested", label: "Non verificato" };
+  if (mastery >= 0.8) return { key: "solid", label: "Solida" };
+  if (mastery >= 0.6) return { key: "good", label: "Buona" };
+  if (mastery >= 0.4) return { key: "fragile", label: "Fragile" };
+  return { key: "weak", label: "Da rifare" };
+}
+
+function normalizeExercises(exercises) {
+  if (!exercises || typeof exercises !== "object") return null;
+  const n = (v) => Math.max(0, Math.floor(Number(v) || 0));
+  const out = { correct: n(exercises.correct), partial: n(exercises.partial), wrong: n(exercises.wrong) };
+  return out.correct + out.partial + out.wrong > 0 ? out : null;
+}
+
+function calculateMasteryStats(topics = [], studySessions = []) {
+  const byTopic = {};
+  (studySessions || []).forEach(sess => {
+    if (!sess || !sess.topicId) return;
+    const ex = normalizeExercises(sess.exercises);
+    const conf = Number(sess.confidence);
+    const hasConf = Number.isFinite(conf) && conf >= 1 && conf <= 5;
+    if (!ex && !hasConf) return;
+    const e = byTopic[sess.topicId] || (byTopic[sess.topicId] = {
+      topicId: sess.topicId, attempts: 0, correct: 0, partial: 0, wrong: 0,
+      confidenceSum: 0, confidenceCount: 0, lastDate: null, lastAccuracy: null
+    });
+    if (ex) {
+      e.correct += ex.correct;
+      e.partial += ex.partial;
+      e.wrong += ex.wrong;
+      e.attempts += ex.correct + ex.partial + ex.wrong;
+      const date = sess.date || "";
+      if (e.lastDate === null || date >= e.lastDate) {
+        e.lastDate = date;
+        e.lastAccuracy = (ex.correct + 0.5 * ex.partial) / (ex.correct + ex.partial + ex.wrong);
+      }
+    }
+    if (hasConf) {
+      e.confidenceSum += conf;
+      e.confidenceCount += 1;
+    }
+  });
+
+  let attempts = 0, correct = 0, partial = 0, wrong = 0, confSum = 0, confCount = 0;
+  Object.values(byTopic).forEach(e => {
+    e.accuracy = e.attempts > 0 ? (e.correct + 0.5 * e.partial) / e.attempts : null;
+    e.avgConfidence = e.confidenceCount > 0 ? e.confidenceSum / e.confidenceCount : null;
+    if (e.accuracy === null) e.mastery = null;
+    else if (e.avgConfidence === null) e.mastery = e.accuracy;
+    else e.mastery = e.accuracy * 0.8 + ((e.avgConfidence - 1) / 4) * 0.2;
+    e.level = getMasteryLevel(e.mastery);
+    attempts += e.attempts; correct += e.correct; partial += e.partial; wrong += e.wrong;
+    confSum += e.confidenceSum; confCount += e.confidenceCount;
+  });
+
+  const isDone = t => Boolean(t.completato !== undefined ? t.completato : t.isCompleted);
+  const completed = (topics || []).filter(isDone);
+  const testedCompleted = completed.filter(t => byTopic[t.id] && byTopic[t.id].attempts > 0).length;
+  const order = new Map((topics || []).map((t, i) => [t.id, i]));
+  const weakTopics = Object.values(byTopic)
+    .filter(e => e.mastery !== null && e.mastery < 0.6)
+    .sort((a, b) => (a.mastery - b.mastery) || ((order.get(a.topicId) ?? 0) - (order.get(b.topicId) ?? 0)))
+    .map(e => ({ topicId: e.topicId, mastery: e.mastery, correct: e.correct, attempts: e.attempts, level: e.level }));
+
+  return {
+    byTopic,
+    attempts,
+    correct,
+    partial,
+    wrong,
+    accuracy: attempts > 0 ? (correct + 0.5 * partial) / attempts : null,
+    avgConfidence: confCount > 0 ? confSum / confCount : null,
+    completedTopics: completed.length,
+    testedCompletedTopics: testedCompleted,
+    coverage: completed.length > 0 ? testedCompleted / completed.length : 0,
+    weakTopics
+  };
+}
+
+/**
  * Heuristic Predictor for Exam Pass Probability & Expected Grade Range
  */
 function calculateExamReadinessAndGrade(topics, metrics) {
@@ -1255,6 +1343,15 @@ function calculateExamReadinessAndGrade(topics, metrics) {
   // 3. Completion progress bonus
   readinessScore += Math.round(completionRate * 25);
 
+  // 4. Padronanza misurata: con abbastanza esercizi svolti senza appunti, la stima
+  //    smette di fidarsi solo delle ore e premia (o penalizza) gli esiti reali.
+  const mastery = metrics.mastery || null;
+  const masteryBased = Boolean(mastery && mastery.attempts >= MASTERY_MIN_ATTEMPTS && mastery.accuracy !== null);
+  if (masteryBased) {
+    const weight = Math.max(0.5, Math.min(1, mastery.coverage || 0));
+    readinessScore += Math.round((mastery.accuracy - 0.6) * 40 * weight);
+  }
+
   readinessScore = Math.max(10, Math.min(98, readinessScore));
 
   let gradeLabel, riskLevel, riskColor;
@@ -1287,7 +1384,11 @@ function calculateExamReadinessAndGrade(topics, metrics) {
     riskColor,
     consistencyRate: Math.round(consistencyRate * 100),
     requiredWeeklyHours: requiredHours,
-    completionPercent: Math.round(completionRate * 100)
+    completionPercent: Math.round(completionRate * 100),
+    masteryBased,
+    masteryAccuracy: mastery && mastery.accuracy !== null ? Math.round(mastery.accuracy * 100) : null,
+    masteryAttempts: mastery ? mastery.attempts : 0,
+    masteryCorrect: mastery ? mastery.correct : 0
   };
 }
 
@@ -2086,6 +2187,8 @@ function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacities = {
     .filter(d => d.isPast || d.isToday)
     .sort((a, b) => b.date.localeCompare(a.date)); // Most recent first
 
+  const masteryStats = calculateMasteryStats(topics, sessions);
+
   return {
     metrics: {
       remainingDays,
@@ -2127,8 +2230,10 @@ function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacities = {
         totalPlanned: allSpacedReviews.length,
         activeReviews: allSpacedReviews.filter(r => !r.isDone && (r.isDueToday || r.isOverdue))
       },
+      mastery: masteryStats,
       // Heuristic Exam Readiness & Expected Grade
       examPrediction: calculateExamReadinessAndGrade(topics, {
+        mastery: masteryStats,
         pastDaysStudied,
         pastDaysSkipped,
         requiredWeeklyHours,
@@ -6262,7 +6367,9 @@ function Dashboard({
                 <span className="text-[13px] font-semibold text-ink-2">Previsione d'esame</span>
                 <h3 className="text-[22px] font-bold tracking-tight mt-0.5">Voto stimato {metrics.examPrediction.gradeLabel}</h3>
                 <p className="text-[13px] text-ink-2 mt-0.5">
-                  Stima basata su ritmo orario, costanza serale e argomenti completati.
+                  {metrics.examPrediction.masteryBased
+                    ? "Stima basata sugli esercizi svolti senza appunti, oltre a ritmo e costanza."
+                    : `Stima basata su ore e costanza. Registra almeno ${MASTERY_MIN_ATTEMPTS} esercizi senza appunti per misurare la padronanza.`}
                 </p>
               </div>
               <span className={`text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${
@@ -6279,7 +6386,8 @@ function Dashboard({
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-auto">
               {[
                 { label: "Probabilità", value: `${metrics.examPrediction.passProbability}%` },
-                { label: "Ritmo richiesto", value: `${fmtNum(metrics.examPrediction.requiredWeeklyHours)} h/sett.` },
+                { label: "Esercizi giusti", value: metrics.examPrediction.masteryAttempts > 0
+                  ? `${metrics.examPrediction.masteryAccuracy}%` : "—" },
                 { label: "Sere attive", value: `${metrics.examPrediction.consistencyRate}%` },
                 { label: "Argomenti chiusi", value: `${metrics.examPrediction.completionPercent}%` }
               ].map(tile => (
@@ -6289,6 +6397,22 @@ function Dashboard({
                 </div>
               ))}
             </div>
+
+            {metrics.mastery && metrics.mastery.weakTopics.length > 0 && (
+              <div className="flex flex-col gap-1.5 border-t border-black/[0.06] pt-3">
+                <span className="text-[13px] font-semibold text-ink-2">Da consolidare</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {metrics.mastery.weakTopics.slice(0, 4).map(w => (
+                    <button key={w.topicId} type="button"
+                      onClick={() => onOpenTopicDetail && onOpenTopicDetail(w.topicId)}
+                      className="text-xs font-medium px-2.5 py-1 rounded-full bg-warn-tint text-warn-ink hover:brightness-95"
+                      title={`${w.level.label}: ${w.correct} giusti su ${w.attempts}`}>
+                      {w.topicId} · {w.correct} su {w.attempts}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </section>
         )}
       </div>
@@ -9896,7 +10020,16 @@ function LogStudyModalContent({
 
   const [isCompleted, setIsCompleted] = useState(false);
   const [hasManuallyToggledComplete, setHasManuallyToggledComplete] = useState(false);
-  const [note, setNote] = useState("");
+  const [note, setNote] = useState(initialData.note || "");
+  // Esercizi d'esame svolti senza appunti e fiducia dichiarata (facoltativi)
+  const [exercises, setExercises] = useState(() => ({
+    correct: Number(initialData.exercises?.correct || 0),
+    partial: Number(initialData.exercises?.partial || 0),
+    wrong: Number(initialData.exercises?.wrong || 0)
+  }));
+  const [confidence, setConfidence] = useState(Number(initialData.confidence || 0));
+  const adjustExercise = (key, delta) => setExercises(prev => ({ ...prev, [key]: Math.max(0, Math.min(20, prev[key] + delta)) }));
+  const exercisesTotal = exercises.correct + exercises.partial + exercises.wrong;
   const [notification, setNotification] = useState(null);
 
   // Sync initialData when modal opens or initialData changes
@@ -10065,7 +10198,9 @@ function LogStudyModalContent({
         date: selectedDate,
         hours: Number(hours),
         completed: Boolean(isCompleted),
-        note: note.trim()
+        note: note.trim(),
+        ...(exercisesTotal > 0 ? { exercises: { ...exercises } } : {}),
+        ...(confidence >= 1 ? { confidence } : {})
       });
     }
 
@@ -10629,7 +10764,49 @@ function LogStudyModalContent({
                 </label>
               </div>
 
-              {/* 5. Note facoltative */}
+              {/* 5. Esiti degli esercizi d'esame senza appunti */}
+              <div className="p-3.5 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[13px] font-semibold text-white">Esercizi d'esame senza appunti</span>
+                  <span className="text-[11px] text-slate-400">
+                    {exercisesTotal > 0 ? `${exercises.correct} su ${exercisesTotal} giusti` : "Facoltativo, ma rende la previsione reale"}
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { key: "correct", label: "Giusti", tone: "text-emerald-400" },
+                    { key: "partial", label: "Parziali", tone: "text-amber-400" },
+                    { key: "wrong", label: "Sbagliati", tone: "text-rose-400" }
+                  ].map(item => (
+                    <div key={item.key} className="bg-slate-900 rounded-xl p-2 flex flex-col items-center gap-1">
+                      <span className={`text-[11px] font-semibold ${item.tone}`}>{item.label}</span>
+                      <div className="flex items-center gap-2">
+                        <button type="button" onClick={() => adjustExercise(item.key, -1)}
+                          aria-label={`${item.label}: meno uno`}
+                          className="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 text-white font-bold">−</button>
+                        <span className="w-5 text-center text-base font-bold text-white tabular">{exercises[item.key]}</span>
+                        <button type="button" onClick={() => adjustExercise(item.key, 1)}
+                          aria-label={`${item.label}: più uno`}
+                          className="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 text-white font-bold">+</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[11px] text-slate-400 mr-1">Quanto ti senti sicuro?</span>
+                  {[1, 2, 3, 4, 5].map(level => (
+                    <button key={level} type="button"
+                      onClick={() => setConfidence(prev => (prev === level ? 0 : level))}
+                      aria-pressed={confidence === level}
+                      className={`w-8 h-8 rounded-full text-xs font-bold transition ${
+                        confidence === level ? "bg-cyan-500 text-white" : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                      }`}>{level}</button>
+                  ))}
+                  <span className="text-[11px] text-slate-500">1 = per niente, 5 = lo spiegherei a un compagno</span>
+                </div>
+              </div>
+
+              {/* 6. Note facoltative */}
               <div>
                 <label className="block text-[11px] font-medium text-slate-400 mb-1">
                   Note di sessione (facoltativo):
@@ -12462,7 +12639,7 @@ function App() {
   }, [topics]);
 
   // Add recorded study session and update topic state
-  const handleLogStudySession = ({ topicId, date, hours, completed, note }) => {
+  const handleLogStudySession = ({ topicId, date, hours, completed, note, exercises, confidence }) => {
     const numHours = Number(hours) || 0;
     const sessionDate = date || settings.currentSimulatedDate;
     const newSession = {
@@ -12472,6 +12649,9 @@ function App() {
       hours: numHours,
       completed: Boolean(completed),
       note: note || "",
+      // Esiti degli esercizi senza appunti e fiducia: alimentano la padronanza
+      ...(normalizeExercises(exercises) ? { exercises: normalizeExercises(exercises) } : {}),
+      ...(Number(confidence) >= 1 && Number(confidence) <= 5 ? { confidence: Number(confidence) } : {}),
       timestamp: new Date().toISOString()
     };
 

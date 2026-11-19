@@ -139,3 +139,15 @@ test("merge: è idempotente (rifondere lo stato fuso non cambia nulla, niente sy
   assert.ok(syncStatesEqual(mergeStudyPlannerStates(once, remote), once));
   assert.ok(syncStatesEqual(mergeStudyPlannerStates(once, once), once));
 });
+
+test("merge: esiti degli esercizi e fiducia di una sessione arrivano sull'altro dispositivo", () => {
+  const local = { topics: [topic("A-01")], studySessions: [] };
+  const remote = { topics: [topic("A-01")], studySessions: [sess("s1", "A-01", 2, { exercises: { correct: 2, partial: 1, wrong: 0 }, confidence: 4 })] };
+  const m = mergeStudyPlannerStates(local, remote);
+  const s1 = m.studySessions.find(s => s.id === "s1");
+  assert.deepStrictEqual(s1.exercises, { correct: 2, partial: 1, wrong: 0 });
+  assert.strictEqual(s1.confidence, 4);
+  // La stessa sessione presente su entrambi i lati senza esiti in locale non perde gli esiti remoti
+  const m2 = mergeStudyPlannerStates({ topics: [topic("A-01")], studySessions: [sess("s1", "A-01", 2)] }, remote);
+  assert.deepStrictEqual(m2.studySessions.find(s => s.id === "s1").exercises, { correct: 2, partial: 1, wrong: 0 });
+});

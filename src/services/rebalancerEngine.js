@@ -67,6 +67,94 @@ export function addDaysToDateStr(dateStr, days) {
 }
 
 /**
+ * Padronanza misurata: esiti degli esercizi d'esame svolti senza appunti.
+ * Ogni sessione può portare `exercises: { correct, partial, wrong }` e `confidence` (1-5).
+ * Un esercizio parziale vale mezzo punto. La padronanza unisce precisione (80%) e
+ * fiducia dichiarata (20%).
+ */
+export const MASTERY_MIN_ATTEMPTS = 5;
+
+export function getMasteryLevel(mastery) {
+  if (mastery === null || mastery === undefined) return { key: "untested", label: "Non verificato" };
+  if (mastery >= 0.8) return { key: "solid", label: "Solida" };
+  if (mastery >= 0.6) return { key: "good", label: "Buona" };
+  if (mastery >= 0.4) return { key: "fragile", label: "Fragile" };
+  return { key: "weak", label: "Da rifare" };
+}
+
+export function normalizeExercises(exercises) {
+  if (!exercises || typeof exercises !== "object") return null;
+  const n = (v) => Math.max(0, Math.floor(Number(v) || 0));
+  const out = { correct: n(exercises.correct), partial: n(exercises.partial), wrong: n(exercises.wrong) };
+  return out.correct + out.partial + out.wrong > 0 ? out : null;
+}
+
+export function calculateMasteryStats(topics = [], studySessions = []) {
+  const byTopic = {};
+  (studySessions || []).forEach(sess => {
+    if (!sess || !sess.topicId) return;
+    const ex = normalizeExercises(sess.exercises);
+    const conf = Number(sess.confidence);
+    const hasConf = Number.isFinite(conf) && conf >= 1 && conf <= 5;
+    if (!ex && !hasConf) return;
+    const e = byTopic[sess.topicId] || (byTopic[sess.topicId] = {
+      topicId: sess.topicId, attempts: 0, correct: 0, partial: 0, wrong: 0,
+      confidenceSum: 0, confidenceCount: 0, lastDate: null, lastAccuracy: null
+    });
+    if (ex) {
+      e.correct += ex.correct;
+      e.partial += ex.partial;
+      e.wrong += ex.wrong;
+      e.attempts += ex.correct + ex.partial + ex.wrong;
+      const date = sess.date || "";
+      if (e.lastDate === null || date >= e.lastDate) {
+        e.lastDate = date;
+        e.lastAccuracy = (ex.correct + 0.5 * ex.partial) / (ex.correct + ex.partial + ex.wrong);
+      }
+    }
+    if (hasConf) {
+      e.confidenceSum += conf;
+      e.confidenceCount += 1;
+    }
+  });
+
+  let attempts = 0, correct = 0, partial = 0, wrong = 0, confSum = 0, confCount = 0;
+  Object.values(byTopic).forEach(e => {
+    e.accuracy = e.attempts > 0 ? (e.correct + 0.5 * e.partial) / e.attempts : null;
+    e.avgConfidence = e.confidenceCount > 0 ? e.confidenceSum / e.confidenceCount : null;
+    if (e.accuracy === null) e.mastery = null;
+    else if (e.avgConfidence === null) e.mastery = e.accuracy;
+    else e.mastery = e.accuracy * 0.8 + ((e.avgConfidence - 1) / 4) * 0.2;
+    e.level = getMasteryLevel(e.mastery);
+    attempts += e.attempts; correct += e.correct; partial += e.partial; wrong += e.wrong;
+    confSum += e.confidenceSum; confCount += e.confidenceCount;
+  });
+
+  const isDone = t => Boolean(t.completato !== undefined ? t.completato : t.isCompleted);
+  const completed = (topics || []).filter(isDone);
+  const testedCompleted = completed.filter(t => byTopic[t.id] && byTopic[t.id].attempts > 0).length;
+  const order = new Map((topics || []).map((t, i) => [t.id, i]));
+  const weakTopics = Object.values(byTopic)
+    .filter(e => e.mastery !== null && e.mastery < 0.6)
+    .sort((a, b) => (a.mastery - b.mastery) || ((order.get(a.topicId) ?? 0) - (order.get(b.topicId) ?? 0)))
+    .map(e => ({ topicId: e.topicId, mastery: e.mastery, correct: e.correct, attempts: e.attempts, level: e.level }));
+
+  return {
+    byTopic,
+    attempts,
+    correct,
+    partial,
+    wrong,
+    accuracy: attempts > 0 ? (correct + 0.5 * partial) / attempts : null,
+    avgConfidence: confCount > 0 ? confSum / confCount : null,
+    completedTopics: completed.length,
+    testedCompletedTopics: testedCompleted,
+    coverage: completed.length > 0 ? testedCompleted / completed.length : 0,
+    weakTopics
+  };
+}
+
+/**
  * Heuristic Predictor for Exam Pass Probability & Expected Grade Range
  */
 export function calculateExamReadinessAndGrade(topics, metrics) {
@@ -101,6 +189,15 @@ export function calculateExamReadinessAndGrade(topics, metrics) {
   // 3. Completion progress bonus
   readinessScore += Math.round(completionRate * 25);
 
+  // 4. Padronanza misurata: con abbastanza esercizi svolti senza appunti, la stima
+  //    smette di fidarsi solo delle ore e premia (o penalizza) gli esiti reali.
+  const mastery = metrics.mastery || null;
+  const masteryBased = Boolean(mastery && mastery.attempts >= MASTERY_MIN_ATTEMPTS && mastery.accuracy !== null);
+  if (masteryBased) {
+    const weight = Math.max(0.5, Math.min(1, mastery.coverage || 0));
+    readinessScore += Math.round((mastery.accuracy - 0.6) * 40 * weight);
+  }
+
   readinessScore = Math.max(10, Math.min(98, readinessScore));
 
   let gradeLabel, riskLevel, riskColor;
@@ -133,7 +230,11 @@ export function calculateExamReadinessAndGrade(topics, metrics) {
     riskColor,
     consistencyRate: Math.round(consistencyRate * 100),
     requiredWeeklyHours: requiredHours,
-    completionPercent: Math.round(completionRate * 100)
+    completionPercent: Math.round(completionRate * 100),
+    masteryBased,
+    masteryAccuracy: mastery && mastery.accuracy !== null ? Math.round(mastery.accuracy * 100) : null,
+    masteryAttempts: mastery ? mastery.attempts : 0,
+    masteryCorrect: mastery ? mastery.correct : 0
   };
 }
 
@@ -932,6 +1033,8 @@ export function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacit
     .filter(d => d.isPast || d.isToday)
     .sort((a, b) => b.date.localeCompare(a.date)); // Most recent first
 
+  const masteryStats = calculateMasteryStats(topics, sessions);
+
   return {
     metrics: {
       remainingDays,
@@ -973,8 +1076,10 @@ export function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacit
         totalPlanned: allSpacedReviews.length,
         activeReviews: allSpacedReviews.filter(r => !r.isDone && (r.isDueToday || r.isOverdue))
       },
+      mastery: masteryStats,
       // Heuristic Exam Readiness & Expected Grade
       examPrediction: calculateExamReadinessAndGrade(topics, {
+        mastery: masteryStats,
         pastDaysStudied,
         pastDaysSkipped,
         requiredWeeklyHours,

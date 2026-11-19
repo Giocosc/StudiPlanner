@@ -15,7 +15,7 @@ import {
 import { NeuraDeckPromptGenerator } from "./NeuraDeckPromptGenerator.js";
 import { ExamSimulator } from "./ExamSimulator.js";
 import { BurndownChart } from "./BurndownChart.js";
-import { DEFAULT_ROADMAP_START_DATE, DEFAULT_TARGET_EXAM_DATE, calculateWeeklyRetrospective } from "../services/rebalancerEngine.js";
+import { DEFAULT_ROADMAP_START_DATE, DEFAULT_TARGET_EXAM_DATE, calculateWeeklyRetrospective, MASTERY_MIN_ATTEMPTS } from "../services/rebalancerEngine.js";
 
 /**
  * Calculates whether the student is ahead, on track, or behind schedule for a subject
@@ -346,7 +346,9 @@ export function Dashboard({
                 <span className="text-[13px] font-semibold text-ink-2">Previsione d'esame</span>
                 <h3 className="text-[22px] font-bold tracking-tight mt-0.5">Voto stimato {metrics.examPrediction.gradeLabel}</h3>
                 <p className="text-[13px] text-ink-2 mt-0.5">
-                  Stima basata su ritmo orario, costanza serale e argomenti completati.
+                  {metrics.examPrediction.masteryBased
+                    ? "Stima basata sugli esercizi svolti senza appunti, oltre a ritmo e costanza."
+                    : `Stima basata su ore e costanza. Registra almeno ${MASTERY_MIN_ATTEMPTS} esercizi senza appunti per misurare la padronanza.`}
                 </p>
               </div>
               <span className={`text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${
@@ -363,7 +365,8 @@ export function Dashboard({
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-auto">
               {[
                 { label: "Probabilità", value: `${metrics.examPrediction.passProbability}%` },
-                { label: "Ritmo richiesto", value: `${fmtNum(metrics.examPrediction.requiredWeeklyHours)} h/sett.` },
+                { label: "Esercizi giusti", value: metrics.examPrediction.masteryAttempts > 0
+                  ? `${metrics.examPrediction.masteryAccuracy}%` : "—" },
                 { label: "Sere attive", value: `${metrics.examPrediction.consistencyRate}%` },
                 { label: "Argomenti chiusi", value: `${metrics.examPrediction.completionPercent}%` }
               ].map(tile => (
@@ -373,6 +376,22 @@ export function Dashboard({
                 </div>
               ))}
             </div>
+
+            {metrics.mastery && metrics.mastery.weakTopics.length > 0 && (
+              <div className="flex flex-col gap-1.5 border-t border-black/[0.06] pt-3">
+                <span className="text-[13px] font-semibold text-ink-2">Da consolidare</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {metrics.mastery.weakTopics.slice(0, 4).map(w => (
+                    <button key={w.topicId} type="button"
+                      onClick={() => onOpenTopicDetail && onOpenTopicDetail(w.topicId)}
+                      className="text-xs font-medium px-2.5 py-1 rounded-full bg-warn-tint text-warn-ink hover:brightness-95"
+                      title={`${w.level.label}: ${w.correct} giusti su ${w.attempts}`}>
+                      {w.topicId} · {w.correct} su {w.attempts}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </section>
         )}
       </div>

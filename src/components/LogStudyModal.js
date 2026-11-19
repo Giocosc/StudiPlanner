@@ -55,7 +55,16 @@ function LogStudyModalContent({
 
   const [isCompleted, setIsCompleted] = useState(false);
   const [hasManuallyToggledComplete, setHasManuallyToggledComplete] = useState(false);
-  const [note, setNote] = useState("");
+  const [note, setNote] = useState(initialData.note || "");
+  // Esercizi d'esame svolti senza appunti e fiducia dichiarata (facoltativi)
+  const [exercises, setExercises] = useState(() => ({
+    correct: Number(initialData.exercises?.correct || 0),
+    partial: Number(initialData.exercises?.partial || 0),
+    wrong: Number(initialData.exercises?.wrong || 0)
+  }));
+  const [confidence, setConfidence] = useState(Number(initialData.confidence || 0));
+  const adjustExercise = (key, delta) => setExercises(prev => ({ ...prev, [key]: Math.max(0, Math.min(20, prev[key] + delta)) }));
+  const exercisesTotal = exercises.correct + exercises.partial + exercises.wrong;
   const [notification, setNotification] = useState(null);
 
   // Sync initialData when modal opens or initialData changes
@@ -224,7 +233,9 @@ function LogStudyModalContent({
         date: selectedDate,
         hours: Number(hours),
         completed: Boolean(isCompleted),
-        note: note.trim()
+        note: note.trim(),
+        ...(exercisesTotal > 0 ? { exercises: { ...exercises } } : {}),
+        ...(confidence >= 1 ? { confidence } : {})
       });
     }
 
@@ -788,7 +799,49 @@ function LogStudyModalContent({
                 </label>
               </div>
 
-              {/* 5. Note facoltative */}
+              {/* 5. Esiti degli esercizi d'esame senza appunti */}
+              <div className="p-3.5 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[13px] font-semibold text-white">Esercizi d'esame senza appunti</span>
+                  <span className="text-[11px] text-slate-400">
+                    {exercisesTotal > 0 ? `${exercises.correct} su ${exercisesTotal} giusti` : "Facoltativo, ma rende la previsione reale"}
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { key: "correct", label: "Giusti", tone: "text-emerald-400" },
+                    { key: "partial", label: "Parziali", tone: "text-amber-400" },
+                    { key: "wrong", label: "Sbagliati", tone: "text-rose-400" }
+                  ].map(item => (
+                    <div key={item.key} className="bg-slate-900 rounded-xl p-2 flex flex-col items-center gap-1">
+                      <span className={`text-[11px] font-semibold ${item.tone}`}>{item.label}</span>
+                      <div className="flex items-center gap-2">
+                        <button type="button" onClick={() => adjustExercise(item.key, -1)}
+                          aria-label={`${item.label}: meno uno`}
+                          className="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 text-white font-bold">−</button>
+                        <span className="w-5 text-center text-base font-bold text-white tabular">{exercises[item.key]}</span>
+                        <button type="button" onClick={() => adjustExercise(item.key, 1)}
+                          aria-label={`${item.label}: più uno`}
+                          className="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 text-white font-bold">+</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[11px] text-slate-400 mr-1">Quanto ti senti sicuro?</span>
+                  {[1, 2, 3, 4, 5].map(level => (
+                    <button key={level} type="button"
+                      onClick={() => setConfidence(prev => (prev === level ? 0 : level))}
+                      aria-pressed={confidence === level}
+                      className={`w-8 h-8 rounded-full text-xs font-bold transition ${
+                        confidence === level ? "bg-cyan-500 text-white" : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                      }`}>{level}</button>
+                  ))}
+                  <span className="text-[11px] text-slate-500">1 = per niente, 5 = lo spiegherei a un compagno</span>
+                </div>
+              </div>
+
+              {/* 6. Note facoltative */}
               <div>
                 <label className="block text-[11px] font-medium text-slate-400 mb-1">
                   Note di sessione (facoltativo):

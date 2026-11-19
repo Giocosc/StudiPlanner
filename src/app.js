@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { INITIAL_TOPICS } from "./data/defaultData.js";
-import { rebalanceStudyPlan, DEFAULT_SETTINGS, getLocalTodayDateStr, clampDayCapacity } from "./services/rebalancerEngine.js";
+import { rebalanceStudyPlan, DEFAULT_SETTINGS, getLocalTodayDateStr, clampDayCapacity, normalizeExercises } from "./services/rebalancerEngine.js";
 import { applySessionToTopic, revertSessionFromTopic, restoreOfficialNotes, stampChangedTopics } from "./services/topicStateService.js";
 import { AlertBanner } from "./components/AlertBanner.js";
 import { Dashboard } from "./components/Dashboard.js";
@@ -745,7 +745,7 @@ export function App() {
   }, [topics]);
 
   // Add recorded study session and update topic state
-  const handleLogStudySession = ({ topicId, date, hours, completed, note }) => {
+  const handleLogStudySession = ({ topicId, date, hours, completed, note, exercises, confidence }) => {
     const numHours = Number(hours) || 0;
     const sessionDate = date || settings.currentSimulatedDate;
     const newSession = {
@@ -755,6 +755,9 @@ export function App() {
       hours: numHours,
       completed: Boolean(completed),
       note: note || "",
+      // Esiti degli esercizi senza appunti e fiducia: alimentano la padronanza
+      ...(normalizeExercises(exercises) ? { exercises: normalizeExercises(exercises) } : {}),
+      ...(Number(confidence) >= 1 && Number(confidence) <= 5 ? { confidence: Number(confidence) } : {}),
       timestamp: new Date().toISOString()
     };
 
