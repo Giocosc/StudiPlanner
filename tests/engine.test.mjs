@@ -1,7 +1,7 @@
 import assert from "assert";
 import { test } from "./harness.mjs";
 import { INITIAL_TOPICS } from "../src/data/defaultData.js";
-import { rebalanceStudyPlan } from "../src/services/rebalancerEngine.js";
+import { rebalanceStudyPlan, calculateExamReadinessAndGrade } from "../src/services/rebalancerEngine.js";
 
 const freshTopics = () => INITIAL_TOPICS.map(t => ({ ...t, completato: false, isCompleted: false, oreEffettive: 0 }));
 const idNum = id => parseInt(String(id).match(/\d+/)[0], 10);
@@ -94,4 +94,20 @@ test("motore: un argomento non completato con ore >= stima resta nel piano", () 
   const parts = scheduledChunks(plan).filter(c => c.id === "A-01");
   assert.ok(parts.length > 0, "A-01 deve restare pianificato");
   assert.ok(plan.progress.analisi.remainingHours > 0);
+});
+
+test("metriche: ritmo richiesto 0 (tutto finito) non viene trattato come 20h", () => {
+  const done = freshTopics().map(t => ({ ...t, completato: true }));
+  const zero = calculateExamReadinessAndGrade(done, { requiredWeeklyHours: 0, pastDaysStudied: 1, pastDaysSkipped: 9 });
+  const twenty = calculateExamReadinessAndGrade(done, { requiredWeeklyHours: 20, pastDaysStudied: 1, pastDaysSkipped: 9 });
+  assert.ok(zero.readinessScore > twenty.readinessScore);
+  assert.strictEqual(zero.requiredWeeklyHours, 0);
+});
+
+test("metriche: nell'ultima settimana il ritmo richiesto non è sottostimato", () => {
+  const topics = freshTopics().map(t => (t.id === "A-01" ? t : { ...t, completato: true }));
+  const plan = rebalanceStudyPlan(topics, { currentSimulatedDate: "2027-01-07" });
+  // 3 giorni residui: ritmo = ore / (3/7)
+  const expected = Number((plan.metrics.totalRemainingEffectiveHours / (3 / 7)).toFixed(1));
+  assert.strictEqual(plan.metrics.requiredWeeklyHours, expected);
 });

@@ -39,7 +39,10 @@ export function calculateExamReadinessAndGrade(topics, metrics) {
   const pastDaysTotal = (metrics.pastDaysStudied || 0) + (metrics.pastDaysSkipped || 0);
   const consistencyRate = pastDaysTotal > 0 ? (metrics.pastDaysStudied || 0) / pastDaysTotal : 1.0;
 
-  const requiredHours = metrics.requiredWeeklyHours || 20;
+  // 0 è un valore valido (tutto completato): il fallback scatta solo se il dato manca
+  const requiredHours = Number.isFinite(Number(metrics.requiredWeeklyHours)) && metrics.requiredWeeklyHours !== null
+    ? Number(metrics.requiredWeeklyHours)
+    : 20;
 
   let readinessScore = 55; // baseline
 
@@ -520,7 +523,9 @@ export function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacit
     : (settings.criticalWeeklyHoursThreshold || 25.0);
 
   // Required weekly pace to finish by targetExamDate
-  const requiredWeeklyHours = Number((totalRemainingEffectiveHours / Math.max(1, remainingWeeks)).toFixed(1));
+  // Si usa il numero esatto di giorni residui: con meno di una settimana al traguardo il ritmo
+  // settimanale richiesto cresce (prima veniva diviso per almeno 1 settimana e sottostimato).
+  const requiredWeeklyHours = Number((totalRemainingEffectiveHours / (Math.max(1, remainingDays) / 7)).toFixed(1));
   const isCriticalOverload = requiredWeeklyHours > dynamicCriticalThreshold;
 
   // 2. Generate FULL calendar from roadmapStartDate to targetExamDate
