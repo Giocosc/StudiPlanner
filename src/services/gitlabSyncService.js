@@ -443,6 +443,20 @@ export function mergeStudyPlannerStates(localState = {}, remoteState = {}) {
     () => (localState.mathBugs && localState.mathBugs.length > 0 ? localState.mathBugs : remoteState.mathBugs)
   );
 
+  // Temi d'esame: unione per id meno i cancellati; a parità di id vince updatedAt più recente
+  const deletedMockIds = new Set([
+    ...(remoteState.deletedMockExamIds || []),
+    ...(localState.deletedMockExamIds || [])
+  ]);
+  const mockMap = new Map();
+  [...(remoteState.mockExams || []), ...(localState.mockExams || [])].forEach(exam => {
+    if (!exam || !exam.id || deletedMockIds.has(exam.id)) return;
+    const existing = mockMap.get(exam.id);
+    if (!existing || syncTs(exam.updatedAt) >= syncTs(existing.updatedAt)) mockMap.set(exam.id, exam);
+  });
+  const mergedMockExams = Array.from(mockMap.values())
+    .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")) || String(a.id).localeCompare(String(b.id)));
+
   const mergedMeta = {};
   ["settingsUpdatedAt", "capacitiesUpdatedAt", "mathBugsUpdatedAt"].forEach(key => {
     const value = Math.max(syncTs(localMeta[key]), syncTs(remoteMeta[key]));
@@ -456,6 +470,8 @@ export function mergeStudyPlannerStates(localState = {}, remoteState = {}) {
     customDayCapacities: mergedCapacities,
     settings: mergedSettings,
     mathBugs: mergedMathBugs,
+    mockExams: mergedMockExams,
+    deletedMockExamIds: Array.from(deletedMockIds),
     syncMeta: mergedMeta
   };
 }
@@ -478,6 +494,8 @@ export function buildSyncPayload(state = {}) {
     syncMeta: state.syncMeta || {}
   };
   if (state.mathBugs !== undefined) payload.mathBugs = state.mathBugs;
+  if (state.mockExams !== undefined) payload.mockExams = state.mockExams;
+  if (state.deletedMockExamIds !== undefined) payload.deletedMockExamIds = state.deletedMockExamIds;
   return payload;
 }
 

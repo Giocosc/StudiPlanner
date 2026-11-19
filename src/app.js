@@ -54,6 +54,8 @@ const LOCAL_STORAGE_KEY_CUSTOM_CAPACITIES = "unimore_rebalancer_custom_capacitie
 const LOCAL_STORAGE_KEY_SESSIONS = "unimore_rebalancer_sessions_v2";
 const LOCAL_STORAGE_KEY_DELETED_SESSIONS = "unimore_rebalancer_deleted_sessions_v1";
 const LOCAL_STORAGE_KEY_SYNC_META = "unimore_rebalancer_sync_meta_v1";
+const LOCAL_STORAGE_KEY_MOCK_EXAMS = "unimore_rebalancer_mock_exams_v1";
+const LOCAL_STORAGE_KEY_DELETED_MOCK_EXAMS = "unimore_rebalancer_deleted_mock_exams_v1";
 
 const loadJson = (key, fallback) => {
   try {
@@ -189,6 +191,19 @@ export function App() {
   const [syncMeta, setSyncMeta] = useState(() => loadJson(LOCAL_STORAGE_KEY_SYNC_META, {}));
   useEffect(() => { persistJson(LOCAL_STORAGE_KEY_DELETED_SESSIONS, deletedSessionIds); }, [deletedSessionIds]);
   useEffect(() => { persistJson(LOCAL_STORAGE_KEY_SYNC_META, syncMeta); }, [syncMeta]);
+
+  // Temi d'esame a tempo (sincronizzati come le sessioni, con tombstone)
+  const [mockExams, setMockExams] = useState(() => loadJson(LOCAL_STORAGE_KEY_MOCK_EXAMS, []));
+  const [deletedMockExamIds, setDeletedMockExamIds] = useState(() => loadJson(LOCAL_STORAGE_KEY_DELETED_MOCK_EXAMS, []));
+  useEffect(() => { persistJson(LOCAL_STORAGE_KEY_MOCK_EXAMS, mockExams); }, [mockExams]);
+  useEffect(() => { persistJson(LOCAL_STORAGE_KEY_DELETED_MOCK_EXAMS, deletedMockExamIds); }, [deletedMockExamIds]);
+  const handleSaveMockExam = (exam) => {
+    setMockExams(prev => [exam, ...prev.filter(e => e.id !== exam.id)]);
+  };
+  const handleDeleteMockExam = (examId) => {
+    setMockExams(prev => prev.filter(e => e.id !== examId));
+    setDeletedMockExamIds(prev => (prev.includes(examId) ? prev : [...prev, examId]));
+  };
 
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
   const [logModalInitialData, setLogModalInitialData] = useState({});
@@ -394,7 +409,8 @@ export function App() {
           settings,
           topics,
           customDayCapacities,
-          studySessions
+          studySessions,
+          mockExams
         };
         await writable.write(JSON.stringify(backupData, null, 2));
         await writable.close();
@@ -420,7 +436,7 @@ export function App() {
     return () => {
       isMounted = false;
     };
-  }, [topics, settings, customDayCapacities, studySessions, fileHandle]);
+  }, [topics, settings, customDayCapacities, studySessions, mockExams, fileHandle]);
 
   // Connect file handle using File System Access API
   const handleConnectFileSystem = async () => {
@@ -455,6 +471,9 @@ export function App() {
           if (backup.studySessions && Array.isArray(backup.studySessions)) {
             setStudySessions(backup.studySessions);
           }
+          if (Array.isArray(backup.mockExams)) {
+            setMockExams(backup.mockExams);
+          }
           imported = true;
         }
       } catch (e) {
@@ -479,7 +498,8 @@ export function App() {
           settings,
           topics,
           customDayCapacities,
-          studySessions
+          studySessions,
+          mockExams
         }, null, 2));
         await writable.close();
       } catch (err) {
@@ -511,7 +531,8 @@ export function App() {
         settings,
         topics,
         customDayCapacities,
-        studySessions
+        studySessions,
+        mockExams
       }, null, 2));
       await writable.close();
       setFsSyncStatus({
@@ -531,7 +552,7 @@ export function App() {
   // solo se serve, con controllo di concorrenza (last_commit_id): più dispositivi
   // aperti contemporaneamente non si sovrascrivono a vicenda.
   const latestSyncStateRef = useRef(null);
-  latestSyncStateRef.current = { topics, settings, customDayCapacities, studySessions, deletedSessionIds, mathBugs, syncMeta };
+  latestSyncStateRef.current = { topics, settings, customDayCapacities, studySessions, deletedSessionIds, mathBugs, mockExams, deletedMockExamIds, syncMeta };
   const gitlabConfigRef = useRef(gitlabConfig);
   gitlabConfigRef.current = gitlabConfig;
   const syncInFlightRef = useRef(false);
@@ -565,6 +586,12 @@ export function App() {
     if (Array.isArray(merged.mathBugs) && differs(merged.mathBugs, cur.mathBugs)) {
       remoteAppliedRef.current.mathBugsUpdatedAt = stableStringify(merged.mathBugs);
       setMathBugs(merged.mathBugs);
+    }
+    if (Array.isArray(merged.mockExams) && differs(merged.mockExams, cur.mockExams)) {
+      setMockExams(merged.mockExams);
+    }
+    if (Array.isArray(merged.deletedMockExamIds) && differs(merged.deletedMockExamIds, cur.deletedMockExamIds)) {
+      setDeletedMockExamIds(merged.deletedMockExamIds);
     }
     if (merged.syncMeta && differs(merged.syncMeta, cur.syncMeta)) {
       setSyncMeta(merged.syncMeta);
@@ -640,7 +667,7 @@ export function App() {
     if (!gitlabConfig?.autoSync || !isGitLabReady(gitlabConfig)) return;
     const timer = setTimeout(() => { runGitLabSync().catch(() => {}); }, 2500);
     return () => clearTimeout(timer);
-  }, [topics, settingsSyncKey(settings), customDayCapacities, studySessions, deletedSessionIds, mathBugs, gitlabConfig?.enabled, gitlabConfig?.autoSync]);
+  }, [topics, settingsSyncKey(settings), customDayCapacities, studySessions, deletedSessionIds, mathBugs, mockExams, deletedMockExamIds, gitlabConfig?.enabled, gitlabConfig?.autoSync]);
 
   // 3. Rientrando nell'app (focus/scheda visibile) si scaricano le modifiche degli altri dispositivi
   useEffect(() => {
@@ -707,8 +734,8 @@ export function App() {
 
   // Reactive Rebalancing calculation
   const rebalancedPlan = useMemo(() => {
-    return rebalanceStudyPlan(topics, settings, customDayCapacities, studySessions);
-  }, [topics, settings, customDayCapacities, studySessions]);
+    return rebalanceStudyPlan(topics, settings, customDayCapacities, studySessions, mockExams);
+  }, [topics, settings, customDayCapacities, studySessions, mockExams]);
 
   const { metrics, weeklyPlans, progress, historyDays } = rebalancedPlan;
 
@@ -1163,6 +1190,9 @@ export function App() {
                 onOpenTopicDetail={handleOpenTopicDetail}
                 onToggleSpacedReview={handleToggleSpacedReview}
                 onLogStudySession={handleLogStudySession}
+                mockExams={mockExams}
+                onSaveMockExam={handleSaveMockExam}
+                onDeleteMockExam={handleDeleteMockExam}
                 mathBugs={mathBugs}
                 onOpenBugTracker={() => setIsBugTrackerOpen(true)}
                 currentWeekPlan={rebalancedPlan.currentWeekPlan}

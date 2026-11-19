@@ -275,6 +275,63 @@ export function getTonightFocus(todayPlan, targetExamDate) {
 }
 
 /**
+ * Temi d'esame a tempo: un tema vero per materia a settimana nelle ultime 4 settimane
+ * (da metà dicembre con l'esame del 10 gennaio). Analisi 120 minuti, Geometria 90.
+ * Ogni tema: { id, date, subject: "analisi" | "geometria", durationMin, score, maxScore, note, updatedAt }.
+ */
+export const MOCK_EXAM_SUBJECTS = {
+  analisi: { label: "Analisi I", durationMin: 120 },
+  geometria: { label: "Geometria", durationMin: 90 }
+};
+export const MOCK_EXAM_WEEKS_BEFORE_EXAM = 4;
+
+export function getMockExamStartDate(targetExamDate) {
+  return addDaysToDateStr(targetExamDate || DEFAULT_TARGET_EXAM_DATE, -7 * MOCK_EXAM_WEEKS_BEFORE_EXAM);
+}
+
+const mockExamPct = (e) => {
+  const max = Number(e.maxScore) > 0 ? Number(e.maxScore) : 30;
+  return Math.max(0, Math.min(1, Number(e.score || 0) / max));
+};
+
+export function calculateMockExamStats(mockExams = [], currentDate, targetExamDate) {
+  const exams = (mockExams || []).filter(e => e && e.id && MOCK_EXAM_SUBJECTS[e.subject] && e.date);
+  const startDate = getMockExamStartDate(targetExamDate);
+  const bySubject = {};
+  Object.keys(MOCK_EXAM_SUBJECTS).forEach(subject => {
+    const list = exams.filter(e => e.subject === subject)
+      .sort((a, b) => a.date.localeCompare(b.date) || String(a.updatedAt || "").localeCompare(String(b.updatedAt || "")))
+      .map(e => ({ ...e, pct: mockExamPct(e) }));
+    const last = list[list.length - 1] || null;
+    const prev = list[list.length - 2] || null;
+    // Settimana corrente: 7 giorni che terminano oggi, a partire dall'avvio dei temi
+    const weekStart = addDaysToDateStr(currentDate, -6);
+    const doneThisWeek = list.some(e => e.date >= weekStart && e.date <= currentDate);
+    bySubject[subject] = {
+      subject,
+      label: MOCK_EXAM_SUBJECTS[subject].label,
+      durationMin: MOCK_EXAM_SUBJECTS[subject].durationMin,
+      points: list,
+      count: list.length,
+      last,
+      best: list.reduce((acc, e) => (acc === null || e.pct > acc.pct ? e : acc), null),
+      delta: last && prev ? last.pct - prev.pct : null,
+      recentAvg: list.length > 0 ? list.slice(-2).reduce((acc, e) => acc + e.pct, 0) / Math.min(2, list.length) : null,
+      doneThisWeek,
+      isDueThisWeek: Boolean(currentDate >= startDate && currentDate < (targetExamDate || "9999-12-31") && !doneThisWeek)
+    };
+  });
+  const withScores = Object.values(bySubject).filter(s => s.recentAvg !== null);
+  return {
+    startDate,
+    isActive: Boolean(currentDate >= startDate),
+    bySubject,
+    total: exams.length,
+    recentAvg: withScores.length > 0 ? withScores.reduce((acc, s) => acc + s.recentAvg, 0) / withScores.length : null
+  };
+}
+
+/**
  * Heuristic Predictor for Exam Pass Probability & Expected Grade Range
  */
 export function calculateExamReadinessAndGrade(topics, metrics) {
@@ -318,6 +375,13 @@ export function calculateExamReadinessAndGrade(topics, metrics) {
     readinessScore += Math.round((mastery.accuracy - 0.6) * 40 * weight);
   }
 
+  // 5. Temi d'esame a tempo: il segnale più vicino all'esame vero
+  const mockStats = metrics.mockExams || null;
+  const mockBased = Boolean(mockStats && mockStats.recentAvg !== null && mockStats.total > 0);
+  if (mockBased) {
+    readinessScore += Math.round((mockStats.recentAvg - 0.6) * 40);
+  }
+
   readinessScore = Math.max(10, Math.min(98, readinessScore));
 
   let gradeLabel, riskLevel, riskColor;
@@ -352,6 +416,8 @@ export function calculateExamReadinessAndGrade(topics, metrics) {
     requiredWeeklyHours: requiredHours,
     completionPercent: Math.round(completionRate * 100),
     masteryBased,
+    mockBased,
+    mockRecentPct: mockBased ? Math.round(mockStats.recentAvg * 100) : null,
     masteryAccuracy: mastery && mastery.accuracy !== null ? Math.round(mastery.accuracy * 100) : null,
     masteryAttempts: mastery ? mastery.attempts : 0,
     masteryCorrect: mastery ? mastery.correct : 0
@@ -776,7 +842,7 @@ function allocateSequentialChunks(days, analisiQueue, geometriaQueue, finalWeekS
  * 3. Shifts topics forward automatically if days were missed.
  * 4. Pulls topics forward automatically if ahead of schedule.
  */
-export function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacities = {}, studySessions = []) {
+export function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacities = {}, studySessions = [], mockExams = []) {
   const settings = { ...DEFAULT_SETTINGS, ...customSettings };
   const dayCapacities = (customDayCapacities && typeof customDayCapacities === "object" && Object.keys(customDayCapacities).length > 0)
     ? customDayCapacities
@@ -1130,6 +1196,7 @@ export function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacit
     .sort((a, b) => b.date.localeCompare(a.date)); // Most recent first
 
   const masteryStats = calculateMasteryStats(topics, sessions);
+  const mockExamStats = calculateMockExamStats(mockExams, settings.currentSimulatedDate, settings.targetExamDate);
 
   return {
     metrics: {
@@ -1174,9 +1241,11 @@ export function rebalanceStudyPlan(topics, customSettings = {}, customDayCapacit
         activeReviews: allSpacedReviews.filter(r => !r.isDone && (r.isDueToday || r.isOverdue))
       },
       mastery: masteryStats,
+      mockExams: mockExamStats,
       // Heuristic Exam Readiness & Expected Grade
       examPrediction: calculateExamReadinessAndGrade(topics, {
         mastery: masteryStats,
+        mockExams: mockExamStats,
         pastDaysStudied,
         pastDaysSkipped,
         requiredWeeklyHours,

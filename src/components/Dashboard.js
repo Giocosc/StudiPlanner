@@ -16,6 +16,7 @@ import { NeuraDeckPromptGenerator } from "./NeuraDeckPromptGenerator.js";
 import { ExamSimulator } from "./ExamSimulator.js";
 import { BurndownChart } from "./BurndownChart.js";
 import { TonightFocus } from "./TonightFocus.js";
+import { MockExamPanel } from "./MockExamPanel.js";
 import { DEFAULT_ROADMAP_START_DATE, DEFAULT_TARGET_EXAM_DATE, calculateWeeklyRetrospective, MASTERY_MIN_ATTEMPTS, getTonightFocus } from "../services/rebalancerEngine.js";
 
 /**
@@ -88,6 +89,9 @@ export function Dashboard({
   onOpenTopicDetail,
   onToggleSpacedReview,
   onLogStudySession,
+  mockExams = [],
+  onSaveMockExam,
+  onDeleteMockExam,
   mathBugs = [],
   onOpenBugTracker,
   currentWeekPlan = null,
@@ -357,7 +361,9 @@ export function Dashboard({
                 <span className="text-[13px] font-semibold text-ink-2">Previsione d'esame</span>
                 <h3 className="text-[22px] font-bold tracking-tight mt-0.5">Voto stimato {metrics.examPrediction.gradeLabel}</h3>
                 <p className="text-[13px] text-ink-2 mt-0.5">
-                  {metrics.examPrediction.masteryBased
+                  {metrics.examPrediction.mockBased
+                    ? `Stima basata sui temi d'esame a tempo (media recente ${metrics.examPrediction.mockRecentPct}%), oltre a esercizi, ritmo e costanza.`
+                    : metrics.examPrediction.masteryBased
                     ? "Stima basata sugli esercizi svolti senza appunti, oltre a ritmo e costanza."
                     : `Stima basata su ore e costanza. Registra almeno ${MASTERY_MIN_ATTEMPTS} esercizi senza appunti per misurare la padronanza.`}
                 </p>
@@ -406,6 +412,15 @@ export function Dashboard({
           </section>
         )}
       </div>
+
+      {/* Temi d'esame settimanali a tempo */}
+      <MockExamPanel
+        stats={metrics.mockExams}
+        settings={settings}
+        mockExams={mockExams}
+        onSaveMockExam={onSaveMockExam}
+        onDeleteMockExam={onDeleteMockExam}
+      />
 
       {/* Main Two Progress Bars with Real-Time Pacing Indicators (Analisi 1 & Geometria) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">

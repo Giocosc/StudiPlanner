@@ -301,3 +301,31 @@ test("stasera: una sola azione dal giorno attivo", async () => {
   assert.strictEqual(done.studiedHours, 2);
   assert.strictEqual(getTonightFocus(null).kind, "none");
 });
+
+test("temi d'esame: settimana, curva e peso nella previsione", async () => {
+  const { calculateMockExamStats, getMockExamStartDate, calculateExamReadinessAndGrade } = await import("../src/services/rebalancerEngine.js");
+  assert.strictEqual(getMockExamStartDate("2027-01-10"), "2026-12-13");
+  const exams = [
+    { id: "a1", date: "2026-12-13", subject: "analisi", durationMin: 120, score: 15, maxScore: 30 },
+    { id: "a2", date: "2026-12-20", subject: "analisi", durationMin: 120, score: 21, maxScore: 30 },
+    { id: "g1", date: "2026-12-14", subject: "geometria", durationMin: 90, score: 24, maxScore: 30 }
+  ];
+  const st = calculateMockExamStats(exams, "2026-12-22", "2027-01-10");
+  assert.strictEqual(st.isActive, true);
+  assert.strictEqual(st.bySubject.analisi.count, 2);
+  assert.strictEqual(st.bySubject.analisi.last.id, "a2");
+  assert.ok(Math.abs(st.bySubject.analisi.delta - 0.2) < 1e-9);
+  assert.strictEqual(st.bySubject.analisi.doneThisWeek, true);
+  assert.strictEqual(st.bySubject.geometria.isDueThisWeek, true, "ultimo tema di Geometria più vecchio di 7 giorni");
+  assert.strictEqual(calculateMockExamStats([], "2026-11-19", "2027-01-10").bySubject.analisi.isDueThisWeek, false);
+
+  const base = { pastDaysStudied: 10, pastDaysSkipped: 0, requiredWeeklyHours: 20 };
+  const plain = calculateExamReadinessAndGrade(freshTopics(), base);
+  const withMock = calculateExamReadinessAndGrade(freshTopics(), { ...base, mockExams: { total: 3, recentAvg: 0.3 } });
+  assert.strictEqual(withMock.mockBased, true);
+  assert.ok(withMock.readinessScore < plain.readinessScore);
+
+  const plan = rebalanceStudyPlan(freshTopics(), { currentSimulatedDate: "2026-12-22" }, {}, [], exams);
+  assert.strictEqual(plan.metrics.mockExams.total, 3);
+  assert.strictEqual(plan.metrics.examPrediction.mockBased, true);
+});

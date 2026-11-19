@@ -151,3 +151,21 @@ test("merge: esiti degli esercizi e fiducia di una sessione arrivano sull'altro 
   const m2 = mergeStudyPlannerStates({ topics: [topic("A-01")], studySessions: [sess("s1", "A-01", 2)] }, remote);
   assert.deepStrictEqual(m2.studySessions.find(s => s.id === "s1").exercises, { correct: 2, partial: 1, wrong: 0 });
 });
+
+test("merge: temi d'esame uniti per id, cancellazioni propagate, vince updatedAt", () => {
+  const exam = (id, score, updatedAt) => ({ id, date: "2026-12-14", subject: "analisi", durationMin: 120, score, maxScore: 30, updatedAt });
+  const local = { topics: [topic("A-01")], studySessions: [], mockExams: [exam("m1", 18, 100), exam("m2", 20, 100)], deletedMockExamIds: ["m3"] };
+  const remote = { topics: [topic("A-01")], studySessions: [], mockExams: [exam("m1", 21, 200), exam("m3", 25, 100), exam("m4", 15, 100)] };
+  const m = mergeStudyPlannerStates(local, remote);
+  const ids = m.mockExams.map(e => e.id).sort();
+  assert.deepStrictEqual(ids, ["m1", "m2", "m4"]);
+  assert.strictEqual(m.mockExams.find(e => e.id === "m1").score, 21);
+  assert.deepStrictEqual(m.deletedMockExamIds, ["m3"]);
+  // Idempotente e incluso nel payload
+  assert.ok(syncStatesEqual(m, mergeStudyPlannerStates(m, m)));
+  assert.strictEqual(buildSyncPayload(m).mockExams.length, 3);
+  // Dati remoti legacy senza temi: nessuna differenza fittizia
+  const legacy = { topics: [topic("A-01")], studySessions: [] };
+  assert.ok(syncStatesEqual(mergeStudyPlannerStates(legacy, legacy), mergeStudyPlannerStates(legacy, legacy)));
+  assert.deepStrictEqual(mergeStudyPlannerStates(legacy, legacy).mockExams, []);
+});
